@@ -1,0 +1,1362 @@
+@page
+@model TalaPress.Pages.MenusModel
+@{
+    ViewData["Title"] = "إدارة القوائم";
+}
+
+@section Styles {
+    <style>
+        html[dir="rtl"] #menuItemForm .form-label,
+        html[dir="rtl"] #menuItemForm .form-text,
+        html[dir="rtl"] #menuForm .form-label {
+            display: block;
+            text-align: right;
+        }
+
+        html[dir="ltr"] #menuItemForm .form-label,
+        html[dir="ltr"] #menuItemForm .form-text,
+        html[dir="ltr"] #menuForm .form-label {
+            display: block;
+            text-align: left;
+        }
+
+        .mb-3 {
+            margin-bottom: .8rem !important;
+        }
+
+        .form-control,
+        .form-select,
+        .input-group-text,
+        .btn {
+            min-height: 42px;
+        }
+
+        .form-text {
+            margin-top: .3rem;
+            font-size: .78rem;
+        }
+
+        .tp-link-binding-card {
+            padding: .85rem;
+            border: 1px solid rgba(13, 110, 253, .18);
+            background: rgba(13, 110, 253, .045);
+            border-radius: .75rem;
+        }
+
+        /* Highlight classes for selected node */
+        .tp-tree-node.active-node {
+            background-color: var(--bs-warning-bg-subtle, rgba(255, 193, 7, 0.15)) !important;
+            border-color: var(--bs-warning, #ffc107) !important;
+        }
+
+        /* Auto-complete search result styling */
+        #content-search-results {
+            background-color: var(--bs-body-bg);
+            border: 1px solid var(--bs-border-color);
+            max-height: 250px;
+            overflow-y: auto;
+            border-radius: 0.5rem;
+        }
+        #content-search-results .list-group-item {
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border-color: var(--bs-border-color-translucent);
+            color: var(--bs-body-color);
+            background-color: transparent;
+        }
+        #content-search-results .list-group-item:hover {
+            background-color: rgba(13, 110, 253, 0.1);
+        }
+    </style>
+}
+
+<!-- SECONDARY HEADER -->
+<section class="tp-sub-header">
+    <div class="container-fluid px-4">
+        <div class="row align-items-center">
+            <div class="col-md-7 mb-3 mb-md-0">
+                <h1 data-tp-i18n="menusTitle">إدارة القوائم والملاحة</h1>
+                <p data-tp-i18n="menusDesc">أنشئ وأدر قوائم الموقع (مثل القائمة الرئيسية، وقوائم الفوتر)، ونظم عناصر الملاحة والروابط بالسحب والإفلات.</p>
+            </div>
+            <div class="col-md-5 text-md-end">
+                <a asp-page="/Index" class="btn tp-btn-outline-light me-2">
+                    <i class="bi bi-house-door-fill"></i> <span data-tp-i18n="home">الرئيسية</span>
+                </a>
+                <button class="btn btn-light rounded-circle shadow-sm tp-sub-header-btn-icon" onclick="location.reload()" title="Reload Page">
+                    <i class="bi bi-arrow-clockwise text-primary fs-5"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- MAIN CONTAINER -->
+<main class="container-fluid px-4 pb-5">
+    
+    <!-- SYSTEM ALERTS -->
+    @if (!string.IsNullOrEmpty(Model.SuccessMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm rounded-3 mb-4" role="alert">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-check-circle-fill me-2 fs-5"></i>
+                <div class="fw-bold">@Model.SuccessMessage</div>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm rounded-3 mb-4" role="alert">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
+                <div class="fw-bold">@Model.ErrorMessage</div>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <!-- SELECT MENU BAR -->
+    <div class="tp-card mb-4">
+        <div class="tp-card-body py-3">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <form method="get" class="d-flex align-items-center gap-2 flex-grow-1" style="max-width: 500px;">
+                    <label class="text-nowrap fw-bold mb-0" data-tp-i18n="selectMenuLabel">اختر القائمة المراد تعديلها:</label>
+                    <select name="menuId" class="form-select bg-body-tertiary border-0" onchange="this.form.submit()">
+                        <option value="" data-tp-i18n="selectMenuDefault">-- اختر قائمة --</option>
+                        @foreach (var m in Model.MenusList)
+                        {
+                            <!option value="@m.Id" data-name-ar="@m.Name" data-name-en="@m.Name_En" data-code="@m.Code" @(Model.SelectedMenuId == m.Id ? "selected" : "")>
+                                @(m.Name) (@(m.Code))
+                            </!option>
+                        }
+                    </select>
+                </form>
+                <div>
+                    <button class="btn btn-outline-primary fw-bold" onclick="showCreateMenuMode()">
+                        <i class="bi bi-plus-circle-fill"></i>
+                        <span data-tp-i18n="btnCreateNewMenu">إنشاء قائمة جديدة</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MENU CREATOR / EDIT SETTINGS PANEL -->
+    <div id="menu-settings-container" class="tp-card mb-4 @(Model.SelectedMenuId.HasValue ? "smart-form-edit-mode" : "smart-form-add-mode")" style="display: @(Model.MenusList.Count == 0 || Model.SelectedMenuId == null ? "block" : "none")">
+        <div class="tp-card-header d-flex align-items-center justify-content-between">
+            <h5 id="menu-settings-title">
+                <i class="bi bi-plus-circle text-primary me-2"></i>
+                <span id="menu-settings-header-text" data-tp-i18n="menuCreateBtn">إنشاء قائمة جديدة</span>
+            </h5>
+            @if (Model.SelectedMenuId.HasValue)
+            {
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleMenuSettingsCard()">
+                    <i class="bi bi-x-lg"></i> <span data-tp-i18n="menuCloseBtn">إغلاق الإعدادات</span>
+                </button>
+            }
+        </div>
+        <div class="tp-card-body">
+            <form method="post" asp-page-handler="SaveMenu" id="menuForm">
+                <input type="hidden" asp-for="ManageMenuId" id="menu-ManageMenuId" value="@(Model.SelectedMenu?.Id ?? 0)" />
+
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label fw-bold"><span data-tp-i18n="menuNameAr">اسم القائمة بالعربية</span> <span class="text-danger">*</span></label>
+                        <input type="text" asp-for="ManageMenuName" id="menu-ManageMenuName" class="form-control" placeholder="مثال: القائمة الرئيسية" data-tp-i18n="menuNameArPlaceholder" value="@(Model.SelectedMenu?.Name ?? "")" required />
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label" data-tp-i18n="menuNameEn">اسم القائمة بالإنجليزية</label>
+                        <input type="text" asp-for="ManageMenuName_En" id="menu-ManageMenuName_En" class="form-control" placeholder="Example: Main Menu" data-tp-i18n="menuNameEnPlaceholder" value="@(Model.SelectedMenu?.Name_En ?? "")" />
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label fw-bold" data-tp-i18n="menuCode">كود القائمة (فريد)</label>
+                        <input type="text" asp-for="ManageMenuCode" id="menu-ManageMenuCode" class="form-control" placeholder="example: main-menu" data-tp-i18n="menuCodePlaceholder" value="@(Model.SelectedMenu?.Code ?? "")" dir="ltr" />
+                        <div class="form-text" data-tp-i18n="menuCodeHelp">كود برمجي فريد للاستدعاء (يتم توليده تلقائياً من الاسم إذا ترك فارغاً).</div>
+                    </div>
+                </div>
+
+                <div class="d-flex align-items-center justify-content-between mt-2">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" name="ManageMenuIsActive" value="true" id="menu-ManageMenuIsActive" @(Model.SelectedMenu == null || Model.SelectedMenu.IsActive ? "checked" : "") />
+                        <input type="hidden" name="ManageMenuIsActive" value="false" />
+                        <label class="form-check-label fw-bold text-success ms-2" for="menu-ManageMenuIsActive" data-tp-i18n="menuIsActive">نشطة ومفعلة</label>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary px-4 fw-bold" id="menu-save-btn">
+                            <i class="bi bi-check-circle"></i>
+                            <span data-tp-i18n="@(Model.SelectedMenuId.HasValue ? "menuSaveBtn" : "menuCreateBtn")">@(Model.SelectedMenuId.HasValue ? "حفظ الإعدادات" : "إنشاء القائمة")</span>
+                        </button>
+                        @if (Model.SelectedMenuId.HasValue && Model.SelectedMenu != null)
+                        {
+                            <button type="button" class="btn btn-outline-danger" onclick="deleteMenu(@Model.SelectedMenuId.Value, '@(Model.SelectedMenu.Name)')">
+                                <i class="bi bi-trash"></i> <span data-tp-i18n="menuDeleteBtn">حذف القائمة بالكامل</span>
+                            </button>
+                        }
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    @if (Model.SelectedMenuId.HasValue && Model.SelectedMenu != null)
+    {
+        <!-- ACTIVE MENU EDITING STRUCTURE -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="mb-0">
+                <i class="bi bi-folder-symlink text-primary me-2"></i>
+                <span data-tp-i18n="menuStructure">بنية القائمة:</span> <strong id="selected-menu-title" class="text-primary" data-name-ar="@Model.SelectedMenu.Name" data-name-en="@Model.SelectedMenu.Name_En">@Model.SelectedMenu.Name</strong>
+            </h4>
+            <button class="btn btn-outline-secondary btn-sm" onclick="toggleMenuSettingsCard()">
+                <i class="bi bi-gear-fill me-1"></i> <span data-tp-i18n="menuSettingsBtn">إعدادات القائمة</span>
+            </button>
+        </div>
+
+        <div class="row">
+            
+            <!-- COLUMN 1: Menu Items Hierarchy Tree -->
+            <div class="col-lg-5 mb-4">
+                <div class="tp-card h-100 mb-0">
+                    <div class="tp-card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-diagram-3 text-primary fs-5"></i>
+                            <h5 data-tp-i18n="itemsTreeHeader">عناصر القائمة</h5>
+                            <span class="badge bg-primary rounded-pill" id="tree-count-badge">0</span>
+                        </div>
+                        <div class="d-flex gap-1">
+                            <button class="btn btn-sm btn-outline-secondary py-1 tp-font-xs" onclick="expandAll()" title="Expand All">
+                                <i class="bi bi-arrows-expand"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary py-1 tp-font-xs" onclick="collapseAll()" title="Collapse All">
+                                <i class="bi bi-arrows-collapse"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="tp-card-body">
+                        <!-- Search Bar -->
+                        <div class="input-group mb-3 shadow-sm rounded-3 tp-overflow-hidden">
+                            <span class="input-group-text border-0 bg-body-tertiary"><i class="bi bi-search text-muted"></i></span>
+                            <input type="text" id="tree-search" class="form-control border-0 bg-body-tertiary" placeholder="ابحث عن عنصر..." data-tp-i18n="searchItemPlaceholder" />
+                            <button class="btn btn-outline-secondary border-0 bg-body-tertiary text-muted d-none" type="button" id="btn-clear-search" onclick="document.getElementById('tree-search').value = ''; renderTree();">
+                                <i class="bi bi-x-circle-fill"></i>
+                            </button>
+                        </div>
+                        
+                        <!-- Add Root Item Button -->
+                        <button class="btn btn-outline-primary w-100 mb-3 py-2 border-dashed fw-bold rounded-3 d-flex align-items-center justify-content-center gap-2" onclick="setAddMode(null)">
+                            <i class="bi bi-plus-circle"></i>
+                            <span data-tp-i18n="addNewRootItem">إضافة عنصر رئيسي جديد</span>
+                        </button>
+                        
+                        <!-- Tree Container -->
+                        <div class="tp-tree-container">
+                            <div id="tree-root">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- COLUMN 2: Item Form Panel -->
+            <div class="col-lg-7 mb-4">
+                <div class="tp-card h-100 mb-0" id="form-card">
+                    <div class="tp-card-header">
+                        <h5 id="form-header-title">
+                            <i class="bi bi-plus-circle text-primary me-2"></i>
+                            <span id="form-header-title-text" data-tp-i18n="addNewItem">إضافة عنصر جديد</span>
+                        </h5>
+                    </div>
+                    
+                    <div class="tp-card-body">
+                        <form method="post" asp-page-handler="SaveItem" id="menuItemForm">
+                            <!-- Hidden Fields -->
+                            <input type="hidden" asp-for="Id" id="form-Id" />
+                            <input type="hidden" asp-for="MenuId" id="form-MenuId" value="@Model.SelectedMenuId.Value" />
+                            <input type="hidden" id="form-parentid-hidden" />
+                            
+                            <!-- Breadcrumb Hierarchy -->
+                            <div id="form-breadcrumb" class="tp-form-breadcrumb d-none mb-3"></div>
+
+                            <!-- Name fields (Arabic and English ALWAYS visible side-by-side) -->
+                            <div class="row mb-3">
+                                <div class="col-md-6 mb-3 mb-md-0">
+                                    <label class="form-label fw-bold"><span data-tp-i18n="itemTitleAr">عنوان الرابط بالعربي</span> <span class="text-danger">*</span></label>
+                                    <input type="text" asp-for="Title" class="form-control" id="form-title" placeholder="مثال: من نحن" data-tp-i18n="itemTitleArPlaceholder" required />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold" data-tp-i18n="itemTitleEn">عنوان الرابط بالإنجليزي</label>
+                                    <input type="text" asp-for="Title_En" class="form-control" id="form-title-en" placeholder="Example: About Us" data-tp-i18n="itemTitleEnPlaceholder" />
+                                </div>
+                            </div>
+
+                            <!-- Link Type Select Option -->
+                            <div class="mb-3">
+                                <label class="form-label fw-bold" data-tp-i18n="linkType">نوع الرابط الموجه</label>
+                                <select id="link-type-selector" class="form-select">
+                                    <option value="custom" data-tp-i18n="linkTypeCustom">رابط مخصص (Custom Link)</option>
+                                    <option value="content" data-tp-i18n="linkTypeContent">ربط بمحتوى ديناميكي (Linked Content)</option>
+                                </select>
+                            </div>
+
+                            <!-- Link Options Sub-cards -->
+                            <!-- Option A: Custom Link Wrapper -->
+                            <div class="mb-3 tp-link-binding-card" id="custom-link-wrapper">
+                                <label class="form-label fw-bold" data-tp-i18n="customUrl">الرابط المخصص (URL)</label>
+                                <input type="text" asp-for="Url" class="form-control" id="form-url" placeholder="/about-us أو https://google.com" data-tp-i18n="customUrlPlaceholder" dir="ltr" />
+                            </div>
+
+                            <!-- Option B: Content Bind Wrapper -->
+                            <div class="mb-3 tp-link-binding-card" id="content-link-wrapper" style="display: none;">
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label fw-bold" data-tp-i18n="contentTypeLabel">نوع المحتوى</label>
+                                        <select asp-for="ContentTypeId" class="form-select" id="form-contenttypeid">
+                                            <option value="" data-tp-i18n="contentTypeDefault">-- اختر نوع محتوى --</option>
+                                            @foreach (var ct in Model.ContentTypesList)
+                                            {
+                                                <option value="@ct.Id">@ct.Name</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label fw-bold" data-tp-i18n="categoryLabel">التصنيف (اختياري)</label>
+                                        <select asp-for="CategoryId" class="form-select" id="form-categoryid">
+                                            <option value="" data-tp-i18n="categoryDefault">-- كل التصنيفات --</option>
+                                            <!-- Dynamically populated or loaded via JS based on selected content type -->
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="mb-2 position-relative">
+                                    <label class="form-label fw-bold" data-tp-i18n="contentSearchLabel">البحث عن المقال واختياره</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-body-tertiary"><i class="bi bi-search"></i></span>
+                                        <input type="text" id="content-search-input" class="form-control" placeholder="اكتب اسم المحتوى للبحث..." data-tp-i18n="contentSearchPlaceholder" autocomplete="off" />
+                                    </div>
+                                    <input type="hidden" asp-for="ContentId" id="form-contentid" />
+                                    
+                                    <!-- Autocomplete Dropdown list -->
+                                    <div id="content-search-results" class="list-group position-absolute w-100 shadow-sm z-3 d-none">
+                                        <!-- Search results populated via JS -->
+                                    </div>
+                                </div>
+
+                                <div id="selected-content-preview" class="text-info fw-bold fs-8 mt-1" style="display: none;">
+                                    <i class="bi bi-link-45deg"></i> <span data-tp-i18n="selectedContentPrefix">المحتوى المحدد حالياً:</span> <span id="selected-content-title"></span>
+                                </div>
+                            </div>
+
+                            <!-- Parent Menu Item Selection -->
+                            <div class="mb-3">
+                                <label class="form-label" data-tp-i18n="parentItem">العنصر الأب</label>
+                                <select asp-for="ParentId" class="form-select" id="form-parentid">
+                                    <!-- Populated dynamically -->
+                                </select>
+                            </div>
+
+                            <!-- Icon Selection -->
+                            <div class="mb-3">
+                                <label class="form-label" data-tp-i18n="itemIcon">أيقونة العنصر (اختياري)</label>
+                                <div class="input-group">
+                                    <span class="input-group-text fs-5" id="form-icon-preview"><i class="bi bi-link-45deg"></i></span>
+                                    <input type="text" asp-for="IconValue" class="form-control" id="form-iconvalue" placeholder="bi-link-45deg" />
+                                    <button class="btn btn-outline-secondary" type="button" id="btn-toggle-icon-grid" title="Browse Icon Gallery">
+                                        <i class="bi bi-grid-3x3-gap-fill"></i>
+                                    </button>
+                                </div>
+                                
+                                <div id="icon-grid-container" class="collapse mt-2">
+                                    <div class="input-group mb-2 input-group-sm">
+                                        <span class="input-group-text bg-body-tertiary"><i class="bi bi-search text-muted"></i></span>
+                                        <input type="text" id="icon-search-input" class="form-control form-control-sm bg-body-tertiary" placeholder="ابحث عن أيقونة..." data-tp-i18n="itemIconSearch" />
+                                    </div>
+                                    <div class="tp-icon-selector-grid" id="icon-selector-grid">
+                                        <!-- Populated dynamically -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Row: SortOrder and Status -->
+                            <div class="row align-items-center mb-4">
+                                <div class="col-md-6 mb-3 mb-md-0">
+                                    <label class="form-label" data-tp-i18n="sortOrderLabel">ترتيب العرض</label>
+                                    <input type="number" asp-for="SortOrder" class="form-control" id="form-sortorder" min="0" value="0" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" data-tp-i18n="statusLabel">الحالة</label>
+                                    <div class="form-check form-switch mt-2">
+                                        <input class="form-check-input" type="checkbox" asp-for="IsActive" id="form-isactive" checked />
+                                        <label class="form-check-label fw-bold text-success ms-2" for="form-isactive" id="label-isactive" data-tp-i18n="statusActive">نشط ومفعل</label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Form Action Buttons -->
+                            <div class="d-flex flex-wrap gap-2">
+                                <button type="submit" class="btn btn-primary px-4 fw-bold" id="form-save-btn">
+                                    <i class="bi bi-plus-circle fs-6"></i>
+                                    <span id="btn-save-text" data-tp-i18n="saveNewItemBtn">إضافة العنصر الجديد</span>
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary px-4 d-none" id="form-cancel-btn" onclick="cancelEdit()">
+                                    <i class="bi bi-x-circle fs-6"></i>
+                                    <span data-tp-i18n="cancelBtn">إلغاء</span>
+                                </button>
+                                <button type="button" class="btn btn-danger px-4 ms-auto d-none" id="form-delete-btn">
+                                    <i class="bi bi-trash fs-6"></i>
+                                    <span data-tp-i18n="deleteItemBtn">حذف العنصر</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    }
+    else if (Model.MenusList.Count > 0)
+    {
+        <!-- fallback notification if database has menus but none is loaded/selected -->
+        <div class="text-center py-5">
+            <h5 class="text-muted" data-tp-i18n="noMenusMessage">الرجاء اختيار قائمة من الأعلى للبدء بتعديلها أو إدارة هيكلها.</h5>
+        </div>
+    }
+    else
+    {
+        <!-- database is empty of menus altogether -->
+        <div class="tp-card">
+            <div class="tp-card-body text-center py-5">
+                <i class="bi bi-list-nested text-secondary display-3 mb-3"></i>
+                <h4 data-tp-i18n="emptyDatabaseTitle">لا توجد أي قوائم حالياً في نظام TalaPress.</h4>
+                <p class="text-muted" data-tp-i18n="emptyDatabaseDesc">ابدأ بإنشاء أول قائمة لموقعك (مثل القائمة الرئيسية) عبر تعبئة النموذج بالأعلى.</p>
+            </div>
+        </div>
+    }
+</main>
+
+<!-- Hidden forms for delete posts -->
+<form method="post" asp-page-handler="DeleteMenu" id="deleteMenuForm" class="d-none">
+    <input type="hidden" name="id" id="delete-menu-id" />
+</form>
+<form method="post" asp-page-handler="DeleteItem" id="deleteItemForm" class="d-none">
+    <input type="hidden" name="id" id="delete-item-id" />
+    <input type="hidden" name="menuId" value="@(Model.SelectedMenuId ?? 0)" />
+</form>
+
+@section Scripts {
+    <script src="~/assets/js/sortable.min.js" asp-append-version="true"></script>
+    <script>
+        // Server variables serialized to client JS
+        const rawMenuItems = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.MenuItemsList));
+        const rawContentTypes = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.ContentTypesList));
+        const rawCategories = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.CategoriesList));
+
+        // Preset Icons list
+        const presetIcons = [
+            "bi-house-door-fill", "bi-link-45deg", "bi-file-text", "bi-newspaper", "bi-play-circle",
+            "bi-images", "bi-info-circle", "bi-telephone", "bi-envelope", "bi-people", "bi-gear-fill",
+            "bi-folder-fill", "bi-tags-fill", "bi-star-fill", "bi-heart-fill", "bi-cart-fill", "bi-bookmark-fill",
+            "bi-chat-quote-fill", "bi-globe", "bi-shield-lock-fill", "bi-briefcase-fill", "bi-calendar-event"
+        ];
+
+        // Selected Menu Item Form state
+        const formState = {
+            mode: 'add',
+            id: 0,
+            title: '',
+            titleEn: '',
+            linkType: 'custom', // custom or content
+            url: '',
+            contentTypeId: null,
+            categoryId: null,
+            contentId: null,
+            contentTitle: '',
+            parentId: null,
+            iconValue: 'bi-link-45deg',
+            sortOrder: 0,
+            isActive: true
+        };
+
+        const collapsedNodes = new Set();
+        let currentLang = localStorage.getItem('tp-lang') || 'ar';
+        let debounceTimer;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initLanguageSync();
+            populateIconGrid();
+            
+            if (rawMenuItems && rawMenuItems.length >= 0) {
+                document.getElementById('tree-count-badge').textContent = rawMenuItems.length;
+                syncStateToForm();
+                setupFormListeners();
+                setupSearchListener();
+                setupLinkTypeToggle();
+                setupContentSearchAutocomplete();
+            }
+        });
+
+        // Dynamic page orientation/text sync
+        function initLanguageSync() {
+            applyPageTranslations(currentLang);
+            window.addEventListener('tp-lang-changed', (e) => {
+                applyPageTranslations(e.detail.lang);
+            });
+        }
+
+        const pageTranslations = {
+            ar: {
+                menusTitle: "إدارة القوائم والملاحة",
+                menusDesc: "أنشئ وأدر قوائم الموقع (مثل القائمة الرئيسية، وقوائم الفوتر)، ونظم عناصر الملاحة والروابط بالسحب والإفلات.",
+                selectMenuLabel: "اختر القائمة المراد تعديلها:",
+                selectMenuDefault: "-- اختر قائمة --",
+                btnCreateNewMenu: "إنشاء قائمة جديدة",
+                itemsTreeHeader: "عناصر القائمة",
+                noItems: "لا توجد عناصر مضافة لهذه القائمة حالياً.",
+                activeBadge: "نشط",
+                inactiveBadge: "معطل",
+                validationTitleAr: "عنوان العنصر بالعربية مطلوب.",
+                errorDeleteChildren: "لا يمكن حذف هذا العنصر لأنه يحتوي على عناصر ملاحة فرعية.",
+                confirmDeleteItem: "هل أنت متأكد من رغبتك في حذف عنصر القائمة هذا؟",
+                confirmDeleteMenu: "تحذير: سيؤدي حذف القائمة إلى إزالة كافة العناصر والروابط التابعة لها نهائياً! هل أنت متأكد؟",
+                editItem: "تعديل العنصر",
+                saveChanges: "حفظ التغييرات",
+                rootItemOption: "-- عنصر رئيسي (بدون أب) --",
+                addNewItem: "إضافة العنصر الجديد",
+                addNewItemTitle: "إضافة عنصر جديد",
+                addSubItem: "إضافة عنصر فرعي",
+                deleteItem: "حذف العنصر"
+            },
+            en: {
+                menusTitle: "Navigation Menus",
+                menusDesc: "Create and manage website navigation menus. Organize items and hierarchical nested structures using drag-and-drop.",
+                selectMenuLabel: "Select menu to edit:",
+                selectMenuDefault: "-- Select Menu --",
+                btnCreateNewMenu: "Create New Menu",
+                itemsTreeHeader: "Menu Items Structure",
+                noItems: "No items added to this menu yet.",
+                activeBadge: "Active",
+                inactiveBadge: "Inactive",
+                validationTitleAr: "Arabic Title is required.",
+                errorDeleteChildren: "Cannot delete this item because it contains sub-items.",
+                confirmDeleteItem: "Are you sure you want to delete this menu item?",
+                confirmDeleteMenu: "WARNING: Deleting the menu will permanently erase all associated items and links! Proceed?",
+                editItem: "Edit Item",
+                saveChanges: "Save Changes",
+                rootItemOption: "-- Root Item (No Parent) --",
+                addNewItem: "Add New Item",
+                addNewItemTitle: "Add New Item",
+                addSubItem: "Add Sub-item",
+                deleteItem: "Delete Item"
+            }
+        };
+
+        function applyPageTranslations(lang) {
+            currentLang = lang;
+            const elements = document.querySelectorAll('[data-page-i18n]');
+            elements.forEach(el => {
+                const key = el.getAttribute('data-page-i18n');
+                if (pageTranslations[lang] && pageTranslations[lang][key]) {
+                    el.textContent = pageTranslations[lang][key];
+                }
+            });
+
+            // Update dropdown options
+            document.querySelectorAll('select[name="menuId"] option').forEach(opt => {
+                if (opt.value) {
+                    const nameAr = opt.getAttribute('data-name-ar');
+                    const nameEn = opt.getAttribute('data-name-en');
+                    const code = opt.getAttribute('data-code');
+                    const displayName = (lang === 'en' && nameEn) ? nameEn : (nameAr || "");
+                    opt.textContent = `${displayName} (${code})`;
+                }
+            });
+
+            // Update menu structure title
+            const menuTitleEl = document.getElementById('selected-menu-title');
+            if (menuTitleEl) {
+                const nameAr = menuTitleEl.getAttribute('data-name-ar');
+                const nameEn = menuTitleEl.getAttribute('data-name-en');
+                menuTitleEl.textContent = (lang === 'en' && nameEn) ? nameEn : (nameAr || "");
+            }
+
+            if (rawMenuItems && rawMenuItems.length >= 0) {
+                renderTree(document.getElementById('tree-search').value.trim());
+                updateParentDropdown();
+                document.getElementById('form-parentid').value = formState.parentId || '';
+            }
+
+            updateSwitchLabel();
+        }
+
+        // --- Tree Builder & Renderers ---
+        function buildTree(list, parentId = null) {
+            return list.filter(item => {
+                if (parentId === null) {
+                    return item.ParentId === null || item.ParentId === 0;
+                }
+                return Number(item.ParentId) === Number(parentId);
+            }).map(item => ({
+                ...item,
+                children: buildTree(list, item.Id)
+            }));
+        }
+
+        function renderTree(query = '') {
+            const root = document.getElementById('tree-root');
+            if (!root) return;
+            root.innerHTML = '';
+            
+            if (rawMenuItems.length === 0) {
+                root.innerHTML = `<div class="text-center text-muted py-4">${pageTranslations[currentLang].noItems}</div>`;
+                return;
+            }
+            
+            const treeData = buildTree(rawMenuItems);
+            let html = '<ul class="tp-tree-list">';
+            treeData.forEach(node => {
+                html += renderNode(node, 0, query);
+            });
+            html += '</ul>';
+            
+            root.innerHTML = html;
+            initSortable();
+            
+            const clearBtn = document.getElementById('btn-clear-search');
+            if (query) {
+                clearBtn.classList.remove('d-none');
+            } else {
+                clearBtn.classList.add('d-none');
+            }
+        }
+
+        function renderNode(node, depth, query) {
+            const hasChildren = node.children && node.children.length > 0;
+            const isCollapsed = collapsedNodes.has(node.Id) && !query;
+            const titleText = currentLang === 'ar' ? node.Title : (node.Title_En || node.Title);
+            const isActive = node.IsActive;
+            const isEditing = Number(node.Id) === Number(formState.id);
+            
+            // Search matching
+            if (query && !isNodeMatch(node, query)) {
+                return '';
+            }
+
+            // Resolve dynamic link badge label
+            let typeLabel = "رابط مخصص / Custom";
+            if (node.ContentId) {
+                typeLabel = currentLang === 'ar' ? `مقال: ${node.ContentTitle || 'محدَّد'}` : `Post: ${node.ContentTitleEn || node.ContentTitle || 'Selected'}`;
+            } else if (node.CategoryId) {
+                typeLabel = currentLang === 'ar' ? `قسم: ${node.CategoryName}` : `Category: ${node.CategoryNameEn || node.CategoryName}`;
+            } else if (node.ContentTypeId) {
+                typeLabel = currentLang === 'ar' ? `نوع: ${node.ContentTypeName}` : `Type: ${node.ContentTypeNameEn || node.ContentTypeName}`;
+            }
+            
+            let html = `<li class="tp-tree-item" id="node-${node.Id}">`;
+            html += `
+                <div class="tp-tree-node ${isActive ? '' : 'inactive-node'} ${isEditing ? 'active-node' : ''}" 
+                     data-id="${node.Id}" 
+                     onclick="selectMenuItem(${node.Id})">
+                    
+                    <span class="tp-drag-handle">
+                        <i class="bi bi-grip-vertical"></i>
+                    </span>
+                    
+                    <div class="tp-tree-node-content">
+                        ${hasChildren ? `
+                            <span class="tp-tree-toggle-btn ${isCollapsed ? 'collapsed' : ''}" 
+                                  onclick="event.stopPropagation(); toggleNode(${node.Id})">
+                                <i class="bi bi-chevron-down"></i>
+                            </span>
+                        ` : `<span class="tp-tree-indent-spacer"></span>`}
+                        
+                        <span class="tp-tree-node-icon">
+                            <i class="${node.IconValue || 'bi bi-link-45deg'}"></i>
+                        </span>
+                        
+                        <span class="tp-tree-node-text">${titleText}</span>
+                        <span class="badge bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle fs-9 tp-font-xxs mx-1">${typeLabel}</span>
+                        
+                        ${!isActive ? `
+                            <span class="badge bg-danger rounded-pill fs-9 tp-font-xxs">
+                                ${pageTranslations[currentLang].inactiveBadge}
+                            </span>
+                        ` : ''}
+                    </div>
+                    
+                    <div class="tp-tree-node-actions">
+                        <button class="tp-tree-btn" 
+                                type="button" 
+                                title="${pageTranslations[currentLang].addSubItem}" 
+                                onclick="event.stopPropagation(); setAddMode(${node.Id})">
+                            <i class="bi bi-plus-circle text-primary"></i>
+                        </button>
+                        <button class="tp-tree-btn btn-delete" 
+                                type="button" 
+                                title="${pageTranslations[currentLang].deleteItem}" 
+                                onclick="event.stopPropagation(); deleteMenuItem(${node.Id}, '${titleText.replace(/'/g, "\\'")}')">
+                            <i class="bi bi-trash text-danger"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            html += `<ul class="tp-tree-list mt-2 ${isCollapsed ? 'd-none' : ''}">`;
+            if (hasChildren) {
+                node.children.forEach(child => {
+                    html += renderNode(child, depth + 1, query);
+                });
+            }
+            html += '</ul>';
+            html += '</li>';
+            return html;
+        }
+
+        function isNodeMatch(node, query) {
+            if (!query) return true;
+            const titleAr = (node.Title || "").toLowerCase();
+            const titleEn = (node.Title_En || "").toLowerCase();
+            const q = query.toLowerCase();
+            
+            if (titleAr.includes(q) || titleEn.includes(q)) {
+                return true;
+            }
+            
+            if (node.children && node.children.length > 0) {
+                return node.children.some(child => isNodeMatch(child, query));
+            }
+            return false;
+        }
+
+        function toggleNode(id) {
+            if (collapsedNodes.has(id)) {
+                collapsedNodes.delete(id);
+            } else {
+                collapsedNodes.add(id);
+            }
+            renderTree(document.getElementById('tree-search').value.trim());
+        }
+
+        function expandAll() {
+            collapsedNodes.clear();
+            renderTree(document.getElementById('tree-search').value.trim());
+        }
+
+        function collapseAll() {
+            collapsedNodes.clear();
+            rawMenuItems.forEach(mi => {
+                const hasChildren = rawMenuItems.some(child => Number(child.ParentId) === Number(mi.Id));
+                if (hasChildren) {
+                    collapsedNodes.add(mi.Id);
+                }
+            });
+            renderTree(document.getElementById('tree-search').value.trim());
+        }
+
+        // --- Form management ---
+        function selectMenuItem(id) {
+            const item = rawMenuItems.find(m => Number(m.Id) === Number(id));
+            if (!item) return;
+
+            formState.mode = 'edit';
+            formState.id = item.Id;
+            formState.title = item.Title;
+            formState.titleEn = item.Title_En || '';
+            formState.linkType = (item.ContentTypeId || item.CategoryId || item.ContentId) ? 'content' : 'custom';
+            formState.url = item.Url || '';
+            formState.contentTypeId = item.ContentTypeId;
+            formState.categoryId = item.CategoryId;
+            formState.contentId = item.ContentId;
+            formState.contentTitle = item.ContentTitle || '';
+            formState.parentId = item.ParentId;
+            formState.iconValue = item.IconValue || 'bi-link-45deg';
+            formState.sortOrder = item.SortOrder;
+            formState.isActive = item.IsActive;
+
+            syncStateToForm();
+            if (window.innerWidth < 992) {
+                document.getElementById('form-card').scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        function setAddMode(parentId = null) {
+            formState.mode = 'add';
+            formState.id = 0;
+            formState.title = '';
+            formState.titleEn = '';
+            formState.linkType = 'custom';
+            formState.url = '';
+            formState.contentTypeId = null;
+            formState.categoryId = null;
+            formState.contentId = null;
+            formState.contentTitle = '';
+            formState.parentId = parentId;
+            formState.iconValue = 'bi-link-45deg';
+            formState.sortOrder = 0;
+            formState.isActive = true;
+
+            syncStateToForm();
+            if (window.innerWidth < 992) {
+                document.getElementById('form-card').scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        function cancelEdit() {
+            setAddMode(null);
+        }
+
+        function syncStateToForm() {
+            document.getElementById('form-Id').value = formState.id;
+            document.getElementById('form-title').value = formState.title;
+            document.getElementById('form-title-en').value = formState.titleEn;
+            document.getElementById('link-type-selector').value = formState.linkType;
+            document.getElementById('form-url').value = formState.url;
+            document.getElementById('form-contenttypeid').value = formState.contentTypeId || '';
+            
+            // Populates/filters categories based on content type:
+            updateCategoryDropdown();
+            document.getElementById('form-categoryid').value = formState.categoryId || '';
+            
+            document.getElementById('form-contentid').value = formState.contentId || '';
+            document.getElementById('content-search-input').value = formState.contentTitle || '';
+
+            const preview = document.getElementById('selected-content-preview');
+            if (formState.contentId && formState.contentTitle) {
+                preview.style.display = 'block';
+                document.getElementById('selected-content-title').textContent = formState.contentTitle;
+            } else {
+                preview.style.display = 'none';
+            }
+
+            document.getElementById('form-iconvalue').value = formState.iconValue;
+            updateIconPreview(formState.iconValue);
+
+            document.getElementById('form-sortorder').value = formState.sortOrder;
+            
+            const activeCheckbox = document.getElementById('form-isactive');
+            activeCheckbox.checked = formState.isActive;
+            updateSwitchLabel();
+
+            updateParentDropdown();
+            document.getElementById('form-parentid').value = formState.parentId || '';
+            document.getElementById('form-parentid-hidden').value = formState.parentId || '';
+
+            toggleLinkTypeWrappers();
+            updateFormHeaderMode();
+        }
+
+        function toggleLinkTypeWrappers() {
+            const linkType = document.getElementById('link-type-selector').value;
+            const customWrapper = document.getElementById('custom-link-wrapper');
+            const contentWrapper = document.getElementById('content-link-wrapper');
+
+            if (linkType === 'custom') {
+                customWrapper.style.display = 'block';
+                contentWrapper.style.display = 'none';
+            } else {
+                customWrapper.style.display = 'none';
+                contentWrapper.style.display = 'block';
+            }
+        }
+
+        function updateSwitchLabel() {
+            const label = document.getElementById('label-isactive');
+            const activeCheckbox = document.getElementById('form-isactive');
+            if (!label || !activeCheckbox) return;
+            if (activeCheckbox.checked) {
+                label.textContent = pageTranslations[currentLang].activeBadge;
+                label.className = 'form-check-label fw-bold text-success ms-2';
+            } else {
+                label.textContent = pageTranslations[currentLang].inactiveBadge;
+                label.className = 'form-check-label fw-bold text-danger ms-2';
+            }
+        }
+
+        function updateCategoryDropdown() {
+            const ctSelect = document.getElementById('form-contenttypeid');
+            const catSelect = document.getElementById('form-categoryid');
+            if (!catSelect) return;
+
+            const selectedCtId = ctSelect.value ? Number(ctSelect.value) : null;
+            catSelect.innerHTML = '<option value="">-- كل التصنيفات --</option>';
+
+            const filteredCats = rawCategories.filter(c => {
+                if (selectedCtId === null) return true;
+                return c.ContentTypeId === null || Number(c.ContentTypeId) === selectedCtId;
+            });
+
+            filteredCats.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.Id;
+                opt.textContent = currentLang === 'ar' ? c.Name : (c.Name_En || c.Name);
+                catSelect.appendChild(opt);
+            });
+        }
+
+        function updateParentDropdown() {
+            const select = document.getElementById('form-parentid');
+            if (!select) return;
+            select.innerHTML = `<option value="">${pageTranslations[currentLang].rootItemOption}</option>`;
+
+            const forbiddenIds = new Set();
+            if (formState.id > 0) {
+                forbiddenIds.add(Number(formState.id));
+                const addDescendants = (id) => {
+                    const children = rawMenuItems.filter(m => Number(m.ParentId) === Number(id));
+                    for (const child of children) {
+                        forbiddenIds.add(Number(child.Id));
+                        addDescendants(child.Id);
+                    }
+                };
+                addDescendants(formState.id);
+            }
+
+            const traverse = (nodes, depth = 0) => {
+                nodes.forEach(node => {
+                    if (forbiddenIds.has(Number(node.Id))) return;
+                    const opt = document.createElement('option');
+                    opt.value = node.Id;
+                    const prefix = '&nbsp;&nbsp;'.repeat(depth) + (depth > 0 ? '├─ ' : '');
+                    const nameText = currentLang === 'ar' ? node.Title : (node.Title_En || node.Title);
+                    opt.innerHTML = prefix + nameText;
+                    select.appendChild(opt);
+                    
+                    if (node.children && node.children.length > 0) {
+                        traverse(node.children, depth + 1);
+                    }
+                });
+            };
+
+            const treeData = buildTree(rawMenuItems);
+            traverse(treeData);
+        }
+
+        function updateFormHeaderMode() {
+            const card = document.getElementById('form-card');
+            const headerTitle = document.getElementById('form-header-title');
+            const saveBtn = document.getElementById('form-save-btn');
+            const cancelBtn = document.getElementById('form-cancel-btn');
+            const deleteBtn = document.getElementById('form-delete-btn');
+            const breadcrumb = document.getElementById('form-breadcrumb');
+
+            if (formState.mode === 'edit') {
+                headerTitle.innerHTML = `<i class="bi bi-pencil-square text-warning me-2"></i> <span data-tp-i18n="editItem">${pageTranslations[currentLang].editItem}</span> <small class="text-muted fs-7">(رقم: ${formState.id})</small>`;
+                saveBtn.innerHTML = `<i class="bi bi-check2-circle fs-6"></i> <span data-tp-i18n="saveEditItemBtn">${pageTranslations[currentLang].saveChanges}</span>`;
+                saveBtn.className = 'btn btn-warning px-4 fw-bold';
+                
+                cancelBtn.classList.remove('d-none');
+                deleteBtn.classList.remove('d-none');
+
+                let pathText = "";
+                if (formState.parentId) {
+                    const parent = rawMenuItems.find(m => Number(m.Id) === Number(formState.parentId));
+                    if (parent) {
+                        pathText = `${currentLang === 'ar' ? parent.Title : (parent.Title_En || parent.Title)} &gt; `;
+                    }
+                }
+                pathText += currentLang === 'ar' ? formState.title : (formState.titleEn || formState.title);
+                breadcrumb.innerHTML = pathText;
+                breadcrumb.classList.remove('d-none');
+            } else {
+                headerTitle.innerHTML = `<i class="bi bi-plus-circle text-primary me-2"></i> <span data-tp-i18n="addNewItem">${pageTranslations[currentLang].addNewItemTitle}</span>`;
+                saveBtn.innerHTML = `<i class="bi bi-plus-circle fs-6"></i> <span data-tp-i18n="saveNewItemBtn">${pageTranslations[currentLang].addNewItem}</span>`;
+                saveBtn.className = 'btn btn-primary px-4 fw-bold';
+
+                cancelBtn.classList.add('d-none');
+                deleteBtn.classList.add('d-none');
+                breadcrumb.classList.add('d-none');
+            }
+        }
+
+        // --- Event Listeners and Setup ---
+        function setupFormListeners() {
+            document.getElementById('form-title').addEventListener('input', (e) => {
+                formState.title = e.target.value;
+            });
+            document.getElementById('form-title-en').addEventListener('input', (e) => {
+                formState.titleEn = e.target.value;
+            });
+            document.getElementById('form-url').addEventListener('input', (e) => {
+                formState.url = e.target.value;
+            });
+            document.getElementById('form-iconvalue').addEventListener('input', (e) => {
+                formState.iconValue = e.target.value;
+                updateIconPreview(formState.iconValue);
+            });
+            document.getElementById('form-sortorder').addEventListener('input', (e) => {
+                formState.sortOrder = Number(e.target.value) || 0;
+            });
+            document.getElementById('form-isactive').addEventListener('change', (e) => {
+                formState.isActive = e.target.checked;
+                updateSwitchLabel();
+            });
+
+            document.getElementById('form-parentid').addEventListener('change', (e) => {
+                formState.parentId = e.target.value ? Number(e.target.value) : null;
+                updateFormHeaderMode();
+            });
+
+            document.getElementById('form-contenttypeid').addEventListener('change', () => {
+                updateCategoryDropdown();
+                // Reset selected content on type change
+                document.getElementById('form-contentid').value = '';
+                document.getElementById('content-search-input').value = '';
+                document.getElementById('selected-content-preview').style.display = 'none';
+            });
+
+            document.getElementById('form-categoryid').addEventListener('change', () => {
+                // Reset selected content on category change
+                document.getElementById('form-contentid').value = '';
+                document.getElementById('content-search-input').value = '';
+                document.getElementById('selected-content-preview').style.display = 'none';
+            });
+
+            document.getElementById('btn-toggle-icon-grid').addEventListener('click', () => {
+                const container = document.getElementById('icon-grid-container');
+                new bootstrap.Collapse(container, { toggle: true });
+            });
+
+            document.getElementById('form-delete-btn').addEventListener('click', () => {
+                deleteMenuItem(formState.id, currentLang === 'ar' ? formState.title : (formState.titleEn || formState.title));
+            });
+
+            document.getElementById('menuItemForm').addEventListener('submit', (e) => {
+                const titleAr = document.getElementById('form-title').value.trim();
+                if (!titleAr) {
+                    e.preventDefault();
+                    alert(pageTranslations[currentLang].validationTitleAr);
+                    document.getElementById('form-title').focus();
+                }
+            });
+        }
+
+        function setupLinkTypeToggle() {
+            const selector = document.getElementById('link-type-selector');
+            selector.addEventListener('change', (e) => {
+                formState.linkType = e.target.value;
+                toggleLinkTypeWrappers();
+            });
+        }
+
+        function setupSearchListener() {
+            document.getElementById('tree-search').addEventListener('input', (e) => {
+                renderTree(e.target.value.trim());
+            });
+        }
+
+        // --- Autocomplete Dynamic AJAX Search ---
+        function setupContentSearchAutocomplete() {
+            const searchInput = document.getElementById('content-search-input');
+            const resultsBox = document.getElementById('content-search-results');
+            if (!searchInput || !resultsBox) return;
+
+            searchInput.addEventListener('input', (e) => {
+                clearTimeout(debounceTimer);
+                const query = e.target.value.trim();
+                if (!query) {
+                    resultsBox.innerHTML = '';
+                    resultsBox.classList.add('d-none');
+                    return;
+                }
+
+                const ctId = document.getElementById('form-contenttypeid').value;
+                if (!ctId) {
+                    resultsBox.innerHTML = '<div class="list-group-item disabled text-danger">الرجاء اختيار نوع محتوى أولاً.</div>';
+                    resultsBox.classList.remove('d-none');
+                    return;
+                }
+
+                const catId = document.getElementById('form-categoryid').value;
+
+                debounceTimer = setTimeout(() => {
+                    fetch(`?handler=SearchContent&contentTypeId=${ctId}&categoryId=${catId || ''}&query=${encodeURIComponent(query)}`)
+                        .then(res => res.json())
+                        .then(data => {
+                            resultsBox.innerHTML = '';
+                            if (data.error) {
+                                resultsBox.innerHTML = `<div class="list-group-item disabled text-danger">خطأ: ${data.error}</div>`;
+                            } else if (data.length === 0) {
+                                resultsBox.innerHTML = '<div class="list-group-item disabled">لا توجد نتائج مطابقة</div>';
+                            } else {
+                                data.forEach(item => {
+                                    const btn = document.createElement('div');
+                                    btn.className = 'list-group-item';
+                                    const text = currentLang === 'ar' ? item.title : (item.title_En || item.title);
+                                    btn.textContent = text;
+                                    btn.addEventListener('click', () => {
+                                        document.getElementById('form-contentid').value = item.id;
+                                        searchInput.value = text;
+                                        formState.contentId = item.id;
+                                        formState.contentTitle = text;
+                                        
+                                        const preview = document.getElementById('selected-content-preview');
+                                        document.getElementById('selected-content-title').textContent = text;
+                                        preview.style.display = 'block';
+
+                                        resultsBox.innerHTML = '';
+                                        resultsBox.classList.add('d-none');
+                                    });
+                                    resultsBox.appendChild(btn);
+                                });
+                            }
+                            resultsBox.classList.remove('d-none');
+                        })
+                        .catch(err => {
+                            resultsBox.innerHTML = `<div class="list-group-item disabled text-danger">خطأ اتصال: ${err.message}</div>`;
+                            resultsBox.classList.remove('d-none');
+                        });
+                }, 250);
+            });
+
+            // Hide suggestions when clicking outside
+            document.addEventListener('click', (e) => {
+                if (e.target !== searchInput && e.target !== resultsBox) {
+                    resultsBox.classList.add('d-none');
+                }
+            });
+        }
+
+        // --- Preset Icons populate ---
+        function populateIconGrid() {
+            const grid = document.getElementById('icon-selector-grid');
+            if (!grid) return;
+            grid.innerHTML = '';
+            
+            presetIcons.forEach(iconClass => {
+                const box = document.createElement('div');
+                box.className = 'tp-icon-select-box';
+                box.title = iconClass;
+                box.innerHTML = `<i class="bi ${iconClass}"></i>`;
+                box.addEventListener('click', () => {
+                    document.querySelectorAll('#icon-selector-grid .tp-icon-select-box').forEach(b => b.classList.remove('selected'));
+                    box.classList.add('selected');
+                    
+                    formState.iconValue = iconClass;
+                    document.getElementById('form-iconvalue').value = iconClass;
+                    updateIconPreview(iconClass);
+                });
+                grid.appendChild(box);
+            });
+
+            // Search inside grid
+            document.getElementById('icon-search-input').addEventListener('input', (e) => {
+                const query = e.target.value.toLowerCase().trim();
+                document.querySelectorAll('#icon-selector-grid .tp-icon-select-box').forEach(box => {
+                    if (box.title.toLowerCase().includes(query)) {
+                        box.style.display = 'flex';
+                    } else {
+                        box.style.display = 'none';
+                    }
+                });
+            });
+        }
+
+        function updateIconPreview(iconClass) {
+            const preview = document.getElementById('form-icon-preview');
+            if (!preview) return;
+            let clean = iconClass.trim() || 'bi-link-45deg';
+            if (!clean.startsWith('bi-') && !clean.startsWith('bi ')) {
+                clean = 'bi-' + clean;
+            }
+            preview.innerHTML = `<i class="bi ${clean}"></i>`;
+        }
+
+        // --- Delete & AJAX Reordering Operations ---
+        function deleteMenuItem(id, name) {
+            const hasChildren = rawMenuItems.some(m => Number(m.ParentId) === Number(id));
+            if (hasChildren) {
+                alert(pageTranslations[currentLang].errorDeleteChildren);
+                return;
+            }
+
+            if (confirm(pageTranslations[currentLang].confirmDeleteItem)) {
+                document.getElementById('delete-item-id').value = id;
+                document.getElementById('deleteItemForm').submit();
+            }
+        }
+
+        function deleteMenu(id, name) {
+            if (confirm(pageTranslations[currentLang].confirmDeleteMenu)) {
+                document.getElementById('delete-menu-id').value = id;
+                document.getElementById('deleteMenuForm').submit();
+            }
+        }
+
+        function showCreateMenuMode() {
+            document.getElementById('menu-settings-container').style.display = 'block';
+            document.getElementById('menu-ManageMenuId').value = 0;
+            document.getElementById('menu-ManageMenuName').value = '';
+            document.getElementById('menu-ManageMenuName_En').value = '';
+            document.getElementById('menu-ManageMenuCode').value = '';
+            document.getElementById('menu-ManageMenuIsActive').checked = true;
+            document.getElementById('menu-settings-header-text').textContent = 'إنشاء قائمة جديدة';
+            document.getElementById('menu-save-btn').querySelector('span').textContent = 'إنشاء القائمة';
+            document.getElementById('menu-ManageMenuName').focus();
+        }
+
+        function toggleMenuSettingsCard() {
+            const el = document.getElementById('menu-settings-container');
+            if (el.style.display === 'none') {
+                el.style.display = 'block';
+            } else {
+                el.style.display = 'none';
+            }
+        }
+
+        // --- Drag and Drop (SortableJS) ---
+        function initSortable() {
+            const lists = document.querySelectorAll('.tp-tree-list');
+            lists.forEach(list => {
+                new Sortable(list, {
+                    group: {
+                        name: 'nested-menu-items',
+                        pull: true,
+                        put: true
+                    },
+                    animation: 200,
+                    fallbackOnBody: true,
+                    swapThreshold: 0.65,
+                    handle: '.tp-drag-handle',
+                    ghostClass: 'tp-sortable-ghost',
+                    chosenClass: 'tp-sortable-chosen',
+                    dragClass: 'tp-sortable-drag',
+                    onStart: function () {
+                        document.body.classList.add('dragging-active');
+                    },
+                    onEnd: function () {
+                        document.body.classList.remove('dragging-active');
+                        saveDomOrder();
+                    }
+                });
+            });
+        }
+
+        function saveDomOrder() {
+            const originalState = rawMenuItems.map(m => ({
+                Id: m.Id,
+                ParentId: m.ParentId,
+                SortOrder: m.SortOrder
+            }));
+
+            function scanList(ulElement, parentId = null) {
+                const liElements = ulElement.querySelectorAll(':scope > .tp-tree-item');
+                liElements.forEach((li, index) => {
+                    const id = Number(li.getAttribute('id').replace('node-', ''));
+                    const item = rawMenuItems.find(m => Number(m.Id) === id);
+                    if (item) {
+                        item.ParentId = parentId;
+                        item.SortOrder = index;
+                    }
+                    
+                    const childUl = li.querySelector(':scope > .tp-tree-list');
+                    if (childUl) {
+                        scanList(childUl, id);
+                    }
+                });
+            }
+
+            const rootUl = document.querySelector('#tree-root > .tp-tree-list');
+            if (rootUl) {
+                scanList(rootUl, null);
+            }
+
+            const changedItems = [];
+            rawMenuItems.forEach(m => {
+                const orig = originalState.find(o => Number(o.Id) === Number(m.Id));
+                if (orig && (orig.ParentId !== m.ParentId || orig.SortOrder !== m.SortOrder)) {
+                    changedItems.push({
+                        Id: m.Id,
+                        ParentId: m.ParentId,
+                        SortOrder: m.SortOrder
+                    });
+                }
+            });
+
+            // Re-render local tree with changes
+            renderTree(document.getElementById('tree-search').value.trim());
+            syncStateToForm();
+
+            if (changedItems.length > 0) {
+                sendReorderDataToServer(changedItems);
+            }
+        }
+
+        function sendReorderDataToServer(changedItems) {
+            const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+            showToast(currentLang === 'ar' ? 'جاري حفظ الترتيب الجديد...' : 'Saving new sort order...', 'info', true);
+
+            fetch('?handler=Reorder', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': token,
+                    'X-Request-Verification-Token': token
+                },
+                body: JSON.stringify(changedItems)
+            })
+            .then(res => res.json())
+            .then(data => {
+                clearLoadingToasts();
+                if (data.success) {
+                    showToast(currentLang === 'ar' ? 'تم حفظ الترتيب بنجاح.' : 'Sort order updated successfully.', 'success');
+                } else {
+                    showToast((currentLang === 'ar' ? 'فشل الحفظ: ' : 'Failed to save: ') + data.message, 'danger');
+                }
+            })
+            .catch(err => {
+                clearLoadingToasts();
+                showToast((currentLang === 'ar' ? 'خطأ في الاتصال: ' : 'Network error: ') + err.message, 'danger');
+            });
+        }
+
+        // --- Custom Floating Toast Notification System ---
+        function showToast(message, type = 'success', isLoading = false) {
+            const toastContainer = document.getElementById('toast-container') || createToastContainer();
+            const toast = document.createElement('div');
+            toast.className = `alert alert-${type} alert-dismissible fade show border-0 shadow-sm rounded-3 mb-2`;
+            toast.style.minWidth = '300px';
+            toast.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+            if (isLoading) {
+                toast.classList.add('tp-loading-toast');
+            }
+
+            const iconClass = type === 'info' ? 'bi-info-circle-fill text-info' : 
+                             (type === 'success' ? 'bi-check-circle-fill text-success' : 'bi-exclamation-triangle-fill text-danger');
+
+            toast.innerHTML = `
+                <div class="d-flex align-items-center">
+                    ${isLoading ? `<div class="spinner-border spinner-border-sm text-info me-2" role="status"></div>` : `<i class="bi ${iconClass} me-2 fs-5"></i>`}
+                    <div class="fw-bold">${message}</div>
+                </div>
+                ${isLoading ? '' : `<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>`}
+            `;
+            toastContainer.appendChild(toast);
+
+            if (!isLoading) {
+                setTimeout(() => {
+                    const bsAlert = new bootstrap.Alert(toast);
+                    bsAlert.close();
+                }, 4000);
+            }
+        }
+
+        function clearLoadingToasts() {
+            document.querySelectorAll('.tp-loading-toast').forEach(toast => {
+                const bsAlert = new bootstrap.Alert(toast);
+                bsAlert.close();
+            });
+        }
+
+        function createToastContainer() {
+            const container = document.createElement('div');
+            container.id = 'toast-container';
+            container.style.position = 'fixed';
+            container.style.top = '24px';
+            container.style.right = currentLang === 'ar' ? 'auto' : '24px';
+            container.style.left = currentLang === 'ar' ? '24px' : 'auto';
+            container.style.zIndex = '9999';
+            document.body.appendChild(container);
+            return container;
+        }
+    </script>
+}

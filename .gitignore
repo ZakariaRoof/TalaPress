@@ -1,0 +1,34 @@
+## Build
+bin/
+obj/
+out/
+
+## IDE / tooling
+.vs/
+.vscode/
+*.user
+*.suo
+
+## OS
+Thumbs.db
+Desktop.ini
+
+## Secrets & local config (keep appsettings.json template in repo)
+appsettings.Development.json
+appsettings.Production.json
+appsettings.*.local.json
+secrets.json
+
+## Logs & temp
+*.log
+*.tmp
+
+## IIS publish output
+publish/talapress.online/
+publish/talapress.online.zip
+
+## Node (if used for assets)
+node_modules/
+
+## Uploads (optional — uncomment if uploads should not be in git)
+# wwwroot/uploads/

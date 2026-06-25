@@ -1,0 +1,20 @@
+@{
+    var section = ViewData["ApiDocsSection"]?.ToString() ?? string.Empty;
+    string Active(string key) => section == key ? "active" : string.Empty;
+}
+<nav class="tp-api-docs-nav">
+    <div class="tp-api-docs-nav-label tp-only-ar">المرجع</div>
+    <div class="tp-api-docs-nav-label tp-only-en">Reference</div>
+    <ul>
+        <li><a asp-page="/ApiDocs/Index" class="@Active("overview")"><i class="bi bi-house-door"></i><span data-tp-i18n="apiDocsOverview">نظرة عامة</span></a></li>
+        <li><a asp-page="/ApiDocs/Auth" class="@Active("auth")"><i class="bi bi-shield-lock"></i><span data-tp-i18n="apiDocsAuth">المصادقة</span></a></li>
+    </ul>
+    <div class="tp-api-docs-nav-label">Endpoints</div>
+    <ul>
+        <li><a asp-page="/ApiDocs/Content" class="@Active("content")"><i class="bi bi-journal-richtext"></i><span data-tp-i18n="apiDocsContent">المحتوى</span></a></li>
+        <li><a asp-page="/ApiDocs/ContentTypes" class="@Active("content-types")"><i class="bi bi-folder"></i><span data-tp-i18n="apiDocsContentTypes">أنواع المحتوى</span></a></li>
+        <li><a asp-page="/ApiDocs/Categories" class="@Active("categories")"><i class="bi bi-tags"></i><span data-tp-i18n="apiDocsCategories">التصنيفات</span></a></li>
+        <li><a asp-page="/ApiDocs/Menus" class="@Active("menus")"><i class="bi bi-list-nested"></i><span data-tp-i18n="apiDocsMenus">القوائم</span></a></li>
+        <li><a asp-page="/ApiDocs/Settings" class="@Active("settings")"><i class="bi bi-gear"></i><span data-tp-i18n="apiDocsSettings">الإعدادات</span></a></li>
+    </ul>
+</nav>

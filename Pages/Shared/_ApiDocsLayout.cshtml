@@ -1,0 +1,128 @@
+@{
+    string basePath = System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), "wwwroot", "uploads", "img");
+    string? logoWebPath = null;
+    if (System.IO.Directory.Exists(basePath))
+    {
+        var logoFiles = System.IO.Directory.GetFiles(basePath, "CMSLogo.*");
+        if (logoFiles.Length > 0)
+        {
+            logoWebPath = "/uploads/img/" + System.IO.Path.GetFileName(logoFiles[0]);
+        }
+    }
+}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@ViewData["Title"] - Pearl API</title>
+    <link id="bootstrap-style" rel="stylesheet"
+          href="~/assets/css/bootstrap.rtl.min.css"
+          data-bootstrap-rtl="/assets/css/bootstrap.rtl.min.css"
+          data-bootstrap-ltr="/assets/css/bootstrap.min.css"
+          asp-append-version="true">
+    <link rel="stylesheet" href="~/assets/css/bootstrap-icons.min.css" asp-append-version="true">
+    <link rel="stylesheet" href="~/assets/css/custom.css" asp-append-version="true">
+    <script>
+        (function () {
+            var lang = localStorage.getItem('tp-lang') || 'ar';
+            var theme = localStorage.getItem('tp-theme') || 'dark';
+            document.documentElement.setAttribute('lang', lang);
+            document.documentElement.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
+            document.documentElement.setAttribute('data-bs-theme', theme);
+            document.body.classList.add(lang === 'ar' ? 'lang-ar' : 'lang-en');
+            var bootstrapCss = document.getElementById('bootstrap-style');
+            if (bootstrapCss) {
+                var rtlHref = bootstrapCss.getAttribute('data-bootstrap-rtl') || '/assets/css/bootstrap.rtl.min.css';
+                var ltrHref = bootstrapCss.getAttribute('data-bootstrap-ltr') || '/assets/css/bootstrap.min.css';
+                bootstrapCss.href = lang === 'ar' ? rtlHref : ltrHref;
+            }
+        })();
+    </script>
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body class="tp-api-docs-body lang-ar">
+    <header class="tp-api-docs-header">
+        <div class="tp-api-docs-header-inner">
+            <div class="tp-api-docs-header-start">
+                <button class="btn btn-sm tp-api-docs-icon-btn d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#apiDocsNav" aria-controls="apiDocsNav">
+                    <i class="bi bi-list"></i>
+                </button>
+                <a asp-page="/Index" class="tp-api-docs-brand text-decoration-none">
+                    @if (logoWebPath != null)
+                    {
+                        <img src="@logoWebPath" alt="TalaPress" class="tp-api-docs-logo">
+                    }
+                    <span>Pearl API</span>
+                </a>
+                <span class="badge rounded-pill tp-api-docs-version">v1</span>
+            </div>
+            <div class="tp-api-docs-header-actions">
+                <a asp-page="/ApiKeys" class="btn btn-sm tp-api-docs-btn-outline">
+                    <i class="bi bi-key-fill"></i>
+                    <span class="d-none d-md-inline tp-only-ar">مفاتيح API</span>
+                    <span class="d-none d-md-inline tp-only-en">API Keys</span>
+                </a>
+                <button class="btn btn-sm tp-api-docs-icon-btn tp-theme-toggle" type="button" title="Theme">
+                    <i class="bi bi-sun-fill"></i>
+                </button>
+                <a href="#" class="btn btn-sm tp-api-docs-btn-outline tp-lang-toggle" title="Language">
+                    <span class="tp-lang-toggle-text">English</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <div class="offcanvas offcanvas-start tp-api-docs-offcanvas" tabindex="-1" id="apiDocsNav" aria-labelledby="apiDocsNavLabel">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="apiDocsNavLabel">Pearl API</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body p-0">
+            @await Html.PartialAsync("_ApiDocsNav")
+        </div>
+    </div>
+
+    <div class="tp-api-docs-shell">
+        <aside class="tp-api-docs-sidebar d-none d-lg-block">
+            @await Html.PartialAsync("_ApiDocsNav")
+        </aside>
+
+        <main class="tp-api-docs-main">
+            <div class="tp-api-docs-content">
+                @RenderBody()
+            </div>
+        </main>
+    </div>
+
+    <script src="~/assets/js/bootstrap.bundle.min.js" asp-append-version="true"></script>
+    <script src="~/assets/js/main.js" asp-append-version="true"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('[data-copy-target]').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const targetId = btn.getAttribute('data-copy-target');
+                    const el = document.getElementById(targetId);
+                    if (!el) return;
+                    const text = el.innerText || el.textContent || '';
+                    try {
+                        await navigator.clipboard.writeText(text.trim());
+                        const old = btn.innerHTML;
+                        btn.innerHTML = '<i class="bi bi-check2"></i>';
+                        setTimeout(() => { btn.innerHTML = old; }, 1200);
+                    } catch (_) { }
+                });
+            });
+
+            const current = window.location.pathname.toLowerCase().replace(/\/$/, '');
+            document.querySelectorAll('.tp-api-docs-nav a').forEach(link => {
+                const href = (link.getAttribute('href') || '').toLowerCase().replace(/\/$/, '');
+                if (href && (current === href || current.endsWith(href))) {
+                    link.classList.add('active');
+                }
+            });
+        });
+    </script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

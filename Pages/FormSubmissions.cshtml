@@ -1,0 +1,215 @@
+@page
+@model TalaPress.Pages.FormSubmissionsModel
+@{
+    ViewData["Title"] = "ردود النماذج";
+}
+
+<!-- SECONDARY HEADER -->
+<section class="tp-sub-header">
+  <div class="container-fluid px-4">
+    <div class="row align-items-center">
+      <div class="col-md-7 mb-3 mb-md-0">
+        <h1 data-page-i18n="pageTitle">إجابات وردود النماذج (Form Submissions)</h1>
+        <p data-page-i18n="pageDesc">عرض ردود ورسائل الزوار المرسلة عبر النماذج الديناميكية.</p>
+      </div>
+      <div class="col-md-5 text-md-end">
+        <a asp-page="/Index" class="btn tp-btn-outline-light me-2">
+          <i class="bi bi-house-door-fill"></i> <span data-tp-i18n="home">الرئيسية</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MAIN CONTAINER -->
+<main class="container-fluid px-4 pb-5">
+
+  <div class="row">
+    <!-- LEFT PANEL: Filter -->
+    <div class="col-lg-3 mb-4">
+      <div class="tp-card h-100 mb-0">
+        <div class="tp-card-header">
+          <h5><i class="bi bi-funnel-fill text-primary me-2"></i> تصفية الردود</h5>
+        </div>
+        <div class="tp-card-body">
+          <form method="get">
+            <div class="mb-3">
+              <label class="form-label fw-bold">اختر النموذج</label>
+              <select name="SelectedFormId" class="form-select" onchange="this.form.submit()">
+                <option value="">-- اختر النموذج --</option>
+                @foreach (var form in Model.FormsList)
+                {
+                    <option value="@form.Id" selected="@(Model.SelectedFormId == form.Id)">@form.Name</option>
+                }
+              </select>
+            </div>
+            @if (Model.FormsList.Count == 0)
+            {
+                <div class="alert alert-warning py-2 small">لا توجد أي نماذج حالياً.</div>
+            }
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL: Submissions List -->
+    <div class="col-lg-9 mb-4">
+      <div class="tp-card h-100 mb-0">
+        <div class="tp-card-header d-flex justify-content-between align-items-center">
+          <h5>
+            <i class="bi bi-inbox-fill text-primary me-2"></i>
+            @if (Model.SelectedFormId.HasValue)
+            {
+                <span>ردود: @Model.SelectedFormName</span>
+            }
+            else
+            {
+                <span>يرجى اختيار نموذج لعرض ردوده</span>
+            }
+          </h5>
+          @if (Model.SelectedFormId.HasValue)
+          {
+              <span class="badge bg-secondary">@Model.SubmissionsList.Count إجابة</span>
+          }
+        </div>
+        
+        <div class="tp-card-body p-0">
+          @if (!Model.SelectedFormId.HasValue)
+          {
+              <div class="text-center text-muted py-5">
+                <i class="bi bi-arrow-right-square fs-1 d-block mb-3"></i>
+                <p>اختر نموذجاً من القائمة الجانبية لعرض إجاباته.</p>
+              </div>
+          }
+          else if (Model.SubmissionsList.Count == 0)
+          {
+              <div class="text-center text-muted py-5">
+                <i class="bi bi-inbox fs-1 d-block mb-3"></i>
+                <p>لا توجد أي ردود أو رسائل مرسلة لهذا النموذج حتى الآن.</p>
+              </div>
+          }
+          else
+          {
+              <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 tp-table">
+                  <thead class="table-light">
+                    <tr>
+                      <th style="width: 50px;">#</th>
+                      <th style="width: 150px;">تاريخ الإرسال</th>
+                      @foreach (var field in Model.FormFields.Where(f => f.FieldType != "Paragraph").Take(3))
+                      {
+                          <th>@field.Label</th>
+                      }
+                      <th class="text-end">التفاصيل</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @foreach (var sub in Model.SubmissionsList)
+                    {
+                        var data = sub.Data;
+                        <tr>
+                          <td><span class="badge bg-light text-dark border">@sub.Id</span></td>
+                          <td class="text-secondary small" dir="ltr" style="text-align: right;">@sub.CreatedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                          @foreach (var field in Model.FormFields.Where(f => f.FieldType != "Paragraph").Take(3))
+                          {
+                              <td>
+                                @if (data.ContainsKey(field.FieldName))
+                                {
+                                    <span class="d-inline-block text-truncate" style="max-width: 150px;" title="@data[field.FieldName]">
+                                        @data[field.FieldName]
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted small">-</span>
+                                }
+                              </td>
+                          }
+                          <td class="text-end">
+                            <button type="button" class="btn btn-sm btn-outline-primary rounded-3 view-details-btn" 
+                                    data-id="@sub.Id" data-date="@sub.CreatedAt.ToString("yyyy-MM-dd HH:mm")"
+                                    data-ip="@sub.IpAddress" data-agent="@sub.UserAgent"
+                                    data-json='@sub.SubmittedDataJson'>
+                              <i class="bi bi-eye"></i> التفاصيل
+                            </button>
+                          </td>
+                        </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- Details Modal -->
+<div class="modal fade" id="detailsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content shadow-lg rounded-3">
+      <div class="modal-header border-bottom">
+        <h5 class="modal-title fw-bold"><i class="bi bi-file-earmark-text text-primary me-2"></i>تفاصيل الرد</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div class="bg-light p-3 border-bottom d-flex justify-content-between align-items-center">
+          <div><i class="bi bi-clock me-1 text-secondary"></i> <span id="modal-date" dir="ltr"></span></div>
+          <div><i class="bi bi-globe me-1 text-secondary"></i> <span id="modal-ip"></span></div>
+        </div>
+        <div class="p-4" id="modal-data-container">
+          <!-- Rendered via JS -->
+        </div>
+      </div>
+      <div class="modal-footer bg-light border-top">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+@section Scripts {
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // Prepare FormFields dictionary for lookup
+        var formFields = {};
+        @foreach (var f in Model.FormFields)
+        {
+            @:formFields['@f.FieldName'] = '@Html.Raw(f.Label.Replace("'", "\\'"))';
+        }
+        
+        var detailsBtns = document.querySelectorAll('.view-details-btn');
+        detailsBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                var id = this.getAttribute('data-id');
+                var date = this.getAttribute('data-date');
+                var ip = this.getAttribute('data-ip') || 'غير متوفر';
+                var json = this.getAttribute('data-json');
+                
+                document.getElementById('modal-date').textContent = date;
+                document.getElementById('modal-ip').textContent = ip;
+                
+                var data = {};
+                try { data = JSON.parse(json); } catch(e) {}
+                
+                var html = '<table class="table table-bordered mb-0"><tbody>';
+                for (var key in data) {
+                    var label = formFields[key] || key;
+                    var val = data[key] || '';
+                    // Convert newlines to br for textarea
+                    val = val.replace(/\n/g, '<br/>');
+                    html += `<tr><th style="width:30%; background-color:var(--bs-tertiary-bg);">${label}</th><td>${val}</td></tr>`;
+                }
+                html += '</tbody></table>';
+                
+                document.getElementById('modal-data-container').innerHTML = html;
+                
+                var modal = new bootstrap.Modal(document.getElementById('detailsModal'));
+                modal.show();
+            });
+        });
+    });
+  </script>
+}

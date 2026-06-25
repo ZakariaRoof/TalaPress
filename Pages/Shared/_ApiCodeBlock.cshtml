@@ -1,0 +1,7 @@
+@model (string Id, string Code)
+<div class="tp-api-docs-code position-relative mb-4">
+    <button type="button" class="btn btn-sm tp-api-docs-btn-outline tp-api-docs-copy" data-copy-target="@Model.Id" title="Copy">
+        <i class="bi bi-clipboard"></i>
+    </button>
+    <pre id="@Model.Id" class="mb-0"><code>@Model.Code</code></pre>
+</div>

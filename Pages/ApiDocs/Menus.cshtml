@@ -1,0 +1,67 @@
+@page "/api/docs/menus"
+@model TalaPress.Pages.ApiDocs.MenusModel
+
+@await Html.PartialAsync("_ApiEndpointHeader", (
+    "GET",
+    "/api/v1/menus",
+    "فهرس القوائم",
+    "Menus Index",
+    "قائمة خفيفة بالقوائم (بدون عناصر) — للاختيار قبل جلب الشجرة.",
+    "Lightweight menu list (no items) — pick a menu before fetching its tree."
+))
+
+<h3 class="h6 text-uppercase text-secondary">Query Parameters</h3>
+<div class="table-responsive mb-3">
+    <table class="table table-striped table-bordered table-sm">
+        <thead><tr><th>Name</th><th>Type</th><th>Default</th><th class="tp-only-ar">الوصف</th><th class="tp-only-en">Description</th></tr></thead>
+        <tbody>
+            <tr><td><code>activeOnly</code></td><td>bool</td><td>true</td><td class="tp-only-ar">نشط فقط</td><td class="tp-only-en">Active only</td></tr>
+        </tbody>
+    </table>
+</div>
+
+@{
+    var listExample = $@"curl -H ""Authorization: Pearl YOUR_KEY"" ""{Model.ApiV1BaseUrl}/menus""";
+}
+@await Html.PartialAsync("_ApiCodeBlock", ("menus-list-curl", listExample))
+
+<hr class="my-5" />
+
+@await Html.PartialAsync("_ApiEndpointHeader", (
+    "GET",
+    "/api/v1/menus/{code}",
+    "شجرة قائمة",
+    "Menu Tree",
+    "شجرة كاملة حسب Code مع حل URLs اختياري.",
+    "Full hierarchical tree by Code with optional URL resolution."
+))
+
+<h3 class="h6 text-uppercase text-secondary">Query Parameters</h3>
+<div class="table-responsive mb-3">
+    <table class="table table-striped table-bordered table-sm">
+        <thead><tr><th>Name</th><th>Type</th><th>Default</th><th class="tp-only-ar">الوصف</th><th class="tp-only-en">Description</th></tr></thead>
+        <tbody>
+            <tr><td><code>activeOnly</code></td><td>bool</td><td>true</td><td class="tp-only-ar">عناصر نشطة</td><td class="tp-only-en">Active items</td></tr>
+            <tr><td><code>resolveUrls</code></td><td>bool</td><td>true</td><td class="tp-only-ar">حل روابط المحتوى/التصنيف</td><td class="tp-only-en">Resolve content/category URLs</td></tr>
+        </tbody>
+    </table>
+</div>
+
+@{
+    var treeExample = $@"curl -H ""Authorization: Pearl YOUR_KEY"" ""{Model.ApiV1BaseUrl}/menus/main-header?resolveUrls=true""";
+}
+@await Html.PartialAsync("_ApiCodeBlock", ("menus-tree-curl", treeExample))
+
+@await Html.PartialAsync("_ApiCodeBlock", ("menus-tree-res", @"{
+  ""code"": ""main-header"",
+  ""name"": ""القائمة الرئيسية"",
+  ""items"": [
+    {
+      ""id"": 1,
+      ""label"": ""الرئيسية"",
+      ""url"": ""/"",
+      ""children"": []
+    }
+  ],
+  ""meta"": { ""resolveUrls"": true, ""itemCount"": 5 }
+}"))

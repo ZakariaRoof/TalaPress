@@ -1,0 +1,275 @@
+@page
+@model ChartsModel
+@{
+    ViewData["Title"] = "التقارير والتحليلات";
+}
+
+@section Styles {
+  <!-- ApexCharts CSS -->
+  <link rel="stylesheet" href="~/assets/css/apexcharts.css" asp-append-version="true">
+}
+
+<!-- SECONDARY HEADER -->
+<section class="tp-sub-header">
+  <div class="container-fluid px-4">
+    <div class="row align-items-center">
+      <div class="col-md-6 mb-3 mb-md-0">
+        <h1 data-tp-i18n="apexTitle">التحليلات والتقارير الرسومية</h1>
+        <p data-tp-i18n="apexDesc">رسوم بيانية تفاعلية متقدمة باستخدام مكتبة ApexCharts لعرض أداء TalaPress.</p>
+      </div>
+      <div class="col-md-6 text-md-end">
+        <a asp-page="/Index" class="btn tp-btn-outline-light me-2">
+          <i class="bi bi-house-door-fill"></i> <span data-tp-i18n="home">الرئيسية</span>
+        </a>
+        <a asp-page="/Charts" class="btn btn-light rounded-circle shadow-sm tp-sub-header-btn-icon">
+          <i class="bi bi-bar-chart-fill text-primary fs-5"></i>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CHARTS CANVAS -->
+<main class="container-fluid px-4 pb-5">
+  
+  <!-- Full-width Area Chart -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="tp-card">
+        <div class="tp-card-header">
+          <h5 id="traffic-chart-title">إحصائيات الزيارات ونشاط النشر الأسبوعي</h5>
+          <i class="bi bi-graph-up-arrow text-primary"></i>
+        </div>
+        <div class="tp-card-body">
+          <div id="area-chart"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Side by side charts -->
+  <div class="row">
+    <div class="col-md-6 col-xl-7 mb-4">
+      <div class="tp-card h-100 mb-0">
+        <div class="tp-card-header">
+          <h5 id="category-chart-title">توزيع المقالات حسب الأقسام</h5>
+          <i class="bi bi-pie-chart-fill text-success"></i>
+        </div>
+        <div class="tp-card-body d-flex align-items-center justify-content-center tp-chart-container">
+          <div id="radial-chart" class="tp-w-100"></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-md-6 col-xl-5 mb-4">
+      <div class="tp-card h-100 mb-0">
+        <div class="tp-card-header">
+          <h5 id="browser-chart-title">مصادر الزيارات والأجهزة المستخدمة</h5>
+          <i class="bi bi-laptop-fill text-warning"></i>
+        </div>
+        <div class="tp-card-body d-flex align-items-center justify-content-center tp-chart-container">
+          <div id="donut-chart" class="tp-w-100"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+@section Scripts {
+  <!-- ApexCharts JS -->
+  <script src="~/assets/js/apexcharts.min.js" asp-append-version="true"></script>
+  
+  <!-- Chart Configuration & Multi-language Sync -->
+  <script>
+    let areaChart = null;
+    let radialChart = null;
+    let donutChart = null;
+
+    const chartTranslations = {
+      ar: {
+        trafficTitle: "إحصائيات الزيارات ونشاط النشر الأسبوعي",
+        categoryTitle: "توزيع المقالات حسب الأقسام",
+        browserTitle: "مصادر الزيارات والأجهزة المستخدمة",
+        articles: "المقالات المنشورة",
+        views: "المشاهدات (بالألاف)",
+        categories: ["السبت", "الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة"],
+        sectors: ["الأخبار", "التكنولوجيا", "الرياضة", "الفن والثقافة"],
+        browsers: ["كروم", "سفاري", "فايرفوكس", "أجهزة المحمول", "أخرى"]
+      },
+      en: {
+        trafficTitle: "Traffic Statistics & Weekly Publishing Activity",
+        categoryTitle: "Article Distribution by Category",
+        browserTitle: "Traffic Sources & Devices Used",
+        articles: "Published Articles",
+        views: "Views (Thousands)",
+        categories: ["Sat", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri"],
+        sectors: ["News", "Technology", "Sports", "Art & Culture"],
+        browsers: ["Chrome", "Safari", "Firefox", "Mobile Apps", "Others"]
+      }
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const initialLang = localStorage.getItem('tp-lang') || 'ar';
+      renderCharts(initialLang);
+
+      // Listen for language changes and update charts
+      window.addEventListener('tp-lang-changed', (e) => {
+        updateCharts(e.detail.lang);
+      });
+    });
+
+    function renderCharts(lang) {
+      const trans = chartTranslations[lang];
+
+      // 1. Area Chart
+      const areaOptions = {
+        series: [{
+          name: trans.articles,
+          data: [31, 40, 28, 51, 42, 109, 100]
+        }, {
+          name: trans.views,
+          data: [11, 32, 45, 32, 34, 52, 41]
+        }],
+        chart: {
+          height: 350,
+          type: 'area',
+          toolbar: { show: false },
+          background: 'transparent',
+          foreColor: 'var(--tp-text-secondary)'
+        },
+        dataLabels: { enabled: false },
+        stroke: { curve: 'smooth', width: 3 },
+        colors: ['#0284c7', '#818cf8'],
+        xaxis: {
+          categories: trans.categories,
+          labels: { style: { colors: 'var(--tp-text-secondary)' } }
+        },
+        yaxis: {
+          labels: { style: { colors: 'var(--tp-text-secondary)' } }
+        },
+        grid: {
+          borderColor: 'var(--tp-border-color)',
+          strokeDashArray: 4
+        },
+        tooltip: { theme: 'dark' },
+        legend: {
+          position: 'top',
+          labels: { colors: 'var(--tp-text-primary)' }
+        }
+      };
+
+      // 2. Radial Chart
+      const radialOptions = {
+        series: [70, 55, 40, 30],
+        chart: {
+          height: 350,
+          type: 'radialBar',
+          background: 'transparent'
+        },
+        plotOptions: {
+          radialBar: {
+            dataLabels: {
+              name: { fontSize: '22px' },
+              value: { fontSize: '16px', color: 'var(--tp-text-primary)' },
+              total: {
+                show: true,
+                label: lang === 'ar' ? 'الكل' : 'Total',
+                color: 'var(--tp-text-primary)',
+                formatter: function (w) {
+                  return '1,248'
+                }
+              }
+            },
+            track: {
+              background: 'var(--tp-bg-tertiary)',
+              strokeWidth: '97%',
+            }
+          }
+        },
+        labels: trans.sectors,
+        colors: ['#0284c7', '#10b981', '#f59e0b', '#ec4899'],
+        legend: {
+          show: true,
+          position: 'bottom',
+          labels: { colors: 'var(--tp-text-primary)' }
+        }
+      };
+
+      // 3. Donut Chart
+      const donutOptions = {
+        series: [44, 30, 13, 20, 8],
+        chart: {
+          height: 350,
+          type: 'donut',
+          background: 'transparent'
+        },
+        labels: trans.browsers,
+        colors: ['#0284c7', '#0ea5e9', '#38bdf8', '#818cf8', '#9ca3af'],
+        legend: {
+          show: true,
+          position: 'bottom',
+          labels: { colors: 'var(--tp-text-primary)' }
+        },
+        tooltip: { theme: 'dark' },
+        stroke: { show: false }
+      };
+
+      // Create instances
+      areaChart = new ApexCharts(document.querySelector("#area-chart"), areaOptions);
+      radialChart = new ApexCharts(document.querySelector("#radial-chart"), radialOptions);
+      donutChart = new ApexCharts(document.querySelector("#donut-chart"), donutOptions);
+
+      // Render instances
+      areaChart.render();
+      radialChart.render();
+      donutChart.render();
+
+      // Set headings
+      document.getElementById('traffic-chart-title').textContent = trans.trafficTitle;
+      document.getElementById('category-chart-title').textContent = trans.categoryTitle;
+      document.getElementById('browser-chart-title').textContent = trans.browserTitle;
+    }
+
+    function updateCharts(lang) {
+      const trans = chartTranslations[lang];
+
+      if (areaChart) {
+        areaChart.updateOptions({
+          xaxis: { categories: trans.categories },
+          series: [{
+            name: trans.articles
+          }, {
+            name: trans.views
+          }]
+        });
+      }
+
+      if (radialChart) {
+        radialChart.updateOptions({
+          labels: trans.sectors,
+          plotOptions: {
+            radialBar: {
+              dataLabels: {
+                total: {
+                  label: lang === 'ar' ? 'الكل' : 'Total'
+                }
+              }
+            }
+          }
+        });
+      }
+
+      if (donutChart) {
+        donutChart.updateOptions({
+          labels: trans.browsers
+        });
+      }
+
+      // Update static headings
+      document.getElementById('traffic-chart-title').textContent = trans.trafficTitle;
+      document.getElementById('category-chart-title').textContent = trans.categoryTitle;
+      document.getElementById('browser-chart-title').textContent = trans.browserTitle;
+    }
+  </script>
+}

@@ -1,0 +1,1468 @@
+@page
+@model TalaPress.Pages.ContentModel
+@{
+    ViewData["Title"] = "إدارة المحتوى";
+}
+
+@section Styles {
+  <!-- DataTables Bootstrap 5 CSS -->
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+  <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css">
+  <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.bootstrap5.min.css">
+
+  <style>
+    .tp-preview-modal .modal-content {
+      background: #f3f6fb;
+    }
+
+    .tp-preview-modal .modal-header {
+      background: rgba(255, 255, 255, 0.96);
+      backdrop-filter: blur(10px);
+      color: #102a43;
+    }
+
+    .tp-preview-shell {
+      max-width: 1060px;
+      margin: 0 auto;
+    }
+
+    .tp-preview-hero {
+      min-height: 300px;
+      max-height: 380px;
+      background: linear-gradient(135deg, #0d6efd, #6610f2);
+    }
+
+    .tp-preview-hero img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .tp-preview-hero-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: flex-end;
+      background: linear-gradient(180deg, rgba(6, 22, 48, 0.05) 0%, rgba(6, 22, 48, 0.38) 45%, rgba(6, 22, 48, 0.88) 100%);
+    }
+
+    .tp-preview-title {
+      max-width: 820px;
+      line-height: 1.35;
+      text-shadow: 0 2px 20px rgba(0, 0, 0, 0.45);
+    }
+
+    .tp-preview-meta-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: .35rem;
+      padding: .45rem .75rem;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.92);
+      color: #102a43;
+      font-size: .78rem;
+      font-weight: 700;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, .12);
+    }
+
+    .tp-preview-reader {
+      margin-top: -34px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .tp-preview-content-card {
+      border-radius: 1.25rem;
+      box-shadow: 0 20px 55px rgba(15, 23, 42, .11);
+    }
+
+    .tp-preview-content-card p {
+      margin-bottom: 1rem;
+    }
+
+    .tp-preview-content-card img {
+      max-width: 100%;
+      height: auto;
+      border-radius: .75rem;
+    }
+
+    .tp-preview-side-card {
+      border: 1px solid rgba(13, 110, 253, .10);
+      border-radius: 1rem;
+      background: #fff;
+      box-shadow: 0 12px 35px rgba(15, 23, 42, .07);
+    }
+
+    /* DataTable RTL adjustments: show length on far left and search on far right */
+    .lang-ar div.dataTables_wrapper > .row:first-child {
+      flex-direction: row-reverse;
+    }
+    .lang-ar div.dataTables_wrapper div.dataTables_length {
+      text-align: left !important;
+    }
+    .lang-ar div.dataTables_wrapper div.dataTables_filter {
+      text-align: right !important;
+    }
+  </style>
+}
+
+<!-- SECONDARY HEADER -->
+<section class="tp-sub-header">
+  <div class="container-fluid px-4">
+    <div class="row align-items-center">
+      <div class="col-md-7 mb-3 mb-md-0">
+        <h1 data-page-i18n="pageTitle">إدارة المحتوى والمنشورات</h1>
+        <p data-page-i18n="pageDesc">قم بنشر وإدارة جميع المدخلات، وتصفية البيانات والبحث فيها، وتكرار أو معاينة السجلات بسهولة.</p>
+      </div>
+      <div class="col-md-5 text-md-end">
+        <a asp-page="/Index" class="btn tp-btn-outline-light">
+          <i class="bi bi-house-door-fill"></i> <span data-tp-i18n="home">الرئيسية</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MAIN CONTAINER -->
+<main class="container-fluid px-4 pb-5">
+
+  @if (Model.SuccessMessage != null)
+  {
+      <div class="alert alert-success alert-dismissible fade show mb-4 border-0 shadow-sm rounded-3" role="alert">
+          <i class="bi bi-check-circle-fill me-2 fs-5"></i> @Model.SuccessMessage
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+  }
+
+  @if (Model.ErrorMessage != null)
+  {
+      <div class="alert alert-danger alert-dismissible fade show mb-4 border-0 shadow-sm rounded-3" role="alert">
+          <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i> @Model.ErrorMessage
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+  }
+
+  <!-- TOOLBAR ROW -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+    <!-- Left side (RTL start): Add Content Button -->
+    <div>
+      <button type="button" class="btn btn-primary shadow-sm px-4" data-bs-toggle="modal" data-bs-target="#addContentModal">
+        <i class="bi bi-plus-lg fw-bold me-1"></i> <span class="fw-bold" data-page-i18n="btnAddNewContent">إضافة محتوى جديد</span>
+      </button>
+    </div>
+
+    <!-- Right side (RTL end): Filter and Export -->
+    <div class="d-flex align-items-center gap-2">
+      <button type="button" id="btn-bulk-delete" class="btn btn-danger shadow-sm disabled" disabled>
+        <i class="bi bi-trash-fill me-1"></i> <span data-page-i18n="btnBulkDelete">حذف الحقول المحددة</span>
+      </button>
+      <button type="button" class="btn btn-outline-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#advancedFilterModal">
+        <i class="bi bi-funnel-fill me-1"></i> <span data-page-i18n="filtersHeader">تصفية البحث المتقدم</span>
+      </button>
+      <div id="export-buttons-container" class="d-flex gap-2 border-start border-2 border-light ps-2 ms-1">
+        <!-- DataTables buttons will be appended here -->
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTENT DATATABLE -->
+  <div class="tp-card">
+    <div class="tp-card-body p-4">
+      <div class="table-responsive">
+        <table id="contentTable" class="table table-striped table-hover align-middle w-100 text-center">
+          <thead>
+            <tr>
+              <th style="width: 40px; text-align: center;"><input type="checkbox" id="selectAll" class="form-check-input"></th>
+              <th data-page-i18n="colImage">الصورة البارزة</th>
+              <th data-page-i18n="colTitle">العنوان</th>
+              <th data-page-i18n="colType">نوع المحتوى</th>
+              <th data-page-i18n="colCategory">التصنيف</th>
+              <th data-page-i18n="colSubCategory">الفرعي</th>
+              <th data-page-i18n="colStatus">الحالة</th>
+              <th data-page-i18n="colPublishDate">تاريخ النشر</th>
+              <th data-page-i18n="colAuthor">الكاتب</th>
+              <th data-page-i18n="colHits">الزيارات</th>
+              <th data-page-i18n="colCreated">تاريخ الإنشاء</th>
+              <th style="min-width: 140px;">
+                <div class="d-flex justify-content-between align-items-center">
+                  <span data-page-i18n="colActions">العمليات</span>
+                  <a href="#" class="text-secondary" data-bs-toggle="modal" data-bs-target="#columnSelectionModal" title="تخصيص الحقول">
+                    <i class="bi bi-three-dots-vertical fs-5"></i>
+                  </a>
+                </div>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Processed Server-Side -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- COLUMN SELECTION MODAL -->
+<div class="modal fade" id="columnSelectionModal" tabindex="-1" aria-labelledby="columnSelectionModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content shadow rounded-3 border-0">
+      <div class="modal-header bg-light">
+        <h6 class="modal-title fw-bold text-primary" id="columnSelectionModalLabel" data-page-i18n="colDisplayFields">عرض الحقول الافتراضية</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body px-4 py-3">
+        <div class="d-flex align-items-center gap-2 mb-2 text-start">
+          <input class="form-check-input toggle-vis m-0" style="cursor: pointer;" type="checkbox" data-column="1" id="col1" checked>
+          <label class="form-check-label m-0 fs-7" style="cursor: pointer;" for="col1" data-page-i18n="colImage">الصورة البارزة</label>
+        </div>
+        <div class="d-flex align-items-center gap-2 mb-2 text-start">
+          <input class="form-check-input toggle-vis m-0" style="cursor: pointer;" type="checkbox" data-column="2" id="col2" checked>
+          <label class="form-check-label m-0 fs-7" style="cursor: pointer;" for="col2" data-page-i18n="colTitle">العنوان</label>
+        </div>
+        <div class="d-flex align-items-center gap-2 mb-2 text-start">
+          <input class="form-check-input toggle-vis m-0" style="cursor: pointer;" type="checkbox" data-column="3" id="col3" checked>
+          <label class="form-check-label m-0 fs-7" style="cursor: pointer;" for="col3" data-page-i18n="colType">نوع المحتوى</label>
+        </div>
+        <div class="d-flex align-items-center gap-2 mb-2 text-start">
+          <input class="form-check-input toggle-vis m-0" style="cursor: pointer;" type="checkbox" data-column="4" id="col4" checked>
+          <label class="form-check-label m-0 fs-7" style="cursor: pointer;" for="col4" data-page-i18n="colCategory">التصنيف</label>
+        </div>
+        <div class="d-flex align-items-center gap-2 mb-2 text-start">
+          <input class="form-check-input toggle-vis m-0" style="cursor: pointer;" type="checkbox" data-column="5" id="col5" checked>
+          <label class="form-check-label m-0 fs-7" style="cursor: pointer;" for="col5" data-page-i18n="colSubCategory">الفرعي</label>
+        </div>
+        <div class="d-flex align-items-center gap-2 mb-2 text-start">
+          <input class="form-check-input toggle-vis m-0" style="cursor: pointer;" type="checkbox" data-column="6" id="col6" checked>
+          <label class="form-check-label m-0 fs-7" style="cursor: pointer;" for="col6" data-page-i18n="colStatus">الحالة</label>
+        </div>
+        <div class="d-flex align-items-center gap-2 mb-2 text-start">
+          <input class="form-check-input toggle-vis m-0" style="cursor: pointer;" type="checkbox" data-column="7" id="col7" checked>
+          <label class="form-check-label m-0 fs-7" style="cursor: pointer;" for="col7" data-page-i18n="colPublishDate">تاريخ النشر</label>
+        </div>
+        <div class="d-flex align-items-center gap-2 mb-2 text-start">
+          <input class="form-check-input toggle-vis m-0" style="cursor: pointer;" type="checkbox" data-column="8" id="col8" checked>
+          <label class="form-check-label m-0 fs-7" style="cursor: pointer;" for="col8" data-page-i18n="colAuthor">الكاتب</label>
+        </div>
+        <div class="d-flex align-items-center gap-2 mb-2 text-start">
+          <input class="form-check-input toggle-vis m-0" style="cursor: pointer;" type="checkbox" data-column="9" id="col9" checked>
+          <label class="form-check-label m-0 fs-7" style="cursor: pointer;" for="col9" data-page-i18n="colHits">الزيارات</label>
+        </div>
+        <div class="d-flex align-items-center gap-2 mb-2 text-start">
+          <input class="form-check-input toggle-vis m-0" style="cursor: pointer;" type="checkbox" data-column="10" id="col10" checked>
+          <label class="form-check-label m-0 fs-7" style="cursor: pointer;" for="col10" data-page-i18n="colCreated">تاريخ الإنشاء</label>
+        </div>
+      </div>
+      <div class="modal-footer bg-light p-2 border-0">
+        <button type="button" class="btn btn-sm btn-secondary w-100" data-bs-dismiss="modal" data-page-i18n="btnClose">إغلاق</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADVANCED FILTER MODAL -->
+<div class="modal fade" id="advancedFilterModal" tabindex="-1" aria-labelledby="advancedFilterModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-primary text-white border-0">
+        <h5 class="modal-title" id="advancedFilterModalLabel">
+          <i class="bi bi-funnel-fill me-2"></i>
+          <span data-page-i18n="filtersHeader">تصفية البحث المتقدم</span>
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4 bg-body-tertiary">
+        <div class="row g-3">
+          
+          <!-- Content Type Filter -->
+          <div class="col-md-4 col-sm-6">
+            <label class="form-label fw-bold" data-page-i18n="filterType">نوع المحتوى</label>
+            <select class="form-select form-select-sm" id="filter-contentType">
+              <option value="" data-page-i18n="optAll">الكل (All)</option>
+              @foreach (var type in Model.ContentTypesList)
+              {
+                  <option value="@type.Id" data-label-ar="@type.Name" data-label-en="@(type.Name_En ?? type.Name)">
+                    @type.Name
+                  </option>
+              }
+            </select>
+          </div>
+
+          <!-- Category Filter -->
+          <div class="col-md-4 col-sm-6">
+            <label class="form-label fw-bold" data-page-i18n="filterCategory">التصنيف الرئيسي</label>
+            <select class="form-select form-select-sm" id="filter-category">
+              <option value="" data-page-i18n="optAll">الكل (All)</option>
+              @foreach (var cat in Model.CategoriesList.Where(c => c.ParentId == null))
+              {
+                  <option value="@cat.Id" data-label-ar="@cat.Name" data-label-en="@(cat.Name_En ?? cat.Name)">
+                    @cat.Name
+                  </option>
+              }
+            </select>
+          </div>
+
+          <!-- SubCategory Filter -->
+          <div class="col-md-4 col-sm-6">
+            <label class="form-label fw-bold" data-page-i18n="filterSubCategory">التصنيف الفرعي</label>
+            <select class="form-select form-select-sm" id="filter-subcategory">
+              <option value="" data-page-i18n="optAll">الكل (All)</option>
+              @foreach (var sub in Model.CategoriesList.Where(c => c.ParentId != null))
+              {
+                  <option value="@sub.Id" data-parent="@sub.ParentId" data-label-ar="@sub.Name" data-label-en="@(sub.Name_En ?? sub.Name)">
+                    @sub.Name
+                  </option>
+              }
+            </select>
+          </div>
+
+          <!-- Status Filter -->
+          <div class="col-md-4 col-sm-6">
+            <label class="form-label fw-bold" data-page-i18n="filterStatus">حالة النشر</label>
+            <select class="form-select form-select-sm" id="filter-status">
+              <option value="ALL" data-page-i18n="optAll">الكل (All)</option>
+              <option value="Draft" data-page-i18n="statusDraft">مسودة (Draft)</option>
+              <option value="Published" data-page-i18n="statusPublished">منشور (Published)</option>
+              <option value="Scheduled" data-page-i18n="statusScheduled">مجدول (Scheduled)</option>
+            </select>
+          </div>
+
+          <!-- Author Filter -->
+          <div class="col-md-8 col-sm-12">
+            <label class="form-label fw-bold" data-page-i18n="filterAuthor">الكاتب والناشر</label>
+            <select class="form-select form-select-sm" id="filter-author">
+              <option value="" data-page-i18n="optAll">الكل (All)</option>
+              @foreach (var author in Model.AuthorsList)
+              {
+                  <option value="@author.Id">@author.FullName (@@@author.Username)</option>
+              }
+            </select>
+          </div>
+
+          <!-- Date Range: From -->
+          <div class="col-md-6 col-sm-6">
+            <label class="form-label fw-bold" data-page-i18n="filterDateFrom">تاريخ النشر من</label>
+            <input type="date" class="form-control form-control-sm" id="filter-dateFrom">
+          </div>
+
+          <!-- Date Range: To -->
+          <div class="col-md-6 col-sm-6">
+            <label class="form-label fw-bold" data-page-i18n="filterDateTo">تاريخ النشر إلى</label>
+            <input type="date" class="form-control form-control-sm" id="filter-dateTo">
+          </div>
+
+        </div>
+      </div>
+      <div class="modal-footer border-0 bg-light justify-content-between">
+        <button type="button" class="btn btn-outline-secondary" id="btn-reset-filters" data-bs-dismiss="modal">
+          <i class="bi bi-arrow-counterclockwise me-1"></i> <span data-page-i18n="btnReset">إعادة تعيين</span>
+        </button>
+        <button type="button" class="btn btn-primary px-4" id="btn-apply-filters" data-bs-dismiss="modal">
+          <i class="bi bi-search me-1"></i> <span data-page-i18n="btnSearch">بحث وتصفية</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADD CONTENT SELECTION MODAL -->
+<div class="modal fade" id="addContentModal" tabindex="-1" aria-labelledby="addContentModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content shadow-lg rounded-3 border-0">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title fw-bold" id="addContentModalLabel">
+          <i class="bi bi-journal-plus me-2"></i>
+          <span data-page-i18n="modalAddTitle">إنشاء محتوى جديد - اختر نوع المحتوى للبدء</span>
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4 bg-body-tertiary">
+        <div class="row g-3" id="content-types-cards-container">
+          @if (Model.ContentTypesList.Count == 0)
+          {
+              <div class="col-12 text-center text-muted py-4">
+                <i class="bi bi-folder-x fs-1 d-block mb-2 text-secondary opacity-50"></i>
+                <span data-page-i18n="noContentTypes">لا توجد أنواع محتوى مضافة حالياً. يرجى تهيئتها أولاً.</span>
+              </div>
+          }
+          else
+          {
+              foreach (var type in Model.ContentTypesList)
+              {
+                  <div class="col-md-6 col-lg-4 mb-2">
+                    <div class="card h-100 tp-cursor-pointer border border-light-subtle shadow-sm hover-shadow transition-all" onclick="window.location.href='/ContentEdit?contentTypeId=@type.Id'">
+                      <div class="card-body text-center p-4">
+                        <div class="avatar-placeholder rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 60px; height: 60px; font-size: 24px;">
+                          <i class="@(type.IconValue ?? "bi bi-journal-text")"></i>
+                        </div>
+                        <h6 class="fw-bold mb-1">
+                          <span class="tp-only-ar">@type.Name</span>
+                          <span class="tp-only-en">@type.Name_En</span>
+                        </h6>
+                        <small class="text-secondary text-truncate-2 fs-8">
+                          <span class="tp-only-ar">@(string.IsNullOrEmpty(type.Description) ? "لا يوجد وصف." : type.Description)</span>
+                          <span class="tp-only-en">@(string.IsNullOrEmpty(type.Description_En) ? "No description available." : type.Description_En)</span>
+                        </small>
+                      </div>
+                    </div>
+                  </div>
+              }
+          }
+        </div>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" data-page-i18n="btnCancel">إلغاء</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CONTENT READING PREVIEW MODAL -->
+<div class="modal fade" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable tp-preview-modal">
+    <div class="modal-content shadow-lg rounded-4 border-0 overflow-hidden">
+      <div class="modal-header border-0 shadow-sm">
+        <h5 class="modal-title fw-bold" id="previewModalLabel">
+          <i class="bi bi-eye-fill me-2 text-primary"></i>
+          <span data-page-i18n="previewTitle">معاينة المحتوى</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div id="preview-loading" class="text-center py-5">
+          <div class="spinner-border text-primary" role="status"></div>
+          <div class="mt-3 fw-bold text-primary" data-page-i18n="previewLoading">جاري تحميل المعاينة...</div>
+        </div>
+
+        <article id="content-preview-article" class="d-none tp-preview-shell p-3 p-lg-4">
+          <section class="tp-preview-hero position-relative rounded-4 overflow-hidden shadow-lg mb-0">
+            <div id="preview-hero-image" class="position-absolute inset-0 w-100 h-100 d-none"></div>
+            <div class="tp-preview-hero-overlay">
+              <div class="p-4 p-lg-5 text-white w-100">
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                  <span id="preview-type" class="tp-preview-meta-chip"></span>
+                  <span id="preview-status" class="tp-preview-meta-chip"></span>
+                  <span id="preview-date" class="tp-preview-meta-chip"></span>
+                  <span id="preview-hits" class="tp-preview-meta-chip"><i class="bi bi-eye-fill me-1"></i> <span id="preview-hits-count">0</span></span>
+                </div>
+                <h2 id="preview-title" class="tp-preview-title display-6 fw-bold mb-3"></h2>
+                <p id="preview-summary" class="lead mb-0 opacity-90 col-lg-10"></p>
+              </div>
+            </div>
+          </section>
+
+          <div class="tp-preview-reader row g-4 align-items-start px-lg-3 pb-3">
+            <div class="col-lg-8">
+              <div class="tp-preview-content-card bg-white p-4 p-lg-5">
+                <div class="d-flex flex-wrap align-items-center gap-3 text-secondary small mb-4 pb-3 border-bottom">
+                  <span><i class="bi bi-person-circle me-1 text-primary"></i><span id="preview-author"></span></span>
+                  <span><i class="bi bi-folder2-open me-1 text-primary"></i><span id="preview-category"></span></span>
+                </div>
+                <div id="preview-content" class="fs-6 lh-lg text-dark"></div>
+              </div>
+            </div>
+            <aside class="col-lg-4">
+              <div class="tp-preview-side-card p-4 mb-4">
+                <h6 class="fw-bold text-primary mb-3">
+                  <i class="bi bi-list-stars me-1"></i>
+                  <span data-page-i18n="previewDetails">تفاصيل إضافية</span>
+                </h6>
+                <div id="preview-fields" class="vstack gap-2"></div>
+              </div>
+
+              <div class="tp-preview-side-card p-4">
+                <h6 class="fw-bold text-primary mb-3">
+                  <i class="bi bi-google me-1"></i>
+                  SEO
+                </h6>
+                <div id="preview-seo" class="small text-secondary"></div>
+              </div>
+            </aside>
+          </div>
+        </article>
+      </div>
+      <div class="modal-footer">
+        <a id="preview-full-page-link" href="#" class="btn btn-outline-primary shadow-sm">
+          <i class="bi bi-box-arrow-up-left me-1"></i>
+          <span data-page-i18n="btnFullPreview">فتح كصفحة كاملة</span>
+        </a>
+        <button type="button" class="btn btn-secondary shadow-sm" data-bs-dismiss="modal" data-page-i18n="btnClose">إغلاق</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Duplicate & Delete Forms (Triggered via JS POST requests) -->
+<form id="duplicateForm" method="post" asp-page-handler="Duplicate" style="display: none;">
+  <input type="hidden" name="id" id="duplicate-id-input">
+</form>
+
+@section Scripts {
+  <!-- jQuery and DataTables Bundle CDN -->
+  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+  <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+  <script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
+
+  <!-- DataTables Buttons & Export Plugins -->
+  <script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
+  <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.bootstrap5.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <script src="~/js/arabic-reshaper.js"></script>
+  <script src="~/js/Amiri-normal.js"></script>
+  <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
+  <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"></script>
+  
+  <!-- SweetAlert2 CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  
+  <script>
+    let contentTable = null;
+    let currentLang = localStorage.getItem('tp-lang') || 'ar';
+    let previewModalInstance = null;
+
+    const pageTranslations = {
+      ar: {
+        pageTitle: "إدارة المحتوى والمنشورات",
+        pageDesc: "قم بنشر وإدارة جميع المدخلات، وتصفية البيانات والبحث فيها، وتكرار أو معاينة السجلات بسهولة.",
+        btnAddNewContent: "إضافة محتوى جديد",
+        filtersHeader: "تصفية البحث المتقدم",
+        filterType: "نوع المحتوى",
+        filterCategory: "التصنيف الرئيسي",
+        filterSubCategory: "التصنيف الفرعي",
+        filterStatus: "حالة النشر",
+        filterAuthor: "الكاتب والناشر",
+        filterDateFrom: "تاريخ النشر من",
+        filterDateTo: "تاريخ النشر إلى",
+        optAll: "الكل",
+        statusDraft: "مسودة",
+        statusPublished: "منشور",
+        statusScheduled: "مجدول",
+        btnReset: "إعادة تعيين",
+        btnSearch: "بحث وتصفية",
+        colImage: "الصورة البارزة",
+        colTitle: "العنوان",
+        colType: "نوع المحتوى",
+        colCategory: "التصنيف",
+        colSubCategory: "الفرعي",
+        colStatus: "الحالة",
+        colPublishDate: "تاريخ النشر",
+        colAuthor: "الكاتب",
+        colHits: "الزيارات",
+        colCreated: "تاريخ الإنشاء",
+        colActions: "العمليات",
+        colDisplayFields: "عرض الحقول",
+        modalAddTitle: "إنشاء محتوى جديد - اختر نوع المحتوى للبدء",
+        noContentTypes: "لا توجد أنواع محتوى مضافة حالياً. يرجى تهيئتها أولاً.",
+        btnCancel: "إلغاء",
+        previewTitle: "معاينة المحتوى",
+        previewLoading: "جاري تحميل المعاينة...",
+        previewDetails: "تفاصيل إضافية",
+        btnFullPreview: "فتح كصفحة كاملة",
+        btnClose: "إغلاق",
+        dtSearch: "البحث السريع:",
+        dtLength: "عرض _MENU_ سجلات",
+        dtInfo: "عرض من _START_ إلى _END_ من إجمالي _TOTAL_ سجل",
+        dtEmpty: "لا توجد سجلات مطابقة للبحث.",
+        dtProcessing: "جاري تحميل البيانات من قاعدة البيانات...",
+        deleteConfirmTitle: "هل أنت متأكد من الحذف؟",
+        deleteConfirmText: "سيتم حذف هذا المنشور ونقله إلى سلة المحذوفات المؤقتة.",
+        deleteConfirmBtn: "نعم، احذف!",
+        deleteSuccess: "تم الحذف بنجاح.",
+        copySuccess: "تم نسخ كود الـ JSON إلى الحافظة بنجاح.",
+        btnBulkDelete: "حذف الحقول المحددة"
+      },
+      en: {
+        pageTitle: "Content Management Dashboard",
+        pageDesc: "Publish and maintain all dynamic records, apply filters, and clone or preview headless payloads.",
+        btnAddNewContent: "Add New Content",
+        filtersHeader: "Advanced Filters Panel",
+        filterType: "Content Type",
+        filterCategory: "Category",
+        filterSubCategory: "Sub-Category",
+        filterStatus: "Publish Status",
+        filterAuthor: "Author",
+        filterDateFrom: "Publish Date From",
+        filterDateTo: "Publish Date To",
+        optAll: "All",
+        statusDraft: "Draft",
+        statusPublished: "Published",
+        statusScheduled: "Scheduled",
+        btnReset: "Reset Filters",
+        btnSearch: "Apply Filters",
+        colImage: "Featured Image",
+        colTitle: "Title",
+        colType: "Content Type",
+        colCategory: "Category",
+        colSubCategory: "SubCategory",
+        colStatus: "Status",
+        colPublishDate: "Publish Date",
+        colAuthor: "Author",
+        colHits: "Hits",
+        colCreated: "Created Date",
+        colActions: "Actions",
+        colDisplayFields: "Display Fields",
+        modalAddTitle: "Create Content - Select Type to Begin",
+        noContentTypes: "No content types configured yet.",
+        btnCancel: "Cancel",
+        previewTitle: "Content Preview",
+        previewLoading: "Loading preview...",
+        previewDetails: "Additional Details",
+        btnFullPreview: "Open Full Preview",
+        btnClose: "Close",
+        dtSearch: "Quick Search:",
+        dtLength: "Show _MENU_ records",
+        dtInfo: "Showing _START_ to _END_ of _TOTAL_ entries",
+        dtEmpty: "No matching records found.",
+        dtProcessing: "Retrieving records from SQL Server...",
+        deleteConfirmTitle: "Are you sure you want to delete?",
+        deleteConfirmText: "This action will soft-delete the content and move it to trash.",
+        deleteConfirmBtn: "Yes, delete it!",
+        deleteSuccess: "Deleted successfully.",
+        copySuccess: "JSON payload copied to clipboard.",
+        btnBulkDelete: "Delete Selected"
+      }
+    };
+
+    document.addEventListener('tp-lang-changed', (e) => {
+      applyPageTranslations(e.detail.lang);
+      if (contentTable) {
+        contentTable.ajax.reload();
+      }
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      previewModalInstance = new bootstrap.Modal(document.getElementById('previewModal'));
+      
+      applyPageTranslations(currentLang);
+      initCategoriesCascade();
+      initContentDataTable();
+
+      // Filter Actions
+      document.getElementById('btn-apply-filters').addEventListener('click', () => {
+        contentTable.draw();
+      });
+
+      document.getElementById('btn-reset-filters').addEventListener('click', () => {
+        document.getElementById('filter-contentType').value = "";
+        document.getElementById('filter-category').value = "";
+        document.getElementById('filter-subcategory').value = "";
+        document.getElementById('filter-status').value = "ALL";
+        document.getElementById('filter-author').value = "";
+        document.getElementById('filter-dateFrom').value = "";
+        document.getElementById('filter-dateTo').value = "";
+        
+        // Reset subcategory visibility options
+        const subOptions = document.querySelectorAll('#filter-subcategory option');
+        subOptions.forEach(opt => {
+          if (opt.value !== "") opt.style.display = "block";
+        });
+
+        contentTable.draw();
+      });
+
+      // Initialize Column Visibility from LocalStorage
+      let savedColumns = localStorage.getItem('tp-visible-columns');
+      if (savedColumns) {
+        try {
+          const colsState = JSON.parse(savedColumns);
+          colsState.forEach(col => {
+            let checkbox = document.querySelector(`.toggle-vis[data-column="${col.id}"]`);
+            if (checkbox) {
+              checkbox.checked = col.visible;
+              contentTable.column(col.id).visible(col.visible);
+            }
+          });
+        } catch(e) {}
+      }
+
+      // Handle column visibility toggles
+      document.querySelectorAll('.toggle-vis').forEach(function(el) {
+        el.addEventListener('change', function(e) {
+          var colId = parseInt(this.getAttribute('data-column'));
+          var isVisible = this.checked;
+          contentTable.column(colId).visible(isVisible);
+          
+          // Save to LocalStorage
+          let currentState = [];
+          document.querySelectorAll('.toggle-vis').forEach(cb => {
+             currentState.push({
+               id: parseInt(cb.getAttribute('data-column')),
+               visible: cb.checked
+             });
+          });
+          localStorage.setItem('tp-visible-columns', JSON.stringify(currentState));
+        });
+      });
+
+      // Selection Checkbox Event Handlers & State Sync
+      $('#contentTable').on('change', '#selectAll', function() {
+        const checked = this.checked;
+        $('.row-select-cb').prop('checked', checked);
+        updateBulkDeleteButtonState();
+      });
+
+      $('#contentTable').on('change', '.row-select-cb', function() {
+        const total = $('.row-select-cb').length;
+        const checked = $('.row-select-cb:checked').length;
+        $('#selectAll').prop('checked', total === checked && total > 0);
+        updateBulkDeleteButtonState();
+      });
+
+      // Bulk Delete Click Handler
+      $('#btn-bulk-delete').on('click', function() {
+        const selectedIds = $('.row-select-cb:checked').map(function() {
+          return this.value;
+        }).get();
+        
+        if (selectedIds.length === 0) return;
+        
+        const trans = pageTranslations[currentLang];
+        const confirmTitle = currentLang === 'ar' ? 'هل أنت متأكد من حذف السجلات المحددة؟' : 'Are you sure you want to delete selected records?';
+        const confirmText = currentLang === 'ar' ? `سيتم حذف ${selectedIds.length} من السجلات المحددة ونقلها لسلة المهملات.` : `This will soft-delete ${selectedIds.length} selected records.`;
+        
+        Swal.fire({
+          title: confirmTitle,
+          text: confirmText,
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonColor: '#d33',
+          cancelButtonColor: '#3085d6',
+          confirmButtonText: trans.deleteConfirmBtn,
+          cancelButtonText: trans.btnCancel
+        }).then((result) => {
+          if (result.isConfirmed) {
+            $.ajax({
+              url: '?handler=BulkDelete',
+              type: 'POST',
+              data: { ids: selectedIds.join(',') },
+              headers: {
+                "RequestVerificationToken": $('input[name="__RequestVerificationToken"]').val()
+              },
+              success: function(response) {
+                if (response.success) {
+                  Swal.fire({
+                    title: trans.deleteSuccess,
+                    text: response.message,
+                    icon: 'success',
+                    timer: 1500,
+                    showConfirmButton: false
+                  });
+                  contentTable.ajax.reload(null, false);
+                } else {
+                  Swal.fire('Error / خطأ', response.message, 'error');
+                }
+              },
+              error: function(xhr, status, error) {
+                Swal.fire('Error / خطأ', 'فشلت معالجة الطلب على الخادم: ' + error, 'error');
+              }
+            });
+          }
+        });
+      });
+    });
+
+    function updateBulkDeleteButtonState() {
+      const count = $('.row-select-cb:checked').length;
+      const btn = $('#btn-bulk-delete');
+      
+      if (count > 0) {
+        btn.removeClass('disabled').prop('disabled', false);
+        const text = currentLang === 'ar' ? `حذف الحقول المحددة (${count})` : `Delete Selected (${count})`;
+        btn.find('span').text(text);
+      } else {
+        btn.addClass('disabled').prop('disabled', true);
+        const text = currentLang === 'ar' ? 'حذف الحقول المحددة' : 'Delete Selected';
+        btn.find('span').text(text);
+      }
+    }
+
+    function applyPageTranslations(lang) {
+      currentLang = lang;
+      
+      // Update body classes
+      document.body.classList.toggle('lang-ar', lang === 'ar');
+      document.body.classList.toggle('lang-en', lang === 'en');
+
+      // Update data attributes i18n
+      const elements = document.querySelectorAll('[data-page-i18n]');
+      elements.forEach(el => {
+        const key = el.getAttribute('data-page-i18n');
+        if (pageTranslations[lang] && pageTranslations[lang][key]) {
+          el.textContent = pageTranslations[lang][key];
+        }
+      });
+
+      // Translate dynamic select options
+      const dynamicOptions = document.querySelectorAll('option[data-label-ar]');
+      dynamicOptions.forEach(opt => {
+        const ar = opt.getAttribute('data-label-ar');
+        const en = opt.getAttribute('data-label-en');
+        opt.textContent = (lang === 'ar') ? ar : (en || ar);
+      });
+    }
+
+    // Cascading Category -> SubCategory selection
+    function initCategoriesCascade() {
+      const catSelect = document.getElementById('filter-category');
+      const subSelect = document.getElementById('filter-subcategory');
+
+      catSelect.addEventListener('change', function() {
+        const parentId = this.value;
+        subSelect.value = ""; // Reset subcategory selection
+        
+        const subOptions = subSelect.querySelectorAll('option');
+        subOptions.forEach(opt => {
+          if (opt.value === "") return;
+          
+          const parentAttr = opt.getAttribute('data-parent');
+          if (!parentId || parentAttr === parentId) {
+            opt.style.display = "block";
+          } else {
+            opt.style.display = "none";
+          }
+        });
+      });
+    }
+
+    // Custom Word Export
+    function customWordExport(e, dt, button, config) {
+        var html = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>";
+        html += "<head><meta charset='utf-8'><title>Export HTML To Doc</title></head><body>";
+        html += "<h2 style='text-align:center;font-family:Arial;'>TalaPress Content Report</h2>";
+        html += "<table border='1' style='width:100%; border-collapse: collapse; font-family:Arial;' dir='" + (currentLang === 'ar' ? 'rtl' : 'ltr') + "'>";
+        
+        // Headers
+        html += "<thead><tr>";
+        dt.columns(config.exportOptions.columns).header().each(function(th) {
+            html += "<th style='background-color:#f8f9fa;padding:8px;'>" + $(th).text() + "</th>";
+        });
+        html += "</tr></thead>";
+        
+        // Body
+        html += "<tbody>";
+        dt.rows({ search: 'applied' }).every(function() {
+            html += "<tr>";
+            dt.cells(this.index(), config.exportOptions.columns).every(function() {
+                var cellText = $('<div>' + this.render('display') + '</div>').text().trim();
+                html += "<td style='padding:8px;'>" + cellText + "</td>";
+            });
+            html += "</tr>";
+        });
+        html += "</tbody></table></body></html>";
+        
+        var blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+        var url = URL.createObjectURL(blob);
+        var downloadLink = document.createElement("a");
+        downloadLink.href = url;
+        downloadLink.download = 'TalaPress_Report.doc';
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        setTimeout(function() { URL.revokeObjectURL(url); }, 100);
+    }
+
+    function isArabicChar(code) {
+        if (code >= 0x0660 && code <= 0x0669) return false;
+        if (code >= 0x06F0 && code <= 0x06F9) return false;
+        
+        return (code >= 0x0600 && code <= 0x06FF) || 
+               (code >= 0x0750 && code <= 0x077F) || 
+               (code >= 0xFB50 && code <= 0xFDFF) || 
+               (code >= 0xFE70 && code <= 0xFEFF);
+    }
+
+    function fixArabicPdfText(text) {
+        if (text === null || text === undefined) return "";
+        text = String(text);
+        if (!text.trim()) return text;
+        
+        // إضافة علامة RTL Mark (\u200F) حول علامات الترقيم لمنع تشويه الترتيب (Bidi Shifting) في قارئ الـ PDF
+        text = text.replace(/:/g, '\u200F:\u200F')
+                   .replace(/\|/g, '\u200F|\u200F')
+                   .replace(/-/g, '\u200F-\u200F');
+        
+        var hasArabic = false;
+        for (var i = 0; i < text.length; ++i) {
+            var code = text.charCodeAt(i);
+            if (isArabicChar(code)) {
+                hasArabic = true;
+                break;
+            }
+        }
+        
+        if (!hasArabic) return text;
+        
+        var words = text.split(' ');
+        var processedWords = [];
+        
+        for (var j = 0; j < words.length; ++j) {
+            var word = words[j];
+            if (word === "") {
+                processedWords.push("");
+                continue;
+            }
+            
+            var wordHasArabic = false;
+            for (var k = 0; k < word.length; ++k) {
+                if (isArabicChar(word.charCodeAt(k))) {
+                    wordHasArabic = true;
+                    break;
+                }
+            }
+            
+            if (wordHasArabic) {
+                var shaped = ArabicReshaper.convertArabic(word);
+                var reversed = shaped.split('').reverse().join('');
+                processedWords.push(reversed);
+            } else {
+                processedWords.push(word);
+            }
+        }
+        
+        processedWords.reverse();
+        return processedWords.join(' ');
+    }
+
+    // Custom PDF Export using jsPDF and autoTable with Amiri font
+    function customPdfExport(e, dt, button, config) {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({
+            orientation: 'landscape',
+            unit: 'mm',
+            format: 'a4'
+        });
+
+        // Register Amiri font as bold too so bold headers don't fall back to Helvetica
+        doc.addFont('Amiri-normal.ttf', 'Amiri', 'bold');
+
+        // تعيين الخط والاتجاه
+        doc.setFont("Amiri", "normal");
+        doc.setFontSize(14);
+
+        var isAr = currentLang === 'ar';
+        var contentType = $('#filter-contentType option:selected').text();
+        var hasContentType = $('#filter-contentType').val() !== "";
+        var dateStr = new Date().toLocaleDateString(isAr ? 'ar-EG' : 'en-US');
+
+        var reportTitle = "";
+        if (isAr) {
+            reportTitle = hasContentType ? `تقرير محتوى: ${contentType} - تاريخ: ${dateStr}` : `تقرير شامل للمحتوى - تاريخ: ${dateStr}`;
+        } else {
+            reportTitle = hasContentType ? `Content Report: ${contentType} - Date: ${dateStr}` : `Comprehensive Content Report - Date: ${dateStr}`;
+        }
+
+        // A4 landscape width is approx 297mm. Use 283 for right-aligned text.
+        var textX = isAr ? 283 : 14;
+
+        // ضبط اتجاه الصفحة
+        doc.text(isAr ? fixArabicPdfText(reportTitle) : reportTitle, textX, 10, { align: isAr ? 'right' : 'left' });
+
+        var filters = [];
+        var status = $('#filter-status option:selected').text();
+        
+        if (hasContentType) filters.push((isAr ? 'النوع: ' : 'Type: ') + contentType);
+        if ($('#filter-status').val() !== 'ALL') filters.push((isAr ? 'الحالة: ' : 'Status: ') + status);
+
+        if (filters.length > 0) {
+            doc.setFontSize(10);
+            var filtersText = (isAr ? "الفلاتر: " : "Filters: ") + filters.join(' | ');
+            doc.text(isAr ? fixArabicPdfText(filtersText) : filtersText, textX, 20, { align: isAr ? 'right' : 'left' });
+        }
+
+        // Extract Headers
+        var headers = [];
+        dt.columns(config.exportOptions.columns).header().each(function(th) {
+            headers.push($(th).text());
+        });
+
+        // Extract Body
+        var bodyData = [];
+        dt.rows({ search: 'applied' }).every(function() {
+            var row = [];
+            dt.cells(this.index(), config.exportOptions.columns).every(function() {
+                var cellText = $('<div>' + this.render('display') + '</div>').text().trim();
+                row.push(cellText);
+            });
+            if (isAr) row.reverse(); // Reverse columns for RTL support in autotable
+            bodyData.push(row);
+        });
+        
+        if (isAr) headers.reverse();
+
+        doc.autoTable({
+            head: [headers],
+            body: bodyData,
+            startY: filters.length > 0 ? 30 : 25,
+            styles: {
+                font: "Amiri",
+                fontStyle: "normal",
+                fontSize: 10,
+                halign: isAr ? 'right' : 'left'
+            },
+            headStyles: {
+                font: "Amiri",
+                fontStyle: "bold",
+                fillColor: [173, 216, 230], // Light Blue
+                halign: 'center',
+                textColor: 20
+            },
+            bodyStyles: {
+                font: "Amiri",
+                fontStyle: "normal"
+            },
+            alternateRowStyles: { fillColor: [245, 245, 245] },
+            margin: { left: 10, right: 10 }
+        });
+
+        doc.save("TalaPress_Content_Export.pdf");
+    }
+
+    // Server-Side Export Interceptor
+    function newExportAction(e, dt, button, config) {
+        var self = this;
+        var oldStart = dt.settings()[0]._iDisplayStart;
+        var oldLength = dt.settings()[0]._iDisplayLength;
+        
+        // Temporarily fetch all data (-1)
+        dt.page.len(-1);
+        dt.one('preDraw', function (e, settings) {
+            // Call original action based on button type
+            if (button[0].className.indexOf('buttons-excel') >= 0) {
+                $.fn.dataTable.ext.buttons.excelHtml5.action.call(self, e, dt, button, config);
+            } else if (button[0].className.indexOf('buttons-pdf') >= 0) {
+                customPdfExport(e, dt, button, config);
+            } else if (button[0].className.indexOf('buttons-word') >= 0) {
+                customWordExport(e, dt, button, config);
+            } else if (button[0].className.indexOf('buttons-print') >= 0) {
+                $.fn.dataTable.ext.buttons.print.action.call(self, e, dt, button, config);
+            }
+            // Restore pagination on next XHR
+            dt.one('preXhr', function (e, s, data) {
+                settings._iDisplayStart = oldStart;
+                settings._iDisplayLength = oldLength;
+            });
+            // Reload data with original settings
+            setTimeout(dt.ajax.reload, 0);
+            return false;
+        });
+        // Trigger reload to fetch all data
+        dt.ajax.reload();
+    }
+
+    // Initialize jQuery DataTables with server-side queries
+    function initContentDataTable() {
+      contentTable = $('#contentTable').DataTable({
+        processing: true,
+        serverSide: true,
+        responsive: {
+            details: {
+                type: 'column',
+                target: -1
+            }
+        },
+        dom: "<'row'<'col-sm-12 col-md-6'Bl><'col-sm-12 col-md-6'f>>" +
+             "<'row'<'col-sm-12'tr>>" +
+             "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
+        buttons: {
+            dom: {
+                button: {
+                    className: 'btn tp-btn-icon-only mx-1'
+                }
+            },
+            buttons: [
+              {
+                extend: 'excelHtml5',
+                text: '<i class="bi bi-file-earmark-excel-fill text-success fs-4"></i>',
+                titleAttr: currentLang === 'ar' ? 'تصدير إلى إكسيل' : 'Export to Excel',
+                className: 'buttons-excel',
+                title: 'TalaPress_Content_Export',
+                exportOptions: { columns: [2, 3, 4, 5, 6, 7, 8, 9, 10] },
+                action: newExportAction
+              },
+              {
+                text: '<i class="bi bi-file-earmark-pdf-fill text-danger fs-4"></i>',
+                titleAttr: currentLang === 'ar' ? 'تصدير إلى PDF' : 'Export to PDF',
+                className: 'buttons-pdf',
+                title: 'TalaPress_Content_Export',
+                exportOptions: { columns: [2, 3, 4, 5, 6, 7, 8, 9, 10] },
+                action: newExportAction
+              },
+              {
+                text: '<i class="bi bi-file-earmark-word-fill text-primary fs-4"></i>',
+                titleAttr: currentLang === 'ar' ? 'تصدير إلى Word' : 'Export to Word',
+                className: 'buttons-word',
+                exportOptions: { columns: [2, 3, 4, 5, 6, 7, 8, 9, 10] },
+                action: newExportAction
+              },
+              {
+                extend: 'print',
+                text: '<i class="bi bi-printer-fill text-secondary fs-4"></i>',
+                titleAttr: currentLang === 'ar' ? 'طباعة التقرير' : 'Print Report',
+                className: 'buttons-print',
+                title: '',
+                exportOptions: { columns: [2, 3, 4, 5, 6, 7, 8, 9, 10] },
+                action: newExportAction,
+                customize: function (win) {
+                    $(win.document.body).css('direction', currentLang === 'ar' ? 'rtl' : 'ltr');
+                    $(win.document.body).css('background', '#f8f9fa');
+                    $(win.document.body).find('table')
+                        .addClass('table-bordered table-striped text-center')
+                        .css('font-size', '14px')
+                        .css('background', '#fff');
+                    
+                    $(win.document.body).find('h1').remove();
+                    $(win.document.body).prepend(`
+                        <div style="text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #0d6efd;">
+                            <h2 style="color: #0d6efd; font-weight: bold; margin-bottom: 5px; font-family: Cairo, sans-serif;">TalaPress System</h2>
+                            <h4 style="color: #6c757d; margin-top: 0; font-family: Cairo, sans-serif;">تقرير شامل للمحتوى والمنشورات</h4>
+                            <p style="font-size: 12px; color: #adb5bd; margin-top: 10px;">تاريخ الطباعة: ${new Date().toLocaleString(currentLang === 'ar' ? 'ar-EG' : 'en-US')}</p>
+                        </div>
+                    `);
+                }
+              }
+            ]
+        },
+        ajax: {
+          url: '?handler=ServerSideData',
+          type: 'POST',
+          headers: {
+            "RequestVerificationToken": $('input[name="__RequestVerificationToken"]').val()
+          },
+          data: function(d) {
+            // Merge custom advanced filters
+            d.contentTypeId = document.getElementById('filter-contentType').value;
+            d.categoryId = document.getElementById('filter-category').value;
+            d.subCategoryId = document.getElementById('filter-subcategory').value;
+            d.status = document.getElementById('filter-status').value;
+            d.authorId = document.getElementById('filter-author').value;
+            d.dateFrom = document.getElementById('filter-dateFrom').value;
+            d.dateTo = document.getElementById('filter-dateTo').value;
+          }
+        },
+        language: {
+          get search() { return pageTranslations[currentLang].dtSearch; },
+          get lengthMenu() { return pageTranslations[currentLang].dtLength; },
+          get info() { return pageTranslations[currentLang].dtInfo; },
+          get emptyTable() { return pageTranslations[currentLang].dtEmpty; },
+          get zeroRecords() { return pageTranslations[currentLang].dtEmpty; },
+          get processing() { return `<div class="spinner-border text-primary" role="status"></div><div class="mt-2 text-primary fw-bold">${pageTranslations[currentLang].dtProcessing}</div>`; },
+          paginate: {
+            first: "<<",
+            previous: "<",
+            next: ">",
+            last: ">>"
+          }
+        },
+        order: [[10, 'desc']], // Default sorting: Created Date DESC
+        columnDefs: [
+          { targets: [0, 1, 11], orderable: false } // Checkbox, Image and Actions columns are non-sortable
+        ],
+        columns: [
+          // Select Checkbox Column
+          {
+            data: 'id',
+            render: function(data, type, row) {
+              return `<input type="checkbox" class="form-check-input row-select-cb" value="${data}">`;
+            }
+          },
+          // Featured Image
+          { 
+            data: 'featuredImage',
+            render: function(data, type, row) {
+              if (data) {
+                return `<img src="${data}" alt="Thumbnail" class="rounded border shadow-sm" style="width: 45px; height: 45px; object-fit: cover;">`;
+              }
+              // Icon fallback based on content type
+              let iconClass = 'bi bi-file-earmark-richtext';
+              if (row.contentTypeNameEn === 'News') iconClass = 'bi bi-newspaper';
+              if (row.contentTypeNameEn === 'Event') iconClass = 'bi bi-calendar-event';
+              if (row.contentTypeNameEn === 'Gallery') iconClass = 'bi bi-images';
+              if (row.contentTypeNameEn === 'Team') iconClass = 'bi bi-people';
+              if (row.contentTypeNameEn === 'Service') iconClass = 'bi bi-briefcase';
+              if (row.contentTypeNameEn === 'Project') iconClass = 'bi bi-kanban';
+              
+              return `<div class="rounded bg-light text-secondary border d-flex align-items-center justify-content-center mx-auto" style="width: 45px; height: 45px; font-size: 20px;"><i class="${iconClass}"></i></div>`;
+            }
+          },
+          // Title
+          {
+            data: 'title',
+            render: function(data, type, row) {
+              const text = currentLang === 'ar' ? (row.title || 'بدون عنوان') : (row.title_En || row.title || 'Untitled');
+              return `<div class="fw-bold text-start px-2"><a href="/ContentEdit?id=${row.id}" class="text-decoration-none text-primary-emphasis">${text}</a></div>`;
+            }
+          },
+          // Content Type
+          {
+            data: 'contentTypeName',
+            render: function(data, type, row) {
+              const text = currentLang === 'ar' ? row.contentTypeName : (row.contentTypeNameEn || row.contentTypeName);
+              return `<span class="badge bg-secondary-subtle text-secondary-emphasis fs-8 px-2">${text}</span>`;
+            }
+          },
+          // Category
+          {
+            data: 'categoryName',
+            render: function(data, type, row) {
+              const text = currentLang === 'ar' ? (row.categoryName || '—') : (row.categoryNameEn || row.categoryName || '—');
+              return `<span>${text}</span>`;
+            }
+          },
+          // SubCategory
+          {
+            data: 'subCategoryName',
+            render: function(data, type, row) {
+              const text = currentLang === 'ar' ? (row.subCategoryName || '—') : (row.subCategoryNameEn || row.subCategoryName || '—');
+              return `<span>${text}</span>`;
+            }
+          },
+          // Status
+          {
+            data: 'status',
+            render: function(data, type, row) {
+              let badgeClass = 'bg-warning text-dark';
+              let statusText = data;
+              if (data === 'Published') {
+                badgeClass = 'bg-success';
+                statusText = currentLang === 'ar' ? 'منشور' : 'Published';
+              } else if (data === 'Draft') {
+                badgeClass = 'bg-warning text-dark';
+                statusText = currentLang === 'ar' ? 'مسودة' : 'Draft';
+              } else if (data === 'Scheduled') {
+                badgeClass = 'bg-info text-dark';
+                statusText = currentLang === 'ar' ? 'مجدول' : 'Scheduled';
+              }
+              return `<span class="badge ${badgeClass} fs-8 px-3">${statusText}</span>`;
+            }
+          },
+          // Publish Date
+          {
+            data: 'publishDate',
+            render: function(data) {
+              if (!data) return '—';
+              const dt = new Date(data);
+              return dt.toLocaleDateString(currentLang === 'ar' ? 'ar-EG' : 'en-US') + ' ' + dt.toLocaleTimeString(currentLang === 'ar' ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' });
+            }
+          },
+          // Author
+          { data: 'authorName' },
+          // Hits
+          { data: 'hits' },
+          // Created Date
+          {
+            data: 'createdAt',
+            render: function(data) {
+              const dt = new Date(data);
+              return dt.toLocaleDateString(currentLang === 'ar' ? 'ar-EG' : 'en-US');
+            }
+          },
+          // Actions
+          {
+            data: 'id',
+            render: function(data, type, row) {
+              const editTitle = currentLang === 'ar' ? 'تعديل المحتوى' : 'Edit Content';
+              const duplicateTitle = currentLang === 'ar' ? 'تكرار المقال كمسودة' : 'Duplicate Draft';
+              const previewTitle = currentLang === 'ar' ? 'عرض المحتوى' : 'View Content';
+              const deleteTitle = currentLang === 'ar' ? 'حذف المقال' : 'Delete Content';
+
+              return `
+                <div class="d-flex align-items-center justify-content-center gap-1">
+                  <a href="/ContentEdit?id=${data}" class="btn btn-sm btn-outline-primary btn-icon" title="${editTitle}"><i class="bi bi-pencil-fill"></i></a>
+                  <button type="button" class="btn btn-sm btn-outline-secondary btn-icon" onclick="triggerDuplicate(${data})" title="${duplicateTitle}"><i class="bi bi-files"></i></button>
+                  <button type="button" class="btn btn-sm btn-outline-info btn-icon" onclick="showHeadlessPreview(${data})" title="${previewTitle}"><i class="bi bi-eye-fill"></i></button>
+                  <button type="button" class="btn btn-sm btn-outline-danger btn-icon" onclick="triggerDelete(${data})" title="${deleteTitle}"><i class="bi bi-trash-fill"></i></button>
+                </div>
+              `;
+            }
+          }
+        ],
+        drawCallback: function() {
+          $('#selectAll').prop('checked', false);
+          updateBulkDeleteButtonState();
+        }
+      });
+
+      // Move buttons into the new toolbar container
+      contentTable.buttons().container().appendTo('#export-buttons-container');
+    }
+
+    // Trigger Duplication Form Post
+    function triggerDuplicate(id) {
+      document.getElementById('duplicate-id-input').value = id;
+      document.getElementById('duplicateForm').submit();
+    }
+
+    // Trigger Soft Delete AJAX Call
+    function triggerDelete(id) {
+      const trans = pageTranslations[currentLang];
+      
+      Swal.fire({
+        title: trans.deleteConfirmTitle,
+        text: trans.deleteConfirmText,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: trans.deleteConfirmBtn,
+        cancelButtonText: trans.btnCancel
+      }).then((result) => {
+        if (result.isConfirmed) {
+          $.ajax({
+            url: '?handler=Delete',
+            type: 'POST',
+            data: { id: id },
+            headers: {
+              "RequestVerificationToken": $('input[name="__RequestVerificationToken"]').val()
+            },
+            success: function(response) {
+              if (response.success) {
+                Swal.fire({
+                  title: trans.deleteSuccess,
+                  text: response.message,
+                  icon: 'success',
+                  timer: 1500,
+                  showConfirmButton: false
+                });
+                contentTable.ajax.reload(null, false); // Reload table preserving current pagination
+              } else {
+                Swal.fire('Error / خطأ', response.message, 'error');
+              }
+            },
+            error: function(xhr, status, error) {
+              Swal.fire('Error / خطأ', 'فشلت معالجة الطلب على الخادم: ' + error, 'error');
+            }
+          });
+        }
+      });
+    }
+
+    // Fetch and show formatted content preview
+    function showHeadlessPreview(id) {
+      document.getElementById('preview-loading').classList.remove('d-none');
+      document.getElementById('content-preview-article').classList.add('d-none');
+      document.getElementById('preview-full-page-link').href = '/ContentPreview?id=' + id;
+      previewModalInstance.show();
+
+      $.ajax({
+        url: '/ContentPreview?id=' + id + '&handler=JSON',
+        type: 'GET',
+        success: function(response) {
+          renderFormattedPreview(response);
+        },
+        error: function(xhr, status, error) {
+          document.getElementById('preview-loading').innerHTML = `<div class="text-danger fw-bold py-4">Failed to load preview: ${escapeHtml(error)} / فشل جلب المعاينة.</div>`;
+        }
+      });
+    }
+
+    function renderFormattedPreview(item) {
+      const isAr = currentLang === 'ar';
+      const title = isAr ? (item.title || item.titleEn || 'بدون عنوان') : (item.titleEn || item.title || 'Untitled');
+      const summary = isAr ? (item.summary || item.summaryEn || '') : (item.summaryEn || item.summary || '');
+      const htmlContent = isAr ? (item.content || item.contentEn || '') : (item.contentEn || item.content || '');
+      const type = isAr ? (item.contentTypeAr || item.contentType || '—') : (item.contentType || item.contentTypeAr || '—');
+      const category = isAr ? [item.category, item.subCategory].filter(Boolean).join(' / ') : [item.categoryEn || item.category, item.subCategoryEn || item.subCategory].filter(Boolean).join(' / ');
+
+      document.getElementById('preview-title').textContent = title;
+      document.getElementById('preview-summary').textContent = summary;
+      document.getElementById('preview-summary').classList.toggle('d-none', !summary);
+      document.getElementById('preview-content').innerHTML = htmlContent || `<p class="text-muted">${isAr ? 'لا يوجد محتوى نصي.' : 'No body content.'}</p>`;
+      document.getElementById('preview-type').textContent = type;
+      document.getElementById('preview-status').textContent = formatStatus(item.status);
+      document.getElementById('preview-date').textContent = item.publishDate || item.createdAt || '—';
+      document.getElementById('preview-hits-count').textContent = item.hits || item.hitts || 0;
+      document.getElementById('preview-author').textContent = item.author || '—';
+      document.getElementById('preview-category').textContent = category || '—';
+
+      const hero = document.getElementById('preview-hero-image');
+      if (item.featuredImage) {
+        hero.classList.remove('d-none');
+        hero.innerHTML = `<img src="${escapeAttribute(item.featuredImage)}" alt="${escapeAttribute(title)}" class="w-100 h-100 object-fit-cover">`;
+      } else {
+        hero.classList.add('d-none');
+        hero.innerHTML = '';
+      }
+
+      renderPreviewFields(item.fieldsDisplay || item.fields || {});
+      renderPreviewSeo(item.seo || {});
+
+      document.getElementById('preview-loading').classList.add('d-none');
+      document.getElementById('content-preview-article').classList.remove('d-none');
+    }
+
+    function renderPreviewFields(fields) {
+      const wrapper = document.getElementById('preview-fields');
+      const keys = Object.keys(fields).filter(k => fields[k] !== null && fields[k] !== undefined && fields[k] !== '');
+      if (!keys.length) {
+        wrapper.innerHTML = `<div class="text-muted small">${currentLang === 'ar' ? 'لا توجد حقول مخصصة.' : 'No custom fields.'}</div>`;
+        return;
+      }
+
+      wrapper.innerHTML = keys.map(key => `
+        <div class="bg-white border rounded-3 p-3 shadow-sm">
+          <div class="text-secondary small fw-semibold mb-1">${escapeHtml(key)}</div>
+          <div class="fw-bold text-break">${renderPreviewValue(fields[key])}</div>
+        </div>
+      `).join('');
+    }
+
+    function renderPreviewSeo(seo) {
+      const rows = [
+        ['Title', currentLang === 'ar' ? (seo.title || seo.titleEn) : (seo.titleEn || seo.title)],
+        ['Description', currentLang === 'ar' ? (seo.description || seo.descriptionEn) : (seo.descriptionEn || seo.description)],
+        ['Keywords', currentLang === 'ar' ? (seo.keywords || seo.keywordsEn) : (seo.keywordsEn || seo.keywords)],
+        ['Canonical', seo.canonical]
+      ];
+
+      document.getElementById('preview-seo').innerHTML = rows.map(([label, value]) => `
+        <div class="mb-2">
+          <div class="fw-bold text-dark">${label}</div>
+          <div class="text-break">${escapeHtml(value || '—')}</div>
+        </div>
+      `).join('');
+    }
+
+    function renderPreviewValue(value) {
+      if (value && typeof value === 'object' && !Array.isArray(value) && value.results) {
+        const count = Array.isArray(value.results) ? value.results.length : 0;
+        return `<span class="badge bg-info-subtle text-info-emphasis border px-2 py-1"><i class="bi bi-diagram-3 me-1"></i>Query: ${count} result(s)</span>`;
+      }
+      if (value && typeof value === 'object' && !Array.isArray(value) && Object.prototype.hasOwnProperty.call(value, 'value')) {
+        const label = currentLang === 'ar' ? (value.label || value.labelEn || value.value) : (value.labelEn || value.label || value.value);
+        return `<span class="badge bg-primary-subtle text-primary-emphasis border px-2 py-1">${escapeHtml(label)}</span><small class="d-block text-muted mt-1" dir="ltr">${escapeHtml(value.value)}</small>`;
+      }
+      if (Array.isArray(value)) {
+        return value.map(v => renderPreviewValue(v)).join('');
+      }
+      if (typeof value === 'boolean') {
+        return value ? '<span class="badge bg-success">Yes</span>' : '<span class="badge bg-secondary">No</span>';
+      }
+      if (typeof value === 'string' && value.match(/\.(jpeg|jpg|gif|png|webp)$/i)) {
+        return `<img src="${escapeAttribute(value)}" alt="" class="img-fluid rounded border shadow-sm" style="max-height: 140px; object-fit: contain;">`;
+      }
+      if (typeof value === 'string' && value.startsWith('/uploads/')) {
+        return `<a href="${escapeAttribute(value)}" target="_blank" class="text-decoration-none"><i class="bi bi-paperclip me-1"></i>${escapeHtml(value.split('/').pop())}</a>`;
+      }
+      return escapeHtml(String(value));
+    }
+
+    function formatStatus(status) {
+      if (status === 'Published') return currentLang === 'ar' ? 'منشور' : 'Published';
+      if (status === 'Draft') return currentLang === 'ar' ? 'مسودة' : 'Draft';
+      if (status === 'Scheduled') return currentLang === 'ar' ? 'مجدول' : 'Scheduled';
+      return status || '—';
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
+    }
+
+    function escapeAttribute(value) {
+      return escapeHtml(value).replace(/`/g, '&#96;');
+    }
+  </script>
+}

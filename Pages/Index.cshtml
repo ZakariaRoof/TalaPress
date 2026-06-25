@@ -1,0 +1,584 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "لوحة التحكم";
+}
+
+@section Styles {
+  <style>
+    /* Shimmer / Skeleton Loader Styling */
+    .tp-chart-loader-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 5;
+      background: transparent;
+      opacity: 1;
+      transition: opacity 0.3s ease-in-out;
+    }
+
+    /* Shimmer Animation */
+    @* Escape @ for Razor compiler *@
+    @@keyframes tp-shimmer {
+      0% {
+        background-position: -200px 0;
+      }
+      100% {
+        background-position: calc(200px + 100%) 0;
+      }
+    }
+
+    .tp-chart-skeleton-donut,
+    .tp-chart-skeleton-dot,
+    .tp-chart-skeleton-bar {
+      background: linear-gradient(90deg, var(--bs-secondary-bg) 25%, var(--bs-border-color-translucent) 50%, var(--bs-secondary-bg) 75%);
+      background-size: 200px 100%;
+      animation: tp-shimmer 1.5s infinite linear;
+    }
+
+    /* Donut skeleton */
+    .tp-chart-skeleton-donut {
+      width: 160px;
+      height: 160px;
+      border-radius: 50%;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .tp-chart-skeleton-donut-hole {
+      width: 110px;
+      height: 110px;
+      border-radius: 50%;
+      background-color: var(--bs-card-bg, var(--bs-body-bg, #fff));
+    }
+
+    /* Legend skeleton */
+    .tp-chart-skeleton-legend {
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+      width: 100%;
+    }
+
+    .tp-chart-skeleton-dot {
+      width: 40px;
+      height: 12px;
+      border-radius: 6px;
+    }
+
+    /* Bars skeleton */
+    .tp-chart-skeleton-bars {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      width: 80%;
+      height: 160px;
+      gap: 10px;
+    }
+
+    .tp-chart-skeleton-bar {
+      flex: 1;
+      border-radius: 4px 4px 0 0;
+      min-height: 20px;
+    }
+  </style>
+}
+
+<!-- SECONDARY HEADER (BLUE BAR) -->
+<section class="tp-sub-header">
+  <div class="container-fluid px-4">
+    <div class="row align-items-center">
+      <div class="col-md-6 mb-3 mb-md-0">
+        <h1 data-tp-i18n="welcome">مرحباً بك في TalaPress</h1>
+        <p data-tp-i18n="welcomeText">هذا النظام مصمم لمساعدتك في إدارة ونشر المحتوى بشكل متكامل. يمكنك متابعة الإحصائيات، وجدولة المقالات، وتعديل مسارات العمل البرمجية بكل سهولة.</p>
+      </div>
+      <div class="col-md-6 text-md-end">
+        <a asp-page="/Index" class="btn tp-btn-outline-light me-2">
+          <i class="bi bi-house-door-fill"></i> <span data-tp-i18n="home">الرئيسية</span>
+        </a>
+        <a asp-page="/Settings" class="btn tp-btn-outline-light me-2">
+          <i class="bi bi-gear-fill"></i> <span data-tp-i18n="settings">الإعدادات</span>
+        </a>
+        <a asp-page="/Index" class="btn btn-light rounded-circle shadow-sm tp-sub-header-btn-icon">
+          <i class="bi bi-speedometer2 text-primary fs-5"></i>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MAIN BODY CONTENT -->
+<main class="container-fluid px-4 pb-5">
+  
+  <!-- STATS ROW -->
+  <div class="row mb-4">
+    <div class="col-sm-6 col-xl-3 mb-3">
+      <div class="tp-card tp-stat-card h-100 mb-0 border-0 shadow-sm">
+        <div class="tp-card-body d-flex align-items-center justify-content-between p-4">
+          <div>
+            <h3 class="fw-bold mb-1">@Model.TotalPosts</h3>
+            <p class="text-muted mb-0">إجمالي المنشورات</p>
+          </div>
+          <div class="bg-primary bg-opacity-10 p-3 rounded-circle">
+            <i class="bi bi-file-earmark-post fs-2 text-primary"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-xl-3 mb-3">
+      <div class="tp-card tp-stat-card accent h-100 mb-0 border-0 shadow-sm">
+        <div class="tp-card-body d-flex align-items-center justify-content-between p-4">
+          <div>
+            <h3 class="fw-bold mb-1">@Model.TotalViews</h3>
+            <p class="text-muted mb-0">إجمالي المشاهدات</p>
+          </div>
+          <div class="bg-indigo bg-opacity-10 p-3 rounded-circle">
+            <i class="bi bi-eye-fill fs-2 text-indigo tp-text-accent"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-xl-3 mb-3">
+      <div class="tp-card tp-stat-card warning h-100 mb-0 border-0 shadow-sm">
+        <div class="tp-card-body d-flex align-items-center justify-content-between p-4">
+          <div>
+            <h3 class="fw-bold mb-1">@Model.PendingCount</h3>
+            <p class="text-muted mb-0">بانتظار الاعتماد</p>
+          </div>
+          <div class="bg-warning bg-opacity-10 p-3 rounded-circle">
+            <i class="bi bi-hourglass-split fs-2 text-warning"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-xl-3 mb-3">
+      <div class="tp-card tp-stat-card success h-100 mb-0 border-0 shadow-sm">
+        <div class="tp-card-body d-flex align-items-center justify-content-between p-4">
+          <div>
+            <h3 class="fw-bold mb-1">@Model.ScheduledCount</h3>
+            <p class="text-muted mb-0">المنشورات المجدولة</p>
+          </div>
+          <div class="bg-success bg-opacity-10 p-3 rounded-circle">
+            <i class="bi bi-calendar-check fs-2 text-success"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GOOGLE ANALYTICS PLACEHOLDERS -->
+  <div class="row mb-4">
+    <div class="col-12">
+        <div class="tp-card border-0 shadow-sm" style="background-color: var(--tp-bg-tertiary);">
+            <div class="tp-card-body d-flex align-items-center gap-3">
+                <i class="bi bi-google text-muted fs-3"></i>
+                <div>
+                    <h6 class="fw-bold mb-0">إحصائيات Google Analytics (قريباً)</h6>
+                    <p class="text-muted mb-0 fs-7">سيتم ربط المؤشرات الفعلية لاحقاً لعرض الزيارات والجلسات ومصادر الزيارات مباشرة من هنا.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+  </div>
+
+  <div class="row">
+    
+    <!-- LEFT COLUMN (Lists & Tabs) -->
+    <div class="col-lg-7 col-xl-6">
+      
+      <!-- Recent Posts Tabbed Widget -->
+      <div class="tp-card border-0 shadow-sm mb-4">
+        <div class="tp-card-header border-bottom-0 pt-4 pb-0 d-flex justify-content-between align-items-center">
+          <h5 class="fw-bold mb-0">أحدث المنشورات</h5>
+          <i class="bi bi-clock-history text-muted"></i>
+        </div>
+        <div class="tp-card-body">
+            <!-- Classic Tabs Navigation -->
+            <ul class="nav nav-tabs tp-classic-tabs mb-3" id="recentPostsTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="all-tab" data-bs-toggle="tab" data-bs-target="#tab-all" type="button" role="tab">الكل</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="today-tab" data-bs-toggle="tab" data-bs-target="#tab-today" type="button" role="tab">اليوم</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="week-tab" data-bs-toggle="tab" data-bs-target="#tab-week" type="button" role="tab">أسبوعي</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="month-tab" data-bs-toggle="tab" data-bs-target="#tab-month" type="button" role="tab">شهري</button>
+                </li>
+            </ul>
+
+            <!-- Tabs Content -->
+            <div class="tab-content" id="recentPostsTabsContent">
+                <!-- All -->
+                <div class="tab-pane fade show active" id="tab-all" role="tabpanel">
+                    @if(Model.RecentPostsAll.Any()) {
+                        <ul class="tp-list-group">
+                            @foreach(var post in Model.RecentPostsAll) {
+                                <li class="tp-list-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <a asp-page="/ContentPreview" asp-route-id="@post.Id" class="fw-bold text-decoration-none">@post.Title</a>
+                                        <div class="fs-8 text-muted">@post.CreatedAt.ToString("dd MMM yyyy HH:mm")</div>
+                                    </div>
+                                    <span class="badge border" style="background-color: var(--tp-bg-tertiary); color: var(--tp-text-primary);">@post.Status</span>
+                                </li>
+                            }
+                        </ul>
+                    } else {
+                        <p class="text-muted text-center my-3">لا توجد منشورات.</p>
+                    }
+                </div>
+                <!-- Today -->
+                <div class="tab-pane fade" id="tab-today" role="tabpanel">
+                    @if(Model.RecentPostsToday.Any()) {
+                        <ul class="tp-list-group">
+                            @foreach(var post in Model.RecentPostsToday) {
+                                <li class="tp-list-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <a asp-page="/ContentPreview" asp-route-id="@post.Id" class="fw-bold text-decoration-none">@post.Title</a>
+                                        <div class="fs-8 text-muted">@post.CreatedAt.ToString("dd MMM yyyy HH:mm")</div>
+                                    </div>
+                                </li>
+                            }
+                        </ul>
+                    } else {
+                        <p class="text-muted text-center my-3">لا توجد منشورات اليوم.</p>
+                    }
+                </div>
+                <!-- Week -->
+                <div class="tab-pane fade" id="tab-week" role="tabpanel">
+                    @if(Model.RecentPostsWeek.Any()) {
+                        <ul class="tp-list-group">
+                            @foreach(var post in Model.RecentPostsWeek) {
+                                <li class="tp-list-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <a asp-page="/ContentPreview" asp-route-id="@post.Id" class="fw-bold text-decoration-none">@post.Title</a>
+                                        <div class="fs-8 text-muted">@post.CreatedAt.ToString("dd MMM yyyy HH:mm")</div>
+                                    </div>
+                                </li>
+                            }
+                        </ul>
+                    } else {
+                        <p class="text-muted text-center my-3">لا توجد منشورات هذا الأسبوع.</p>
+                    }
+                </div>
+                <!-- Month -->
+                <div class="tab-pane fade" id="tab-month" role="tabpanel">
+                    @if(Model.RecentPostsMonth.Any()) {
+                        <ul class="tp-list-group">
+                            @foreach(var post in Model.RecentPostsMonth) {
+                                <li class="tp-list-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <a asp-page="/ContentPreview" asp-route-id="@post.Id" class="fw-bold text-decoration-none">@post.Title</a>
+                                        <div class="fs-8 text-muted">@post.CreatedAt.ToString("dd MMM yyyy HH:mm")</div>
+                                    </div>
+                                </li>
+                            }
+                        </ul>
+                    } else {
+                        <p class="text-muted text-center my-3">لا توجد منشورات هذا الشهر.</p>
+                    }
+                </div>
+            </div>
+        </div>
+      </div>
+
+      <!-- Pending and Scheduled Lists -->
+      <div class="row">
+          <div class="col-12 mb-4">
+              <div class="tp-card border-0 shadow-sm h-100">
+                  <div class="tp-card-header bg-warning bg-opacity-10 border-bottom-0">
+                      <h6 class="fw-bold text-warning mb-0"><i class="bi bi-hourglass-split me-2"></i> بحاجة إلى اعتماد</h6>
+                  </div>
+                  <div class="tp-card-body p-0">
+                    @if(Model.PendingPosts.Any()) {
+                        <ul class="tp-list-group">
+                            @foreach(var post in Model.PendingPosts) {
+                                <li class="tp-list-item d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                    <div class="d-flex flex-column">
+                                        <a asp-page="/ContentPreview" asp-route-id="@post.Id" class="text-decoration-none fw-bold fs-6" style="color: var(--tp-text-primary);">@post.Title</a>
+                                        <div class="d-flex gap-3 fs-8 text-muted mt-1">
+                                            <span><i class="bi bi-folder me-1"></i> @post.ContentTypeName</span>
+                                            <span><i class="bi bi-tag me-1"></i> @post.CategoryName</span>
+                                        </div>
+                                    </div>
+                                    <span class="fs-8 text-muted"><i class="bi bi-calendar me-1"></i> @post.CreatedAt.ToString("dd MMM yyyy")</span>
+                                </li>
+                            }
+                        </ul>
+                    } else {
+                        <div class="p-4 text-center text-muted fs-7">لا توجد منشورات معلقة.</div>
+                    }
+                  </div>
+              </div>
+          </div>
+          <div class="col-12 mb-4">
+              <div class="tp-card border-0 shadow-sm h-100">
+                  <div class="tp-card-header bg-success bg-opacity-10 border-bottom-0">
+                      <h6 class="fw-bold text-success mb-0"><i class="bi bi-calendar-check me-2"></i> مجدولة للنشر</h6>
+                  </div>
+                  <div class="tp-card-body p-0">
+                    @if(Model.ScheduledPosts.Any()) {
+                        <ul class="tp-list-group">
+                            @foreach(var post in Model.ScheduledPosts) {
+                                <li class="tp-list-item d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                    <div class="d-flex flex-column">
+                                        <a asp-page="/ContentPreview" asp-route-id="@post.Id" class="text-decoration-none fw-bold fs-6" style="color: var(--tp-text-primary);">@post.Title</a>
+                                        <div class="d-flex gap-3 fs-8 text-muted mt-1">
+                                            <span><i class="bi bi-folder me-1"></i> @post.ContentTypeName</span>
+                                            <span><i class="bi bi-tag me-1"></i> @post.CategoryName</span>
+                                        </div>
+                                    </div>
+                                    <span class="fs-8 text-muted"><i class="bi bi-clock me-1"></i> النشر: @(post.PublishDate?.ToString("dd MMM yyyy HH:mm") ?? "غير محدد")</span>
+                                </li>
+                            }
+                        </ul>
+                    } else {
+                        <div class="p-4 text-center text-muted fs-7">لا توجد منشورات مجدولة.</div>
+                    }
+                  </div>
+              </div>
+          </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT COLUMN (Charts) -->
+    <div class="col-lg-5 col-xl-6">
+      
+      <!-- Content Types Chart -->
+      <div class="tp-card border-0 shadow-sm mb-4">
+        <div class="tp-card-header border-bottom-0 pt-4 d-flex justify-content-between align-items-center">
+          <h5 class="fw-bold mb-0">إحصائيات أنواع المحتوى</h5>
+          <form method="get" class="d-inline-block">
+              <select name="period" class="form-select form-select-sm" onchange="this.form.submit()">
+                  <option value="all" selected="@(Model.CurrentPeriod == "all" ? "selected" : null)">الكل</option>
+                  <option value="today" selected="@(Model.CurrentPeriod == "today" ? "selected" : null)">اليوم</option>
+                  <option value="week" selected="@(Model.CurrentPeriod == "week" ? "selected" : null)">أسبوعي</option>
+                  <option value="month" selected="@(Model.CurrentPeriod == "month" ? "selected" : null)">شهري</option>
+                  <option value="year" selected="@(Model.CurrentPeriod == "year" ? "selected" : null)">سنوي</option>
+              </select>
+          </form>
+        </div>
+        <div class="tp-card-body position-relative" style="min-height: 320px;">
+          <!-- Shimmer Loader -->
+          <div id="contentTypesChartLoader" class="tp-chart-loader-overlay">
+            <div class="tp-chart-skeleton-donut">
+              <div class="tp-chart-skeleton-donut-hole"></div>
+            </div>
+            <div class="tp-chart-skeleton-legend mt-3">
+              <span class="tp-chart-skeleton-dot"></span>
+              <span class="tp-chart-skeleton-dot"></span>
+              <span class="tp-chart-skeleton-dot"></span>
+            </div>
+          </div>
+          <div dir="ltr" id="contentTypesChartContainer" style="opacity: 0; transition: opacity 0.4s ease-in-out;">
+            <div id="contentTypesChart" style="min-height: 300px;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Monthly Entries Chart -->
+      <div class="tp-card border-0 shadow-sm mb-4">
+        <div class="tp-card-header border-bottom-0 pt-4">
+          <h5 class="fw-bold mb-0">الإدخالات الشهرية (@DateTime.UtcNow.Year)</h5>
+        </div>
+        <div class="tp-card-body position-relative" style="min-height: 320px;">
+          <!-- Shimmer Loader -->
+          <div id="monthlyEntriesChartLoader" class="tp-chart-loader-overlay">
+            <div class="tp-chart-skeleton-bars">
+              <div class="tp-chart-skeleton-bar" style="height: 40%"></div>
+              <div class="tp-chart-skeleton-bar" style="height: 60%"></div>
+              <div class="tp-chart-skeleton-bar" style="height: 80%"></div>
+              <div class="tp-chart-skeleton-bar" style="height: 50%"></div>
+              <div class="tp-chart-skeleton-bar" style="height: 70%"></div>
+              <div class="tp-chart-skeleton-bar" style="height: 90%"></div>
+              <div class="tp-chart-skeleton-bar" style="height: 30%"></div>
+              <div class="tp-chart-skeleton-bar" style="height: 85%"></div>
+            </div>
+          </div>
+          <div dir="ltr" id="monthlyEntriesChartContainer" style="opacity: 0; transition: opacity 0.4s ease-in-out;">
+            <div id="monthlyEntriesChart" style="min-height: 300px;"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</main>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Delay chart initialization slightly to ensure CSS layout and card widths are fully calculated
+            setTimeout(initializeCharts, 250);
+
+            function initializeCharts() {
+                // --- 1. Content Types Donut Chart ---
+                var contentTypesData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.ContentTypeStats));
+                
+                var ctLabels = contentTypesData.map(function(item) { return item.Name; });
+                var ctSeries = contentTypesData.map(function(item) { return item.Count; });
+                
+                var ctChart;
+                if (ctSeries.length === 0) {
+                    var loaderEl = document.getElementById('contentTypesChartLoader');
+                    if (loaderEl) loaderEl.style.display = 'none';
+                    var containerEl = document.getElementById('contentTypesChartContainer');
+                    if (containerEl) containerEl.style.opacity = '1';
+                    document.getElementById('contentTypesChart').innerHTML = '<p class="text-muted text-center mt-5">لا تتوفر بيانات كافية لعرض الرسم البياني.</p>';
+                } else {
+                    var ctOptions = {
+                        series: ctSeries,
+                        labels: ctLabels,
+                        chart: {
+                            type: 'donut',
+                            height: 320,
+                            fontFamily: 'inherit',
+                            background: 'transparent',
+                            events: {
+                                mounted: function() {
+                                    var loaderEl = document.getElementById('contentTypesChartLoader');
+                                    if (loaderEl) {
+                                        loaderEl.style.opacity = '0';
+                                        setTimeout(function() {
+                                            loaderEl.style.display = 'none';
+                                            var containerEl = document.getElementById('contentTypesChartContainer');
+                                            if (containerEl) containerEl.style.opacity = '1';
+                                        }, 300);
+                                    }
+                                }
+                            }
+                        },
+                        theme: {
+                            mode: document.documentElement.getAttribute('data-bs-theme') === 'dark' ? 'dark' : 'light'
+                        },
+                        colors: ['#0d6efd', '#6610f2', '#198754', '#ffc107', '#0dcaf0', '#dc3545'],
+                        plotOptions: {
+                            pie: {
+                                donut: {
+                                    size: '70%'
+                                }
+                            }
+                        },
+                        dataLabels: {
+                            enabled: false
+                        },
+                        legend: {
+                            position: 'bottom'
+                        }
+                    };
+
+                    ctChart = new ApexCharts(document.querySelector("#contentTypesChart"), ctOptions);
+                    ctChart.render();
+                }
+
+                // --- 2. Monthly Entries Bar Chart ---
+                var monthlyData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.MonthlyStats));
+                
+                // Map 1-12 months
+                var arabicMonths = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
+                var meSeriesData = new Array(12).fill(0);
+                
+                monthlyData.forEach(function(item) {
+                    if (item.Month >= 1 && item.Month <= 12) {
+                        meSeriesData[item.Month - 1] = item.Count;
+                    }
+                });
+
+                var meOptions = {
+                    series: [{
+                        name: 'عدد الإدخالات',
+                        data: meSeriesData
+                    }],
+                    chart: {
+                        type: 'bar',
+                        height: 320,
+                        fontFamily: 'inherit',
+                        background: 'transparent',
+                        toolbar: {
+                            show: false
+                        },
+                        events: {
+                            mounted: function() {
+                                var loaderEl = document.getElementById('monthlyEntriesChartLoader');
+                                if (loaderEl) {
+                                    loaderEl.style.opacity = '0';
+                                    setTimeout(function() {
+                                        loaderEl.style.display = 'none';
+                                        var containerEl = document.getElementById('monthlyEntriesChartContainer');
+                                        if (containerEl) containerEl.style.opacity = '1';
+                                    }, 300);
+                                }
+                            }
+                        }
+                    },
+                    theme: {
+                        mode: document.documentElement.getAttribute('data-bs-theme') === 'dark' ? 'dark' : 'light'
+                    },
+                    plotOptions: {
+                        bar: {
+                            borderRadius: 4,
+                            horizontal: false,
+                            columnWidth: '50%'
+                        }
+                    },
+                    dataLabels: {
+                        enabled: false
+                    },
+                    stroke: {
+                        show: true,
+                        width: 2,
+                        colors: ['transparent']
+                    },
+                    xaxis: {
+                        categories: arabicMonths,
+                    },
+                    yaxis: {
+                        title: {
+                            text: 'الإدخالات'
+                        }
+                    },
+                    fill: {
+                        opacity: 1,
+                        colors: ['#0d6efd']
+                    },
+                    tooltip: {
+                        y: {
+                            formatter: function (val) {
+                                return val + " إدخال"
+                            }
+                        }
+                    }
+                };
+
+                var meChart = new ApexCharts(document.querySelector("#monthlyEntriesChart"), meOptions);
+                meChart.render();
+
+                // Trigger a resize event to ensure container size is recalculated correctly in ApexCharts
+                setTimeout(function() {
+                    window.dispatchEvent(new Event('resize'));
+                }, 400);
+
+                // Listen for theme toggle to update charts dynamically
+                document.addEventListener('tp-theme-changed', function(e) {
+                    var newMode = e.detail.theme === 'dark' ? 'dark' : 'light';
+                    if(ctChart) { ctChart.updateOptions({ theme: { mode: newMode }}); }
+                    if(meChart) { meChart.updateOptions({ theme: { mode: newMode }}); }
+                });
+            }
+        });
+    </script>
+}

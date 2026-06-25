@@ -1,0 +1,178 @@
+@page
+@model TalaPress.Pages.ApiKeysModel
+@{
+    ViewData["Title"] = "Pearl API Keys";
+}
+
+<section class="tp-sub-header">
+  <div class="container-fluid px-4">
+    <div class="row align-items-center">
+      <div class="col-md-8 mb-3 mb-md-0">
+        <h1><i class="bi bi-key-fill me-2"></i> &#1605;&#1601;&#1575;&#1578;&#1610;&#1581; Pearl API</h1>
+        <p>&#1571;&#1606;&#1588;&#1574; &#1605;&#1601;&#1575;&#1578;&#1610;&#1581; &#1570;&#1605;&#1606;&#1577; &#1604;&#1575;&#1587;&#1578;&#1582;&#1583;&#1575;&#1605;&#1607;&#1575; &#1605;&#1606; &#1578;&#1591;&#1576;&#1610;&#1602;&#1575;&#1578; Frontend &#1604;&#1604;&#1608;&#1589;&#1608;&#1604; &#1573;&#1604;&#1609; Headless API.</p>
+      </div>
+      <div class="col-md-4 text-md-end">
+        <a asp-page="/Index" class="btn tp-btn-outline-light">
+          <i class="bi bi-house-door-fill"></i> &#1575;&#1604;&#1585;&#1574;&#1610;&#1587;&#1610;&#1577;
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<main class="container-fluid px-4 pb-5">
+  @if (!string.IsNullOrEmpty(Model.SuccessMessage))
+  {
+      <div class="alert alert-success border-0 shadow-sm rounded-3">
+        <i class="bi bi-check-circle-fill me-2"></i>@Model.SuccessMessage
+      </div>
+  }
+
+  @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+  {
+      <div class="alert alert-danger border-0 shadow-sm rounded-3">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>@Model.ErrorMessage
+      </div>
+  }
+
+  @if (!string.IsNullOrEmpty(Model.NewPlainKey))
+  {
+      <div class="alert alert-warning border-0 shadow-sm rounded-3">
+        <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+          <div class="flex-grow-1">
+            <div class="fw-bold mb-2"><i class="bi bi-shield-lock-fill me-1"></i> Pearl Key &#1575;&#1604;&#1580;&#1583;&#1610;&#1583; - &#1610;&#1592;&#1607;&#1585; &#1605;&#1585;&#1577; &#1608;&#1575;&#1581;&#1583;&#1577; &#1601;&#1602;&#1591;</div>
+            <code id="newPearlKey" class="d-block p-3 rounded bg-dark text-success text-break" dir="ltr">@Model.NewPlainKey</code>
+          </div>
+          <button type="button" class="btn btn-dark mt-4" onclick="copyPearlKey()">
+            <i class="bi bi-clipboard me-1"></i> &#1606;&#1587;&#1582; &#1575;&#1604;&#1605;&#1601;&#1578;&#1575;&#1581;
+          </button>
+        </div>
+      </div>
+  }
+
+  <div class="row g-4">
+    <div class="col-lg-4">
+      <div class="tp-card h-100">
+        <div class="tp-card-header">
+          <h5 class="mb-0"><i class="bi bi-plus-circle-fill text-primary me-2"></i> &#1573;&#1606;&#1588;&#1575;&#1569; Key &#1580;&#1583;&#1610;&#1583;</h5>
+        </div>
+        <div class="tp-card-body p-4">
+          <form method="post" asp-page-handler="Create">
+            <div class="mb-3">
+              <label class="form-label fw-bold">&#1575;&#1587;&#1605; &#1575;&#1604;&#1605;&#1601;&#1578;&#1575;&#1581;</label>
+              <input asp-for="Name" class="form-control" placeholder="&#1605;&#1579;&#1575;&#1604;: Website Frontend" required maxlength="150">
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-bold">Allowed Origins</label>
+              <textarea asp-for="AllowedOrigins" class="form-control" rows="3" placeholder="https://example.com&#10;https://app.example.com"></textarea>
+              <div class="form-text">&#1575;&#1582;&#1578;&#1610;&#1575;&#1585;&#1610; &#1581;&#1575;&#1604;&#1610;&#1575;&#1611;&#1548; &#1604;&#1578;&#1608;&#1579;&#1610;&#1602; &#1605;&#1589;&#1575;&#1583;&#1585; Frontend &#1575;&#1604;&#1605;&#1587;&#1605;&#1608;&#1581;&#1577; &#1605;&#1587;&#1578;&#1602;&#1576;&#1604;&#1575;&#1611;.</div>
+            </div>
+            <div class="mb-4">
+              <label class="form-label fw-bold">&#1578;&#1575;&#1585;&#1610;&#1582; &#1575;&#1604;&#1575;&#1606;&#1578;&#1607;&#1575;&#1569;</label>
+              <input asp-for="ExpiresAt" type="datetime-local" class="form-control">
+              <div class="form-text">&#1575;&#1578;&#1585;&#1603;&#1607; &#1601;&#1575;&#1585;&#1594;&#1575;&#1611; &#1573;&#1584;&#1575; &#1603;&#1575;&#1606; &#1575;&#1604;&#1605;&#1601;&#1578;&#1575;&#1581; &#1583;&#1575;&#1574;&#1605;&#1575;&#1611;.</div>
+            </div>
+            <button type="submit" class="btn btn-primary w-100 shadow-sm">
+              <i class="bi bi-key me-1"></i> &#1573;&#1606;&#1588;&#1575;&#1569; Pearl Key
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-8">
+      <div class="tp-card">
+        <div class="tp-card-header d-flex align-items-center justify-content-between">
+          <h5 class="mb-0"><i class="bi bi-list-check text-primary me-2"></i> &#1575;&#1604;&#1605;&#1601;&#1575;&#1578;&#1610;&#1581; &#1575;&#1604;&#1581;&#1575;&#1604;&#1610;&#1577;</h5>
+          <span class="badge bg-primary-subtle text-primary-emphasis">@Model.ApiKeys.Count Key(s)</span>
+        </div>
+        <div class="tp-card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 text-center">
+              <thead class="table-light">
+                <tr>
+                  <th>&#1575;&#1604;&#1575;&#1587;&#1605;</th>
+                  <th>Prefix</th>
+                  <th>&#1575;&#1604;&#1581;&#1575;&#1604;&#1577;</th>
+                  <th>&#1570;&#1582;&#1585; &#1575;&#1587;&#1578;&#1582;&#1583;&#1575;&#1605;</th>
+                  <th>&#1610;&#1606;&#1578;&#1607;&#1610; &#1601;&#1610;</th>
+                  <th>&#1571;&#1606;&#1588;&#1574; &#1576;&#1608;&#1575;&#1587;&#1591;&#1577;</th>
+                  <th>&#1573;&#1580;&#1585;&#1575;&#1569;</th>
+                </tr>
+              </thead>
+              <tbody>
+                @if (!Model.ApiKeys.Any())
+                {
+                    <tr>
+                      <td colspan="7" class="text-muted py-5">
+                        <i class="bi bi-key fs-1 d-block mb-2 opacity-50"></i>
+                        &#1604;&#1575; &#1578;&#1608;&#1580;&#1583; &#1605;&#1601;&#1575;&#1578;&#1610;&#1581; API &#1581;&#1575;&#1604;&#1610;&#1575;&#1611;.
+                      </td>
+                    </tr>
+                }
+                else
+                {
+                    foreach (var key in Model.ApiKeys)
+                    {
+                        var isExpired = key.ExpiresAt.HasValue && key.ExpiresAt.Value <= DateTime.UtcNow;
+                        var isActive = key.IsActive && key.RevokedAt == null && !isExpired;
+                        <tr>
+                          <td class="fw-bold text-start">@key.Name</td>
+                          <td><code dir="ltr">@key.KeyPrefix...</code></td>
+                          <td>
+                            @if (isActive)
+                            {
+                                <span class="badge bg-success">&#1606;&#1588;&#1591;</span>
+                            }
+                            else if (isExpired)
+                            {
+                                <span class="badge bg-warning text-dark">&#1605;&#1606;&#1578;&#1607;&#1610;</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">&#1605;&#1593;&#1591;&#1604;</span>
+                            }
+                          </td>
+                          <td>@(key.LastUsedAt?.ToString("yyyy/MM/dd HH:mm") ?? "—")</td>
+                          <td>@(key.ExpiresAt?.ToString("yyyy/MM/dd HH:mm") ?? "Permanent")</td>
+                          <td>@key.CreatedByName</td>
+                          <td>
+                            @if (isActive)
+                            {
+                                <form method="post" asp-page-handler="Revoke" asp-route-id="@key.Id" onsubmit="return confirm('\u0647\u0644 \u062a\u0631\u064a\u062f \u062a\u0639\u0637\u064a\u0644 \u06487\u0632\u0629 \u0627\u0644\u0645\u0641\u062a\u0627\u062d\u061f');">
+                                  <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    <i class="bi bi-x-circle me-1"></i> &#1578;&#1593;&#1591;&#1610;&#1604;
+                                  </button>
+                                </form>
+                            }
+                            else
+                            {
+                                <span class="text-muted">—</span>
+                            }
+                          </td>
+                        </tr>
+                    }
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="alert alert-info border-0 shadow-sm rounded-3 mt-4">
+        <div class="fw-bold mb-2"><i class="bi bi-terminal-fill me-1"></i> &#1591;&#1585;&#1610;&#1602;&#1577; &#1575;&#1604;&#1575;&#1587;&#1578;&#1582;&#1583;&#1575;&#1605; &#1605;&#1606; Frontend</div>
+        <code class="d-block p-3 rounded bg-dark text-success text-break" dir="ltr">Authorization: Pearl YOUR_KEY</code>
+        <div class="small mt-2">&#1610;&#1605;&#1603;&#1606; &#1571;&#1610;&#1590;&#1575;&#1611; &#1575;&#1587;&#1578;&#1582;&#1583;&#1575;&#1605; Header: <code dir="ltr">X-Pearl-Key: YOUR_KEY</code></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+@section Scripts {
+  <script>
+    function copyPearlKey() {
+      const key = document.getElementById('newPearlKey')?.textContent || '';
+      navigator.clipboard.writeText(key.trim());
+    }
+  </script>
+}
