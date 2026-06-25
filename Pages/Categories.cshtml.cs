@@ -241,6 +241,32 @@ namespace TalaPress.Pages
                     return RedirectToPage();
                 }
 
+                string activeContentCheckQuery = @"
+                    SELECT COUNT(*)
+                    FROM dbo.Content
+                    WHERE IsDeleted = 0
+                      AND (CategoryId = @Id OR SubCategoryId = @Id)";
+                using var activeContentCheckCmd = new SqlCommand(activeContentCheckQuery, connection);
+                activeContentCheckCmd.Parameters.AddWithValue("@Id", id);
+                int activeContentCount = Convert.ToInt32(await activeContentCheckCmd.ExecuteScalarAsync());
+
+                if (activeContentCount > 0)
+                {
+                    ErrorMessage = $"لا يمكن حذف هذه الفئة لأنها مرتبطة بـ {activeContentCount} عنصر محتوى نشط. يرجى تعديل المحتوى المرتبط أولاً.";
+                    return RedirectToPage();
+                }
+
+                string detachDeletedContentQuery = @"
+                    UPDATE dbo.Content
+                    SET CategoryId = CASE WHEN CategoryId = @Id THEN NULL ELSE CategoryId END,
+                        SubCategoryId = CASE WHEN SubCategoryId = @Id THEN NULL ELSE SubCategoryId END,
+                        UpdatedAt = GETUTCDATE()
+                    WHERE IsDeleted = 1
+                      AND (CategoryId = @Id OR SubCategoryId = @Id)";
+                using var detachDeletedContentCmd = new SqlCommand(detachDeletedContentQuery, connection);
+                detachDeletedContentCmd.Parameters.AddWithValue("@Id", id);
+                await detachDeletedContentCmd.ExecuteNonQueryAsync();
+
                 // Delete the category
                 string deleteQuery = "DELETE FROM dbo.Categories WHERE Id = @Id";
                 using var deleteCmd = new SqlCommand(deleteQuery, connection);

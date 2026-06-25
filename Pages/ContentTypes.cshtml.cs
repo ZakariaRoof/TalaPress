@@ -412,6 +412,27 @@ namespace TalaPress.Pages
                 using var transaction = connection.BeginTransaction();
                 try
                 {
+                    // Delete all content rows for this custom content type first to satisfy FK_Content_ContentTypes.
+                    string deleteRelatedContent = "DELETE FROM dbo.Content WHERE ContentTypeId = @Id";
+                    using (var cmd = new SqlCommand(deleteRelatedContent, connection, transaction))
+                    {
+                        cmd.Parameters.AddWithValue("@Id", id);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+
+                    string detachCategories = @"
+                        IF COL_LENGTH('dbo.Categories', 'ContentTypeId') IS NOT NULL
+                        BEGIN
+                            UPDATE dbo.Categories
+                            SET ContentTypeId = NULL, UpdatedAt = GETUTCDATE()
+                            WHERE ContentTypeId = @Id
+                        END";
+                    using (var cmd = new SqlCommand(detachCategories, connection, transaction))
+                    {
+                        cmd.Parameters.AddWithValue("@Id", id);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+
                     // 1. Delete fields
                     string deleteFields = "DELETE FROM dbo.ContentTypeFields WHERE ContentTypeId = @Id";
                     using (var cmd = new SqlCommand(deleteFields, connection, transaction))
@@ -800,7 +821,24 @@ namespace TalaPress.Pages
             using var connection = new SqlConnection(connectionString);
             await connection.OpenAsync();
 
-            string query = "SELECT Id, Name, Name_En, Description, Description_En, IconValue, IsSystem, IsActive FROM dbo.ContentTypes ORDER BY IsSystem DESC, Name ASC";
+            string query = @"
+                SELECT ct.Id, ct.Name, ct.Name_En, ct.Description, ct.Description_En, ct.IconValue, ct.IsSystem, ct.IsActive,
+                       ISNULL(contentStats.ContentCount, 0) AS ContentCount,
+                       ISNULL(categoryStats.CategoryCount, 0) AS CategoryCount
+                FROM dbo.ContentTypes ct
+                LEFT JOIN (
+                    SELECT ContentTypeId, COUNT(*) AS ContentCount
+                    FROM dbo.Content
+                    WHERE IsDeleted = 0
+                    GROUP BY ContentTypeId
+                ) contentStats ON contentStats.ContentTypeId = ct.Id
+                LEFT JOIN (
+                    SELECT ContentTypeId, COUNT(*) AS CategoryCount
+                    FROM dbo.Categories
+                    WHERE ContentTypeId IS NOT NULL
+                    GROUP BY ContentTypeId
+                ) categoryStats ON categoryStats.ContentTypeId = ct.Id
+                ORDER BY ct.IsSystem DESC, ct.Name ASC";
             using var command = new SqlCommand(query, connection);
             using var reader = await command.ExecuteReaderAsync();
             while (await reader.ReadAsync())
@@ -814,7 +852,9 @@ namespace TalaPress.Pages
                     Description_En = reader.IsDBNull(4) ? null : reader.GetString(4),
                     IconValue = reader.IsDBNull(5) ? null : reader.GetString(5),
                     IsSystem = reader.GetBoolean(6),
-                    IsActive = reader.GetBoolean(7)
+                    IsActive = reader.GetBoolean(7),
+                    ContentCount = reader.GetInt32(8),
+                    CategoryCount = reader.GetInt32(9)
                 });
             }
         }
@@ -1172,6 +1212,8 @@ namespace TalaPress.Pages
         public string? IconValue { get; set; }
         public bool IsSystem { get; set; }
         public bool IsActive { get; set; }
+        public int ContentCount { get; set; }
+        public int CategoryCount { get; set; }
     }
 
     public class PredefinedFieldViewModel
