@@ -1,0 +1,1152 @@
+@page
+@using System.Text.Json
+@model TalaPress.Pages.FormsModel
+@{
+    ViewData["Title"] = "منشئ النماذج";
+}
+
+<!-- SECONDARY HEADER (BLUE BAR) -->
+<section class="tp-sub-header">
+  <div class="container-fluid px-4">
+    <div class="row align-items-center">
+      <div class="col-md-7 mb-3 mb-md-0">
+        <h1 data-page-i18n="pageTitle">منشئ النماذج (Form Builder)</h1>
+        <p data-page-i18n="pageDesc">قم بتصميم وبناء نماذج ديناميكية (اتصل بنا، اشتراك، الخ) وربطها بقاعدة البيانات بسهولة.</p>
+      </div>
+      <div class="col-md-5 text-md-end">
+        <a asp-page="/Index" class="btn tp-btn-outline-light me-2">
+          <i class="bi bi-house-door-fill"></i> <span data-tp-i18n="home">الرئيسية</span>
+        </a>
+        <a asp-page="/Forms" asp-route-selectedId="0" class="btn btn-light shadow-sm">
+          <i class="bi bi-plus-lg text-primary fw-bold"></i> <span class="text-primary fw-bold" data-page-i18n="btnAddNewType">إنشاء نموذج جديد</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MAIN CONTAINER -->
+<main class="container-fluid px-4 pb-5">
+
+  @if (Model.SuccessMessageAlert != null)
+  {
+      <div class="alert alert-success alert-dismissible fade show mb-4 border-0 shadow-sm rounded-3" role="alert">
+          <i class="bi bi-check-circle-fill me-2 fs-5"></i> @Model.SuccessMessageAlert
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+  }
+
+  @if (Model.ErrorMessageAlert != null)
+  {
+      <div class="alert alert-danger alert-dismissible fade show mb-4 border-0 shadow-sm rounded-3" role="alert">
+          <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i> @Model.ErrorMessageAlert
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+  }
+
+  <div class="row">
+    <!-- LEFT PANEL: Forms Grid -->
+    <div class="col-lg-5 mb-4">
+      <div class="tp-card mb-0">
+        <div class="tp-card-header d-flex align-items-center justify-content-between">
+          <h5 data-page-i18n="listHeader">النماذج المتوفرة</h5>
+          <span class="badge bg-secondary rounded-pill">@Model.FormsList.Count</span>
+        </div>
+        <div class="tp-card-body p-2">
+          <div class="row row-cols-1 row-cols-md-2 g-2">
+            @foreach (var form in Model.FormsList)
+            {
+                var isSelected = Model.SelectedFormId == form.Id;
+                <div class="col">
+                  <div class="card h-100 rounded-3 position-relative overflow-hidden tp-ct-card
+                              @(isSelected ? "border-primary border-2 shadow" : "border border-light-subtle shadow-sm")"
+                       onclick="window.location.href='?selectedId=@form.Id'"
+                       role="button" style="background-color: #cfe2ff; cursor:pointer;transition:box-shadow .15s,border-color .15s;">
+
+                    @if (isSelected)
+                    {
+                        <div class="position-absolute top-0 start-0 h-100" style="width:4px;background:var(--bs-primary);"></div>
+                    }
+
+                    <div class="card-body ps-4">
+                      <div class="d-flex align-items-start gap-3 mb-2">
+                        <div class="flex-shrink-0 rounded-3 d-flex align-items-center justify-content-center
+                                    @(isSelected ? "bg-primary text-white" : "bg-primary-subtle text-primary")"
+                             style="width:42px;height:42px;font-size:1.15rem;">
+                          <i class="bi bi-ui-checks"></i>
+                        </div>
+                        <div class="flex-grow-1 min-w-0">
+                          <div class="fw-bold fs-6 lh-sm">
+                            <span class="tp-only-ar">@form.Name</span>
+                            <span class="tp-only-en">@(form.Name_En ?? form.Name)</span>
+                          </div>
+                          <div class="d-flex flex-wrap gap-1 mt-1">
+                            <span class="badge @(form.IsActive ? "bg-success" : "bg-danger") fs-8">
+                              <span class="tp-only-ar">@(form.IsActive ? "نشط" : "معطل")</span>
+                              <span class="tp-only-en">@(form.IsActive ? "Active" : "Inactive")</span>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <p class="text-secondary fs-8 mb-0 tp-only-ar" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
+                        @(string.IsNullOrWhiteSpace(form.Description) ? "لا يوجد وصف لهذا النموذج." : form.Description)
+                      </p>
+                      <p class="text-secondary fs-8 mb-0 tp-only-en" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
+                        @(string.IsNullOrWhiteSpace(form.Description_En) ? "No description available." : form.Description_En)
+                      </p>
+                    </div>
+
+                    <div class="card-footer bg-transparent border-top border-light-subtle px-4 py-2 d-flex justify-content-end gap-2"
+                         onclick="event.stopPropagation()">
+                      <button type="button" class="btn btn-sm btn-outline-info px-2 py-1" data-bs-toggle="modal" data-bs-target="#tpPreviewModal" onclick="loadPreview(@form.Id, event)">
+                        <i class="bi bi-eye-fill"></i> <span class="tp-only-ar">معاينة</span><span class="tp-only-en">Preview</span>
+                      </button>
+                      <form method="post" asp-page-handler="Delete" asp-route-id="@form.Id"
+                            onsubmit="return confirm('هل أنت متأكد من حذف هذا النموذج؟');" class="d-inline">
+                        <button type="submit" class="btn btn-sm btn-outline-danger px-2 py-1">
+                          <i class="bi bi-trash-fill me-1"></i><span class="fs-8">حذف</span>
+                        </button>
+                      </form>
+                    </div>
+
+                  </div>
+                </div>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- RIGHT PANEL: Visual Form Builder Workspace -->
+    <div class="col-lg-7 mb-4" id="builder-col-main">
+      <form method="post" asp-page-handler="Save" id="formBuilderForm">
+        <input type="hidden" asp-for="Id" id="form-Id" />
+        <input type="hidden" asp-for="CustomFieldsJson" id="form-customfieldsjson" />
+
+        <div class="tp-card h-100 mb-0" id="builder-card">
+          <div class="tp-card-header border-bottom-0 pb-0">
+            <h5 id="builder-header-title" class="mb-3">
+              <i class="bi bi-layout-text-window-reverse text-primary me-2"></i>
+              @if (Model.Id == 0)
+              {
+                  <span>إنشاء نموذج جديد</span>
+              }
+              else
+              {
+                  <span>تعديل النموذج: </span> <span>@Model.Name</span>
+              }
+            </h5>
+            <ul class="nav nav-tabs" id="formBuilderTabs" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link active fw-bold" id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings-tab-pane" type="button" role="tab" aria-controls="settings-tab-pane" aria-selected="true">
+                  <i class="bi bi-gear-fill me-1"></i> الإعدادات
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link fw-bold" id="fields-tab" data-bs-toggle="tab" data-bs-target="#fields-tab-pane" type="button" role="tab" aria-controls="fields-tab-pane" aria-selected="false">
+                  <i class="bi bi-ui-checks-grid me-1"></i> حقول النموذج
+                </button>
+              </li>
+            </ul>
+          </div>
+
+          <div class="tp-card-body p-0">
+            <div class="tab-content p-4" id="formBuilderTabsContent">
+              <!-- Settings Tab -->
+              <div class="tab-pane fade show active" id="settings-tab-pane" role="tabpanel" aria-labelledby="settings-tab" tabindex="0">
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label class="form-label">الاسم بالعربية <span class="text-danger">*</span></label>
+                    <input type="text" asp-for="Name" class="form-control" required id="form-name" />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">الاسم بالإنجليزية</label>
+                    <input type="text" asp-for="Name_En" class="form-control" id="form-name-en" />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">رسالة النجاح بالعربية (عند الإرسال)</label>
+                    <input type="text" asp-for="SuccessMessage" class="form-control" placeholder="تم إرسال رسالتك بنجاح" />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">رسالة النجاح بالإنجليزية</label>
+                    <input type="text" asp-for="SuccessMessage_En" class="form-control" placeholder="Your message sent successfully" />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">نص زر الإرسال بالعربية</label>
+                    <input type="text" asp-for="SubmitButtonText" class="form-control" placeholder="إرسال" />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">نص زر الإرسال بالإنجليزية</label>
+                    <input type="text" asp-for="SubmitButtonText_En" class="form-control" placeholder="Submit" />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">إيميل استلام الإشعارات (اختياري)</label>
+                    <input type="email" asp-for="NotificationEmail" class="form-control" placeholder="admin@example.com" />
+                    <div class="form-check mt-2">
+                      <input class="form-check-input" type="checkbox" asp-for="SendEmailNotification" id="form-sendemail" />
+                      <label class="form-check-label ms-2" for="form-sendemail">تفعيل الإشعارات البريدية للردود</label>
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">حالة التنشيط</label>
+                    <div class="form-check form-switch mt-2">
+                      <input class="form-check-input" type="checkbox" asp-for="IsActive" id="form-isactive" />
+                      <label class="form-check-label fw-bold text-success ms-2" for="form-isactive">نشط ومتاح للاستخدام</label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Fields Tab -->
+              <div class="tab-pane fade" id="fields-tab-pane" role="tabpanel" aria-labelledby="fields-tab" tabindex="0">
+                <div class="d-flex align-items-center justify-content-between border-bottom pb-2 mb-3">
+                  <h6 class="fw-bold mb-0">
+                    <i class="bi bi-layers-half text-primary me-1"></i>
+                    <span>حقول النموذج (سحب وإفلات لإعادة الترتيب)</span>
+                  </h6>
+                  <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-info rounded-3 px-3" data-bs-toggle="modal" data-bs-target="#tpPreviewModal" onclick="loadPreview(@(Model.Id), event)">
+                      <i class="bi bi-eye-fill"></i> <span>معاينة النموذج</span>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-primary rounded-3 px-3" id="btn-add-field">
+                      <i class="bi bi-plus-circle-fill"></i> <span>إضافة حقل جديد</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Drag container -->
+                <div id="custom-fields-workspace" class="list-group d-flex flex-column gap-2 mb-4 min-vh-10 border border-dashed rounded-3 p-3 bg-body-tertiary">
+                  <!-- Rendered via JS -->
+                </div>
+              </div>
+            </div>
+
+            <!-- Save Form Action buttons -->
+            <div class="card-footer bg-transparent border-top p-4 d-flex gap-2 mt-auto">
+              <button type="submit" class="btn btn-primary px-4 py-2 shadow-sm rounded-3 fw-bold" id="btn-submit-form">
+                <i class="bi bi-save-fill me-1"></i> <span>حفظ النموذج وحقوله</span>
+              </button>
+              <a asp-page="/Forms" asp-route-selectedId="@Model.SelectedFormId" class="btn btn-outline-secondary px-4 py-2 rounded-3">
+                <span>إلغاء التغييرات</span>
+              </a>
+            </div>
+
+          </div>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+</main>
+
+<!-- FIELD BUILDER POPUP MODAL -->
+<div class="modal fade" id="fieldModal" tabindex="-1" aria-labelledby="fieldModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content shadow-lg rounded-3">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="fieldModalLabel">
+          <i class="bi bi-plus-circle-fill text-primary me-2"></i>
+          <span>إعداد حقل النموذج</span>
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <form id="fieldForm" onsubmit="event.preventDefault(); saveFieldModal();">
+          <input type="hidden" id="modal-field-index" value="-1" />
+          
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-bold">الاسم البرمجي للحقل <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="modal-fieldname" required pattern="^[A-Za-z][A-Za-z0-9_]*$" dir="ltr" />
+            </div>
+            
+            <div class="col-md-6">
+              <label class="form-label fw-bold">نوع الحقل <span class="text-danger">*</span></label>
+              <select class="form-select" id="modal-fieldtype" required>
+                <optgroup label="Basic">
+                  <option value="Text">نص قصير (Text)</option>
+                  <option value="Textarea">نص طويل (Textarea)</option>
+                  <option value="Email">البريد الإلكتروني (Email)</option>
+                  <option value="Number">رقم (Number)</option>
+                  <option value="Phone">رقم الهاتف (Phone)</option>
+                </optgroup>
+                <optgroup label="Selection">
+                  <option value="Select">قائمة منسدلة (Select)</option>
+                  <option value="Radio">خيارات (Radio)</option>
+                  <option value="Checkbox">مربعات اختيار (Checkbox)</option>
+                </optgroup>
+              </select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label fw-bold">العنوان الظاهر بالعربية (Label) <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="modal-label" required />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">العنوان الظاهر بالإنجليزية</label>
+              <input type="text" class="form-control" id="modal-label-en" />
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label fw-bold">نص إرشادي (Placeholder) بالعربية</label>
+              <input type="text" class="form-control" id="modal-placeholder" />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">نص إرشادي بالإنجليزية</label>
+              <input type="text" class="form-control" id="modal-placeholder-en" />
+            </div>
+
+            <div class="col-md-12">
+              <div class="form-check form-switch border p-3 rounded-3 bg-body-tertiary">
+                <input class="form-check-input" type="checkbox" id="modal-isrequired" />
+                <label class="form-check-label ms-2 fw-bold" for="modal-isrequired">حقل إلزامي (مطلوب)</label>
+              </div>
+            </div>
+
+            <!-- Dynamic Options config (for Select, Radio, Checkbox) -->
+            <div class="col-12 border-top pt-3 mt-3 d-none" id="modal-options-container">
+              <label class="form-label fw-bold">
+                <span class="tp-only-ar">إعداد خيارات الحقل</span>
+                <span class="tp-only-en">Field Options Setup</span>
+              </label>
+
+              <div class="row g-2 mb-3">
+                <div class="col-md-4">
+                  <label class="form-label fs-8 fw-semibold">
+                    <span class="tp-only-ar">نوع القيمة</span>
+                    <span class="tp-only-en">Value Mode</span>
+                  </label>
+                  <select class="form-select form-select-sm" id="options-mode" onchange="onOptionsModeChanged()">
+                    <option value="static">ثابتة / Static</option>
+                    <option value="query">استعلام / Query</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="border rounded-3 bg-body-tertiary mb-3 d-none" id="query-options-builder">
+                <!-- Query Mode Tabs -->
+                <ul class="nav nav-tabs px-3 pt-2" id="query-mode-tabs" role="tablist">
+                  <li class="nav-item" role="presentation">
+                    <button class="nav-link active d-flex align-items-center gap-1" id="tab-builder-btn"
+                            data-bs-toggle="tab" data-bs-target="#tab-builder-pane" type="button" role="tab">
+                      <i class="bi bi-diagram-3"></i>
+                      <span class="tp-only-ar">منشئ مرئي</span>
+                      <span class="tp-only-en">Builder</span>
+                    </button>
+                  </li>
+                  <li class="nav-item" role="presentation">
+                    <button class="nav-link d-flex align-items-center gap-1" id="tab-sqlquery-btn"
+                            data-bs-toggle="tab" data-bs-target="#tab-sqlquery-pane" type="button" role="tab">
+                      <i class="bi bi-terminal"></i>
+                      <span class="tp-only-ar">استعلام SQL</span>
+                      <span class="tp-only-en">SQL Query</span>
+                    </button>
+                  </li>
+                </ul>
+                <div class="tab-content p-3">
+
+                  <!-- TAB 1: Visual Builder -->
+                  <div class="tab-pane fade show active" id="tab-builder-pane" role="tabpanel">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                      <div class="fw-bold text-primary-emphasis fs-8">
+                        <span class="tp-only-ar">حدد الجدول، أضف شروط الفلترة، ثم اضغط تنفيذ لتوليد الخيارات.</span>
+                        <span class="tp-only-en">Select a table, add filter rules, then click Execute to generate options.</span>
+                      </div>
+                      <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addOptionsQueryRule()">
+                          <i class="bi bi-plus-circle me-1"></i>Add Rule
+                        </button>
+                        <button type="button" class="btn btn-sm btn-success" onclick="executeOptionsQuery()">
+                          <i class="bi bi-play-fill me-1"></i>
+                          <span class="tp-only-ar">تنفيذ (Preview)</span>
+                          <span class="tp-only-en">Execute</span>
+                        </button>
+                      </div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                      <select class="form-select form-select-sm" id="options-query-table" style="max-width:260px;" onchange="onOptionsQueryTableChanged()">
+                        @foreach (var table in Model.DatabaseTables)
+                        {
+                          <option value="@table.Name">@table.Name</option>
+                        }
+                      </select>
+                      <select class="form-select form-select-sm" id="options-query-logic" style="width:110px;">
+                        <option value="AND">AND</option>
+                        <option value="OR">OR</option>
+                      </select>
+                      <span class="text-muted fs-8 text-nowrap flex-shrink-0">
+                        <span class="tp-only-ar">العمليات باللغة الإنجليزية، والبحث يراعي الحقول العربية والإنجليزية.</span>
+                        <span class="tp-only-en">Operators are English; search uses Arabic and English columns.</span>
+                      </span>
+                    </div>
+                    <div id="options-query-rules" class="vstack gap-2 mb-3"></div>
+                  </div>
+
+                  <!-- TAB 2: SQL Query -->
+                  <div class="tab-pane fade" id="tab-sqlquery-pane" role="tabpanel">
+                    <div class="alert alert-warning py-2 fs-8 mb-3">
+                      <i class="bi bi-shield-lock-fill me-1"></i>
+                      <span class="tp-only-ar">يُسمح فقط بجمل <strong>SELECT</strong> تعيد القيمة (value) والاسم (label).</span>
+                      <span class="tp-only-en">Only <strong>SELECT</strong> statements returning value and label.</span>
+                    </div>
+                    <div class="mb-3">
+                      <textarea id="sql-query-textarea" class="form-control font-monospace" rows="5" dir="ltr"
+                                placeholder="SELECT Id, Name, Name_En FROM dbo.Categories WHERE IsActive = 1 ORDER BY Name"
+                                style="font-size:0.82rem; resize:vertical;"></textarea>
+                    </div>
+                    <div class="d-flex gap-2 align-items-center">
+                      <button type="button" class="btn btn-sm btn-success" onclick="executeSqlQuery()">
+                        <i class="bi bi-play-fill me-1"></i>
+                        <span class="tp-only-ar">تنفيذ الاستعلام (Preview)</span>
+                        <span class="tp-only-en">Execute Query</span>
+                      </button>
+                      <span id="sql-query-spinner" class="d-none">
+                        <span class="spinner-border spinner-border-sm text-primary me-1" role="status"></span>
+                      </span>
+                      <span id="sql-query-status" class="fs-8 text-muted"></span>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+              
+              <div class="input-group mb-2" id="static-options-builder">
+                <input type="text" class="form-control form-control-sm" id="opt-value" 
+                       data-title-ar="الكود (Value)" data-title-en="Value Code (Value)" placeholder="Value" />
+                <input type="text" class="form-control form-control-sm" id="opt-label-ar" placeholder="الاسم بالعربية" />
+                <input type="text" class="form-control form-control-sm" id="opt-label-en" placeholder="Label (En)" />
+                <button type="button" class="btn btn-sm btn-primary" onclick="addOptionToBuilder()"><i class="bi bi-plus-lg"></i></button>
+              </div>
+
+              <div class="table-responsive border rounded-3 bg-body-tertiary">
+                <table class="table table-sm align-middle mb-0 text-center">
+                  <thead class="table-light">
+                    <tr>
+                      <th>الكود</th>
+                      <th>الاسم بالعربية</th>
+                      <th>Label (En)</th>
+                      <th>عمليات</th>
+                    </tr>
+                  </thead>
+                  <tbody id="opt-table-body">
+                    <!-- Dynamic -->
+                  </tbody>
+                </table>
+              </div>
+            
+          </div>
+          <div class="modal-footer px-0 pb-0 pt-3 mt-4 border-top">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">إلغاء</button>
+            <button type="submit" class="btn btn-primary px-4"><i class="bi bi-check2-circle me-1"></i> حفظ إعدادات الحقل</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FORM PREVIEW MODAL -->
+<div class="modal fade" id="tpPreviewModal" tabindex="-1" role="dialog" aria-labelledby="previewModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+    <div class="modal-content shadow-lg rounded-3">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="previewModalLabel">
+          <i class="bi bi-eye-fill text-info me-2"></i>
+          <span>معاينة النموذج</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="tpPreviewModalBody" style="max-height: 70vh; overflow-y: auto;">
+        <div class="text-center py-5">
+           <div class="spinner-border text-primary" role="status"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+@section Scripts {
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+  <script>
+    // Form fields data
+    let customFields = @Html.Raw(Model.CustomFieldsJson);
+    let modalOptions = [];
+    let currentLang = '@System.Globalization.CultureInfo.CurrentUICulture.Name'.startsWith('ar') ? 'ar' : 'en';
+    const databaseTables = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.DatabaseTables));
+    const databaseColumns = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.DatabaseColumns));
+    
+    // Track if there are unsaved changes
+    let hasUnsavedChanges = false;
+    
+    // Clean up any lingering backdrops
+    function cleanupBackdrop() {
+      const backdrops = document.querySelectorAll('.swal2-backdrop-show');
+      backdrops.forEach(bd => bd.remove());
+      document.body.style.overflow = 'auto';
+    }
+    
+    // Mark changes as unsaved
+    function markUnsavedChanges() {
+      hasUnsavedChanges = true;
+    }
+    
+    // Warn user before leaving page with unsaved changes
+    window.addEventListener('beforeunload', (e) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+      }
+    });
+    
+    // Check for unsaved changes when navigating to another form
+    function navigateToForm(formId) {
+      if (hasUnsavedChanges) {
+        Swal.fire({
+          title: currentLang === 'ar' ? 'تغييرات غير محفوظة' : 'Unsaved Changes',
+          text: currentLang === 'ar' ? 'هناك تغييرات لم تتم حفظها. هل تريد المتابعة؟' : 'You have unsaved changes. Do you want to continue?',
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonText: currentLang === 'ar' ? 'نعم، تابع' : 'Yes, continue',
+          cancelButtonText: currentLang === 'ar' ? 'إلغاء' : 'Cancel'
+        }).then((result) => {
+          cleanupBackdrop();
+          if (result.isConfirmed) {
+            hasUnsavedChanges = false;
+            window.location.href = `?selectedId=${formId}`;
+          }
+        });
+        return false;
+      }
+      return true;
+    }
+    
+    function loadPreview(formId, e) {
+      if (e) {
+        e.stopPropagation();
+      }
+      
+      if (!formId || formId == 0) {
+        Swal.fire({
+          icon: 'warning',
+          title: currentLang === 'ar' ? 'تنبيه' : 'Warning',
+          text: currentLang === 'ar' ? 'الرجاء حفظ النموذج أولاً لعرض المعاينة.' : 'Please save the form first to preview.',
+          confirmButtonText: currentLang === 'ar' ? 'حسناً' : 'OK'
+        }).then(() => {
+          cleanupBackdrop();
+        });
+        return;
+      }
+
+      // Show loading state
+      Swal.fire({
+        title: currentLang === 'ar' ? 'جاري التحميل' : 'Loading',
+        html: '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>',
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
+
+      setTimeout(() => {
+        fetch(`?handler=Preview&id=${formId}&t=${new Date().getTime()}`)
+          .then(response => {
+            if (!response.ok) throw new Error('Network response was not ok');
+            return response.text();
+          })
+          .then(html => {
+            Swal.fire({
+              title: currentLang === 'ar' ? 'معاينة النموذج' : 'Form Preview',
+              html: `<div style="max-height: 70vh; overflow-y: auto; text-align: right;">${html}</div>`,
+              width: '800px',
+              showConfirmButton: true,
+              confirmButtonText: currentLang === 'ar' ? 'إغلاق' : 'Close',
+              allowOutsideClick: false,
+              didOpen: () => {
+                // Execute any scripts returned in the partial view so the form functions correctly
+                const scripts = document.querySelectorAll('.swal2-html-container script');
+                for(let i=0; i<scripts.length; i++) {
+                    if (scripts[i].text) {
+                        try {
+                            eval(scripts[i].text);
+                        } catch (e) { console.error('Error executing script', e); }
+                    }
+                }
+              },
+              willClose: () => {
+                cleanupBackdrop();
+              }
+            }).then(() => {
+              cleanupBackdrop();
+              // Refresh the page after closing preview
+              location.reload();
+            });
+          })
+          .catch(error => {
+            Swal.fire({
+              icon: 'error',
+              title: currentLang === 'ar' ? 'خطأ' : 'Error',
+              text: currentLang === 'ar' ? 'حدث خطأ أثناء تحميل المعاينة: ' + error.message : 'Error loading preview: ' + error.message,
+              confirmButtonText: currentLang === 'ar' ? 'حسناً' : 'OK'
+            }).then(() => {
+              cleanupBackdrop();
+            });
+          });
+      }, 150);
+    }
+    
+    document.addEventListener("DOMContentLoaded", function() {
+        // Clean up any existing backdrops
+        cleanupBackdrop();
+        
+        renderCustomFields();
+        
+        // Sortable JS
+        var container = document.getElementById('custom-fields-workspace');
+        new Sortable(container, {
+            animation: 150,
+            ghostClass: 'bg-light',
+            onEnd: function() {
+                updateFieldsOrder();
+            }
+        });
+        
+        document.getElementById("btn-add-field").addEventListener("click", function() {
+            document.getElementById("fieldForm").reset();
+            document.getElementById("modal-field-index").value = "-1";
+            document.getElementById("modal-options-container").classList.add("d-none");
+            document.getElementById("options-mode").value = "static";
+            modalOptions = [];
+            onOptionsModeChanged(false);
+            var modal = new bootstrap.Modal(document.getElementById("fieldModal"));
+            modal.show();
+        });
+        
+        document.getElementById("modal-fieldtype").addEventListener("change", function() {
+            var val = this.value;
+            if(val === "Select" || val === "Radio" || val === "Checkbox") {
+                document.getElementById("modal-options-container").classList.remove("d-none");
+            } else {
+                document.getElementById("modal-options-container").classList.add("d-none");
+            }
+        });
+        
+        document.getElementById("formBuilderForm").addEventListener("submit", function(e) {
+            // Validate that there are fields
+            if (!customFields || customFields.length === 0) {
+                e.preventDefault();
+                Swal.fire({
+                    icon: 'warning',
+                    title: currentLang === 'ar' ? 'لا توجد حقول' : 'No Fields',
+                    text: currentLang === 'ar' ? 'يجب إضافة حقل واحد على الأقل قبل حفظ النموذج.' : 'You must add at least one field before saving the form.',
+                    confirmButtonText: currentLang === 'ar' ? 'حسناً' : 'OK'
+                }).then(() => {
+                    cleanupBackdrop();
+                });
+                return false;
+            }
+            
+            document.getElementById("form-customfieldsjson").value = JSON.stringify(customFields);
+            hasUnsavedChanges = false;
+        });
+        
+        // Clean up backdrop when fieldModal is hidden
+        document.getElementById("fieldModal").addEventListener("hidden.bs.modal", function() {
+            cleanupBackdrop();
+        });
+    });
+    
+    function renderCustomFields() {
+        var container = document.getElementById('custom-fields-workspace');
+        container.innerHTML = "";
+        
+        if (!customFields || customFields.length === 0) {
+            container.innerHTML = `<div class="text-center text-muted py-4"><i class="bi bi-inbox fs-2 d-block mb-2"></i> لا توجد حقول. اضغط "إضافة حقل جديد" للبدء.</div>`;
+            return;
+        }
+        
+        // Sort by SortOrder
+        var sortedFields = [...customFields].sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0));
+        
+        sortedFields.forEach((field, displayIndex) => {
+            // Find the actual index in customFields
+            var actualIndex = customFields.findIndex(f => f === field);
+            
+            if (actualIndex === -1) return; // Skip if not found
+            
+            var label = escapeHtml(field.Label || '');
+            var fieldName = escapeHtml(field.FieldName || '');
+            var fieldType = escapeHtml(field.FieldType || 'Text');
+            
+            var html = `
+            <div class="list-group-item d-flex justify-content-between align-items-center shadow-sm rounded-3 border field-item" data-index="${actualIndex}">
+              <div class="d-flex align-items-center gap-3 flex-grow-1">
+                <i class="bi bi-grip-vertical text-muted fs-5 drag-handle" style="cursor:grab;"></i>
+                <div class="flex-grow-1">
+                  <h6 class="mb-0 fw-bold">${label} <span class="text-secondary small fw-normal ms-2">(${fieldName})</span></h6>
+                  <div class="d-flex gap-2 mt-1 flex-wrap">
+                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle fs-8">${fieldType}</span>
+                    ${field.IsRequired ? '<span class="badge bg-danger-subtle text-danger border border-danger-subtle fs-8">مطلوب</span>' : ''}
+                  </div>
+                </div>
+              </div>
+              <div class="d-flex gap-2 flex-shrink-0">
+                <button type="button" class="btn btn-sm btn-light text-primary" onclick="editField(${actualIndex})" title="تعديل">
+                  <i class="bi bi-pencil-square"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-light text-danger" onclick="deleteField(${actualIndex})" title="حذف">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </div>
+            </div>`;
+            container.insertAdjacentHTML('beforeend', html);
+        });
+    }
+    
+    function updateFieldsOrder() {
+        var items = document.querySelectorAll('#custom-fields-workspace .field-item');
+        
+        if (items.length === 0) return;
+        
+        var newOrder = [];
+        items.forEach((item, newSortOrder) => {
+            var oldIndex = parseInt(item.getAttribute('data-index'));
+            
+            // Validate index
+            if (oldIndex >= 0 && oldIndex < customFields.length) {
+                var f = customFields[oldIndex];
+                if (f) {
+                    f.SortOrder = newSortOrder + 1;
+                    newOrder.push(f);
+                }
+            }
+        });
+        
+        // Only update if we didn't lose any fields
+        if (newOrder.length === customFields.length) {
+            customFields = newOrder;
+            markUnsavedChanges();
+        }
+    }
+    
+    function deleteField(index) {
+        Swal.fire({
+            title: currentLang === 'ar' ? 'حذف الحقل' : 'Delete Field',
+            text: currentLang === 'ar' ? 'هل أنت متأكد من حذف هذا الحقل؟' : 'Are you sure you want to delete this field?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc3545',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: currentLang === 'ar' ? 'حذف' : 'Delete',
+            cancelButtonText: currentLang === 'ar' ? 'إلغاء' : 'Cancel',
+            allowOutsideClick: false
+        }).then((result) => {
+            // Clean up backdrop immediately
+            const backdrop = document.querySelector('.swal2-backdrop-show');
+            if (backdrop) backdrop.remove();
+            
+            if (result.isConfirmed) {
+                customFields.splice(index, 1);
+                // Re-render to update data-index attributes
+                renderCustomFields();
+                // Update the hidden field with new JSON
+                document.getElementById('form-customfieldsjson').value = JSON.stringify(customFields);
+                markUnsavedChanges();
+                
+                // Show success message and remind to save
+                Swal.fire({
+                    title: currentLang === 'ar' ? 'تم الحذف' : 'Deleted',
+                    html: currentLang === 'ar' 
+                        ? '<div style="text-align: right;"><p>تم حذف الحقل بنجاح</p><p style="color: #ff9800; font-weight: bold;">⚠️ لا تنسى الضغط على زر "حفظ النموذج وحقوله" لحفظ التغييرات في قاعدة البيانات</p></div>'
+                        : '<div><p>Field deleted successfully</p><p style="color: #ff9800; font-weight: bold;">⚠️ Don\'t forget to click "Save Form & Fields" to save changes to database</p></div>',
+                    icon: 'success',
+                    confirmButtonText: currentLang === 'ar' ? 'حسناً' : 'OK'
+                }).then(() => {
+                    // Final cleanup
+                    const backdrop2 = document.querySelector('.swal2-backdrop-show');
+                    if (backdrop2) backdrop2.remove();
+                    document.body.style.overflow = 'auto';
+                });
+            } else {
+                // Ensure cleanup even if cancelled
+                document.body.style.overflow = 'auto';
+            }
+        });
+    }
+    
+    function editField(index) {
+        var f = customFields[index];
+        document.getElementById("fieldForm").reset();
+        document.getElementById("modal-field-index").value = index;
+        document.getElementById("modal-fieldname").value = f.FieldName;
+        document.getElementById("modal-fieldtype").value = f.FieldType;
+        document.getElementById("modal-label").value = f.Label;
+        document.getElementById("modal-label-en").value = f.Label_En || "";
+        document.getElementById("modal-placeholder").value = f.Placeholder || "";
+        document.getElementById("modal-placeholder-en").value = f.Placeholder_En || "";
+        document.getElementById("modal-isrequired").checked = f.IsRequired;
+        
+        // Trigger changes to show/hide options
+        document.getElementById("modal-fieldtype").dispatchEvent(new Event('change'));
+        
+        if (f.OptionsJson && (f.FieldType === "Select" || f.FieldType === "Radio" || f.FieldType === "Checkbox")) {
+            try {
+                var opts = JSON.parse(f.OptionsJson);
+                document.getElementById('options-mode').value = opts.mode || 'static';
+                
+                if (opts.mode === 'static') {
+                    modalOptions = opts.staticOptions || [];
+                } else if (opts.mode === 'query') {
+                    if (opts.queryMode === 'sql') {
+                        document.getElementById('sql-query-textarea').value = opts.sqlQuery || '';
+                        // Switch to SQL tab
+                        var bsTab = new bootstrap.Tab(document.getElementById('tab-sqlquery-btn'));
+                        bsTab.show();
+                    } else {
+                        renderOptionsQuery(opts.query);
+                    }
+                }
+            } catch(e) {}
+        } else {
+            document.getElementById('options-mode').value = 'static';
+            modalOptions = [];
+            document.getElementById('sql-query-textarea').value = '';
+            document.getElementById('options-query-rules').innerHTML = '';
+        }
+        onOptionsModeChanged(false);
+        
+        var modal = new bootstrap.Modal(document.getElementById("fieldModal"));
+        modal.show();
+    }
+    
+    function saveFieldModal() {
+        var index = parseInt(document.getElementById("modal-field-index").value);
+        var fType = document.getElementById("modal-fieldtype").value;
+        var fieldName = document.getElementById("modal-fieldname").value.trim();
+        
+        // Check for duplicate field names (case-insensitive), excluding the current field being edited
+        var isDuplicate = customFields.some((f, i) => 
+            f.FieldName.toLowerCase() === fieldName.toLowerCase() && i !== index
+        );
+        
+        if (isDuplicate) {
+            Swal.fire({
+                icon: 'error',
+                title: currentLang === 'ar' ? 'خطأ' : 'Error',
+                text: currentLang === 'ar' ? `الحقل "${fieldName}" موجود بالفعل. استخدم اسماً برمجياً مختلفاً.` : `Field "${fieldName}" already exists. Please use a different name.`,
+                confirmButtonText: currentLang === 'ar' ? 'حسناً' : 'OK'
+            }).then(() => {
+                cleanupBackdrop();
+            });
+            return;
+        }
+        
+        var optionsJsonVal = null;
+        if(fType === "Select" || fType === "Radio" || fType === "Checkbox") {
+            const mode = document.getElementById('options-mode').value;
+            const queryMode = document.getElementById('tab-sqlquery-btn').classList.contains('active') ? 'sql' : 'builder';
+            const sqlQueryText = document.getElementById('sql-query-textarea').value;
+            
+            optionsJsonVal = JSON.stringify({
+                mode: mode,
+                staticOptions: mode === 'static' ? modalOptions : [],
+                queryMode: mode === 'query' ? queryMode : null,
+                query: mode === 'query' ? collectOptionsQuery() : null,
+                sqlQuery: mode === 'query' ? sqlQueryText : null
+            });
+        }
+        
+        var field = {
+            FieldName: fieldName,
+            FieldType: fType,
+            Label: document.getElementById("modal-label").value,
+            Label_En: document.getElementById("modal-label-en").value,
+            Placeholder: document.getElementById("modal-placeholder").value,
+            Placeholder_En: document.getElementById("modal-placeholder-en").value,
+            IsRequired: document.getElementById("modal-isrequired").checked,
+            OptionsJson: optionsJsonVal,
+            SortOrder: index >= 0 ? customFields[index].SortOrder : (customFields.length + 1),
+            IsActive: true
+        };
+        
+        if (index === -1) {
+            // Adding new field
+            field.SortOrder = customFields.length + 1;
+            customFields.push(field);
+        } else {
+            // Editing existing field
+            customFields[index] = field;
+        }
+        
+        markUnsavedChanges();
+        // Re-render all fields to update UI
+        renderCustomFields();
+        
+        // Close modal
+        var modal = bootstrap.Modal.getInstance(document.getElementById("fieldModal"));
+        modal.hide();
+        
+        // Show success message
+        Swal.fire({
+            title: currentLang === 'ar' ? 'تم بنجاح' : 'Success',
+            text: index === -1 
+                ? (currentLang === 'ar' ? 'تم إضافة الحقل بنجاح' : 'Field added successfully')
+                : (currentLang === 'ar' ? 'تم تحديث الحقل بنجاح' : 'Field updated successfully'),
+            icon: 'success',
+            timer: 1500,
+            showConfirmButton: false
+        }).then(() => {
+            cleanupBackdrop();
+        });
+    }
+    
+    // Option Builder helpers
+    function onOptionsModeChanged(refresh = true) {
+      const mode = document.getElementById('options-mode').value;
+      const isQuery = mode === 'query';
+
+      document.getElementById('static-options-builder').classList.toggle('d-none', isQuery);
+      document.getElementById('query-options-builder').classList.toggle('d-none', !isQuery);
+
+      if (isQuery) {
+        if (refresh && document.getElementById('options-query-rules').children.length === 0) {
+          addOptionsQueryRule();
+        }
+        const sqlStatus = document.getElementById('sql-query-status');
+        if (sqlStatus) sqlStatus.textContent = '';
+        const builderTabBtn = document.getElementById('tab-builder-btn');
+        if (builderTabBtn && refresh) {
+          const bsTab = new bootstrap.Tab(builderTabBtn);
+          bsTab.show();
+        }
+        renderOptionsTable();
+      } else if (refresh) {
+        renderOptionsTable();
+      }
+    }
+
+    function getSelectedQueryTable() {
+      const tableSelect = document.getElementById('options-query-table');
+      return tableSelect ? tableSelect.value : (databaseTables[0]?.Name || '');
+    }
+
+    function getColumnsForQueryTable(tableName = getSelectedQueryTable()) {
+      return databaseColumns.filter(c => c.TableName === tableName);
+    }
+
+    function onOptionsQueryTableChanged() {
+      const rules = document.querySelectorAll('#options-query-rules .options-query-rule');
+      rules.forEach(rule => {
+        const currentValue = rule.querySelector('.options-query-field').value;
+        rule.querySelector('.options-query-field').innerHTML = buildQueryFieldOptions(currentValue);
+      });
+      modalOptions = [];
+      renderOptionsTable();
+    }
+
+    function buildQueryFieldOptions(selectedValue = '') {
+      const columns = getColumnsForQueryTable();
+      return columns.map(c => `<option value="${c.Name}" ${c.Name === selectedValue ? 'selected' : ''}>${c.Name} (${c.DataType})</option>`).join('');
+    }
+
+    function addOptionsQueryRule(rule = null) {
+      const columns = getColumnsForQueryTable();
+      const defaultField = rule?.field || columns[0]?.Name || '';
+      const operators = ['Equals', 'DoesNotEqual', 'Contains', 'StartsWith', 'EndsWith', 'GreaterThan', 'LessThan', 'IsBlank', 'IsNotBlank', 'In'];
+      const row = document.createElement('div');
+      row.className = 'options-query-rule row g-2 align-items-center bg-body border rounded-3 p-2';
+      row.innerHTML = `
+        <div class="col-md-3"><select class="form-select form-select-sm options-query-field">${buildQueryFieldOptions(defaultField)}</select></div>
+        <div class="col-md-3"><select class="form-select form-select-sm options-query-operator">${operators.map(o => `<option value="${o}" ${o === (rule?.operator || 'Equals') ? 'selected' : ''}>${o}</option>`).join('')}</select></div>
+        <div class="col-md-5"><input type="text" class="form-control form-control-sm options-query-value" value="${escapeHtml(rule?.value || '')}" placeholder="Value"></div>
+        <div class="col-md-1 text-end"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('.options-query-rule').remove()"><i class="bi bi-x-lg"></i></button></div>`;
+      document.getElementById('options-query-rules').appendChild(row);
+    }
+
+    function collectOptionsQuery() {
+      return {
+        tableName: getSelectedQueryTable(),
+        logic: document.getElementById('options-query-logic').value,
+        rules: Array.from(document.querySelectorAll('#options-query-rules .options-query-rule')).map(row => ({
+          field: row.querySelector('.options-query-field').value,
+          operator: row.querySelector('.options-query-operator').value,
+          value: row.querySelector('.options-query-value').value
+        })),
+        groups: []
+      };
+    }
+
+    function renderOptionsQuery(query) {
+      if (query?.tableName && document.getElementById('options-query-table')) {
+        document.getElementById('options-query-table').value = query.tableName;
+      }
+      document.getElementById('options-query-logic').value = query?.logic || 'AND';
+      document.getElementById('options-query-rules').innerHTML = '';
+      (query?.rules || [null]).forEach(rule => addOptionsQueryRule(rule));
+    }
+
+    function executeOptionsQuery() {
+      const query = collectOptionsQuery();
+      $.ajax({
+        url: '/ContentTypes?handler=ExecuteQuery',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(query),
+        headers: { "RequestVerificationToken": $('input[name="__RequestVerificationToken"]').val() },
+        success: function(response) {
+          if (response.success) {
+            modalOptions = (response.results || []).map(item => ({
+              value: String(item.value),
+              label: item.label || String(item.value),
+              labelEn: item.labelEn || item.label || String(item.value)
+            }));
+            renderOptionsTable();
+          } else {
+            alert(response.message || 'Query failed');
+          }
+        },
+        error: function(xhr, status, error) {
+          alert(error || 'Query failed');
+        }
+      });
+    }
+
+    function executeSqlQuery() {
+      const textarea = document.getElementById('sql-query-textarea');
+      const spinner = document.getElementById('sql-query-spinner');
+      const status = document.getElementById('sql-query-status');
+      const sql = (textarea?.value || '').trim();
+
+      if (!sql) {
+        status.textContent = currentLang === 'ar' ? '⚠ يرجى إدخال استعلام SQL.' : '⚠ Please enter a SQL query.';
+        status.className = 'fs-8 text-warning';
+        return;
+      }
+
+      spinner.classList.remove('d-none');
+      status.textContent = '';
+      status.className = 'fs-8 text-muted';
+
+      $.ajax({
+        url: '/ContentTypes?handler=ExecuteSqlQuery',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ sql }),
+        headers: { "RequestVerificationToken": $('input[name="__RequestVerificationToken"]').val() },
+        success: function(response) {
+          spinner.classList.add('d-none');
+          if (response.success) {
+            modalOptions = (response.results || []).map(item => ({
+              value: String(item.value),
+              label: item.label || String(item.value),
+              labelEn: item.labelEn || item.label || String(item.value)
+            }));
+            renderOptionsTable();
+            const count = modalOptions.length;
+            status.textContent = currentLang === 'ar'
+              ? `✔ تم توليد ${count} خيار بنجاح.`
+              : `✔ ${count} option(s) generated successfully.`;
+            status.className = 'fs-8 text-success fw-bold';
+          } else {
+            status.textContent = '✖ ' + (response.message || 'Query failed');
+            status.className = 'fs-8 text-danger';
+          }
+        },
+        error: function(xhr) {
+          spinner.classList.add('d-none');
+          let msg = 'Query failed';
+          try { msg = JSON.parse(xhr.responseText)?.message || msg; } catch(e) {}
+          status.textContent = '✖ ' + msg;
+          status.className = 'fs-8 text-danger';
+        }
+      });
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>'"]/g, char => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        "'": '&#39;',
+        '"': '&quot;'
+      }[char]));
+    }
+
+    function renderOptionsTable() {
+      const tbody = document.getElementById('opt-table-body');
+      tbody.innerHTML = '';
+      if (modalOptions.length === 0) {
+        tbody.innerHTML = currentLang === 'ar'
+          ? `<tr><td colspan="4" class="text-muted py-2">لا توجد خيارات معينة بعد.</td></tr>`
+          : `<tr><td colspan="4" class="text-muted py-2">No options configured yet.</td></tr>`;
+        return;
+      }
+
+      modalOptions.forEach((opt, idx) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td><code>${opt.value}</code></td>
+          <td>${opt.label}</td>
+          <td>${opt.labelEn || ''}</td>
+          <td>
+            <button type="button" class="btn btn-sm btn-link text-danger p-0" onclick="removeOptionFromBuilder(${idx})">
+              <i class="bi bi-trash-fill"></i>
+            </button>
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    function addOptionToBuilder() {
+      const valEl = document.getElementById('opt-value');
+      const labelArEl = document.getElementById('opt-label-ar');
+      const labelEnEl = document.getElementById('opt-label-en');
+
+      const val = valEl.value.trim();
+      let labelAr = labelArEl.value.trim();
+      let labelEn = labelEnEl.value.trim();
+
+      if (currentLang === 'ar') {
+        if (!val || !labelAr) {
+          alert('يجب إدخال الكود والاسم بالعربية.');
+          return;
+        }
+        if (!labelEn) labelEn = labelAr;
+      } else {
+        if (!val || !labelEn) {
+          alert('Please enter both Value Code and English Label.');
+          return;
+        }
+        if (!labelAr) labelAr = labelEn;
+      }
+
+      if (modalOptions.some(opt => opt.value === val)) {
+        alert(currentLang === 'ar' ? 'الكود مدخل بالفعل.' : 'Value Code already exists.');
+        return;
+      }
+
+      modalOptions.push({
+        value: val,
+        label: labelAr,
+        labelEn: labelEn
+      });
+
+      valEl.value = '';
+      labelArEl.value = '';
+      labelEnEl.value = '';
+
+      renderOptionsTable();
+    }
+
+    function removeOptionFromBuilder(index) {
+      modalOptions.splice(index, 1);
+      renderOptionsTable();
+    }
+  </script>
+}

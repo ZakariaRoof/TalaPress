@@ -1,0 +1,54 @@
+@page "/api/docs/auth"
+@model TalaPress.Pages.ApiDocs.AuthModel
+
+@await Html.PartialAsync("_ApiEndpointHeader", (
+    "GET",
+    "/api/v1/*",
+    "المصادقة (Pearl Authentication)",
+    "Pearl Authentication",
+    "كل endpoints الـ API محمية بمفتاح Pearl. بدون مفتاح صالح → 401 Unauthorized.",
+    "All API endpoints require a valid Pearl key. Without it → 401 Unauthorized."
+))
+
+<h3 class="h6 text-uppercase text-secondary">
+    <span class="tp-only-ar">الحصول على مفتاح</span>
+    <span class="tp-only-en">Getting a Key</span>
+</h3>
+<p>
+    <span class="tp-only-ar">من لوحة التحكم →</span>
+    <span class="tp-only-en">From admin panel →</span>
+    <a asp-page="/ApiKeys">API Keys</a>.
+    <span class="tp-only-ar">المفتاح يُعرض مرة واحدة عند الإنشاء — احفظه بأمان.</span>
+    <span class="tp-only-en">The key is shown once on creation — store it securely.</span>
+</p>
+
+<h3 class="h6 text-uppercase text-secondary mt-4">
+    <span class="tp-only-ar">طريقة الإرسال (مفضّلة)</span>
+    <span class="tp-only-en">Preferred Header</span>
+</h3>
+@await Html.PartialAsync("_ApiCodeBlock", ("auth-header", @"Authorization: Pearl tp_pearl_xxxxxxxxxxxxxxxxx"))
+
+<h3 class="h6 text-uppercase text-secondary mt-4">
+    <span class="tp-only-ar">بديل</span>
+    <span class="tp-only-en">Alternative</span>
+</h3>
+@await Html.PartialAsync("_ApiCodeBlock", ("auth-alt", @"X-Pearl-Key: tp_pearl_xxxxxxxxxxxxxxxxx"))
+
+<h3 class="h6 text-uppercase text-secondary mt-4">cURL</h3>
+@{
+    var curl = $@"curl -H ""Authorization: Pearl YOUR_KEY"" ""{Model.ApiV1BaseUrl}/content-types""";
+}
+@await Html.PartialAsync("_ApiCodeBlock", ("auth-curl", curl))
+
+<h3 class="h6 text-uppercase text-secondary mt-4">JavaScript (fetch)</h3>
+@{
+    var fetch = $@"fetch(""{Model.ApiV1BaseUrl}/content-types"", {{
+  headers: {{ ""Authorization"": ""Pearl YOUR_KEY"" }}
+}}).then(r => r.json());";
+}
+@await Html.PartialAsync("_ApiCodeBlock", ("auth-fetch", fetch))
+
+<div class="alert alert-warning border-0 mt-4">
+    <span class="tp-only-ar">لا تضع المفتاح في كود Frontend عام (متصفح). استخدمه من Server-side أو BFF.</span>
+    <span class="tp-only-en">Never expose the key in public frontend code. Use server-side or a BFF.</span>
+</div>

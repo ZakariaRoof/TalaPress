@@ -1,0 +1,2015 @@
+@page
+@using System.Text.Json
+@model TalaPress.Pages.ContentTypesModel
+@{
+    ViewData["Title"] = "منشئ أنواع المحتوى";
+}
+
+<!-- SECONDARY HEADER (BLUE BAR) -->
+<section class="tp-sub-header">
+  <div class="container-fluid px-4">
+    <div class="row align-items-center">
+      <div class="col-md-7 mb-3 mb-md-0">
+        <h1 data-page-i18n="pageTitle">منشئ أنواع المحتوى (Content Type Builder)</h1>
+        <p data-page-i18n="pageDesc">قم بتصميم وتعديل أنواع المحتوى وقوالب البيانات، وإضافة حقول مخصصة بالكامل لصحفيتك الرقمية.</p>
+      </div>
+      <div class="col-md-5 text-md-end">
+        <a asp-page="/Index" class="btn tp-btn-outline-light me-2">
+          <i class="bi bi-house-door-fill"></i> <span data-tp-i18n="home">الرئيسية</span>
+        </a>
+        <a asp-page="/ContentTypes" asp-route-selectedId="0" class="btn btn-light shadow-sm">
+          <i class="bi bi-plus-lg text-primary fw-bold"></i> <span class="text-primary fw-bold" data-page-i18n="btnAddNewType">إنشاء نوع جديد</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MAIN CONTAINER -->
+<main class="container-fluid px-4 pb-5">
+
+  @if (Model.SuccessMessage != null)
+  {
+      <div class="alert alert-success alert-dismissible fade show mb-4 border-0 shadow-sm rounded-3" role="alert">
+          <i class="bi bi-check-circle-fill me-2 fs-5"></i> @Model.SuccessMessage
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+  }
+
+  @if (Model.ErrorMessage != null)
+  {
+      <div class="alert alert-danger alert-dismissible fade show mb-4 border-0 shadow-sm rounded-3" role="alert">
+          <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i> @Model.ErrorMessage
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+  }
+
+  <div class="row">
+    <!-- LEFT PANEL: Content Types Grid -->
+    <div class="col-lg-5 mb-4">
+      <div class="tp-card mb-0">
+        <div class="tp-card-header d-flex align-items-center justify-content-between">
+          <h5 data-page-i18n="listHeader">قوالب أنواع المحتوى المتوفرة</h5>
+          <span class="badge bg-secondary rounded-pill">@Model.ContentTypeList.Count</span>
+        </div>
+        <div class="tp-card-body p-2">
+          <div class="row row-cols-1 row-cols-md-2 g-2">
+            @foreach (var type in Model.ContentTypeList)
+            {
+                var isSelected = Model.SelectedTypeId == type.Id;
+                <div class="col">
+                  <div class="card h-100 rounded-3 position-relative overflow-hidden tp-ct-card
+                              @(isSelected ? "border-primary border-2 shadow" : "border border-light-subtle shadow-sm")"
+                       onclick="window.location.href='?selectedId=@type.Id'"
+                       role="button" style="cursor:pointer;transition:box-shadow .15s,border-color .15s;">
+
+                    @if (isSelected)
+                    {
+                        <div class="position-absolute top-0 start-0 h-100" style="width:4px;background:var(--bs-primary);"></div>
+                    }
+
+                    <div class="card-body ps-4">
+                      <div class="d-flex align-items-start gap-3 mb-2">
+                        <div class="flex-shrink-0 rounded-3 d-flex align-items-center justify-content-center
+                                    @(isSelected ? "bg-primary text-white" : "bg-primary-subtle text-primary")"
+                             style="width:42px;height:42px;font-size:1.15rem;">
+                          <i class="@(type.IconValue ?? "bi bi-folder-fill")"></i>
+                        </div>
+                        <div class="flex-grow-1 min-w-0">
+                          <div class="fw-bold fs-6 lh-sm">
+                            <span class="tp-only-ar">@type.Name</span>
+                            <span class="tp-only-en">@(type.Name_En ?? type.Name)</span>
+                          </div>
+                          <div class="d-flex flex-wrap gap-1 mt-1">
+                            @if (type.IsSystem)
+                            {
+                                <span class="badge bg-info text-dark fs-8" data-page-i18n="badgeSystem">أساسي</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary-subtle text-secondary border fs-8">مخصص</span>
+                            }
+                            <span class="badge @(type.IsActive ? "bg-success" : "bg-danger") fs-8">
+                              <span class="tp-only-ar">@(type.IsActive ? "نشط" : "معطل")</span>
+                              <span class="tp-only-en">@(type.IsActive ? "Active" : "Inactive")</span>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <p class="text-secondary fs-8 mb-0 tp-only-ar"
+                         style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
+                        @(string.IsNullOrWhiteSpace(type.Description) ? "لا يوجد وصف لهذا القالب." : type.Description)
+                      </p>
+                      <p class="text-secondary fs-8 mb-0 tp-only-en"
+                         style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
+                        @(string.IsNullOrWhiteSpace(type.Description_En) ? "No description available." : type.Description_En)
+                      </p>
+                    </div>
+
+                    <div class="card-footer bg-transparent border-top border-light-subtle px-4 py-2 d-flex justify-content-end gap-2"
+                         onclick="event.stopPropagation()">
+                      <form method="post" asp-page-handler="Clone" asp-route-id="@type.Id" class="d-inline">
+                        <button type="submit" class="btn btn-sm btn-outline-primary px-2 py-1"
+                                data-title-ar="نسخ قالب البيانات" data-title-en="Clone Template">
+                          <i class="bi bi-files me-1"></i><span class="fs-8">نسخ</span>
+                        </button>
+                      </form>
+                      @if (!type.IsSystem)
+                      {
+                          <form method="post" asp-page-handler="Delete" asp-route-id="@type.Id"
+                                onsubmit="return confirmDeleteType(event);" class="d-inline">
+                            <button type="submit" class="btn btn-sm btn-outline-danger px-2 py-1"
+                                    data-title-ar="حذف نوع المحتوى" data-title-en="Delete Content Type">
+                              <i class="bi bi-trash-fill me-1"></i><span class="fs-8">حذف</span>
+                            </button>
+                          </form>
+                      }
+                    </div>
+
+                  </div>
+                </div>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- RIGHT PANEL: Visual Field Builder Workspace -->
+    <div class="col-lg-7 mb-4" id="builder-col-main">
+      <div class="tp-card h-100 mb-0" id="builder-card">
+        <div class="tp-card-header">
+          <h5 id="builder-header-title">
+            <i class="bi bi-folder-plus text-primary me-2"></i>
+            @if (Model.Id == 0)
+            {
+                <span data-page-i18n="headerAdd">إنشاء قالب نوع محتوى جديد</span>
+            }
+            else
+            {
+                <span data-page-i18n="headerEdit">تعديل قالب المحتوى: </span> <span>@Model.Name</span>
+            }
+          </h5>
+          <i class="bi bi-kanban-fill text-secondary"></i>
+        </div>
+
+        <div class="tp-card-body">
+          <form method="post" asp-page-handler="Save" id="contentTypeForm">
+            <input type="hidden" asp-for="Id" id="form-Id" />
+            <input type="hidden" asp-for="CustomFieldsJson" id="form-customfieldsjson" />
+
+            <!-- Content Type Metadata Group -->
+            <h6 class="fw-bold mb-3 border-bottom pb-2" data-page-i18n="metaHeader">البيانات التعريفية لنوع المحتوى</h6>
+            <div class="row g-3 mb-4">
+              <div class="col-md-6 tp-only-ar">
+                <label class="form-label">
+                  <span data-page-i18n="labelTypeNameAr">الاسم بالعربية</span> <span class="text-danger">*</span>
+                  <button type="button" class="btn btn-link text-secondary p-0 border-0 lh-1 ms-1 d-inline-flex align-items-center" 
+                          data-bs-toggle="popover" data-bs-trigger="focus" data-bs-html="true" data-bs-placement="top"
+                          data-bs-content="الاسم العربي الذي يظهر للمحررين في القائمة الجانبية وشاشات الإدخال."
+                          style="text-decoration: none;" title="الاسم بالعربية">
+                    <i class="bi bi-info-circle fs-8"></i>
+                  </button>
+                </label>
+                <input type="text" asp-for="Name" class="form-control" required id="form-name" />
+              </div>
+              <div class="col-md-6 tp-only-en">
+                <label class="form-label">
+                  <span data-page-i18n="labelTypeNameEn">الاسم بالإنجليزية</span> <span class="text-danger">*</span>
+                  <button type="button" class="btn btn-link text-secondary p-0 border-0 lh-1 ms-1 d-inline-flex align-items-center" 
+                          data-bs-toggle="popover" data-bs-trigger="focus" data-bs-html="true" data-bs-placement="top"
+                          data-bs-content="English identifier name of the content type, used in multilingual views."
+                          style="text-decoration: none;" title="Name (English)">
+                    <i class="bi bi-info-circle fs-8"></i>
+                  </button>
+                </label>
+                <input type="text" asp-for="Name_En" class="form-control" required id="form-name-en" />
+              </div>
+              <div class="col-md-6 tp-only-ar">
+                <label class="form-label">
+                  <span data-page-i18n="labelTypeDescAr">الوصف بالعربية</span>
+                  <button type="button" class="btn btn-link text-secondary p-0 border-0 lh-1 ms-1 d-inline-flex align-items-center" 
+                          data-bs-toggle="popover" data-bs-trigger="focus" data-bs-html="true" data-bs-placement="top"
+                          data-bs-content="نبذة مختصرة توضح الغرض من نوع المحتوى هذا للمحررين."
+                          style="text-decoration: none;" title="الوصف بالعربية">
+                    <i class="bi bi-info-circle fs-8"></i>
+                  </button>
+                </label>
+                <textarea asp-for="Description" class="form-control" rows="2" id="form-desc"></textarea>
+              </div>
+              <div class="col-md-6 tp-only-en">
+                <label class="form-label">
+                  <span data-page-i18n="labelTypeDescEn">الوصف بالإنجليزية</span>
+                  <button type="button" class="btn btn-link text-secondary p-0 border-0 lh-1 ms-1 d-inline-flex align-items-center" 
+                          data-bs-toggle="popover" data-bs-trigger="focus" data-bs-html="true" data-bs-placement="top"
+                          data-bs-content="Brief description of this content type in English."
+                          style="text-decoration: none;" title="Description (English)">
+                    <i class="bi bi-info-circle fs-8"></i>
+                  </button>
+                </label>
+                <textarea asp-for="Description_En" class="form-control" rows="2" id="form-desc-en"></textarea>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">
+                  <span data-page-i18n="labelIcon">الأيقونة (Bootstrap Icons)</span>
+                  <button type="button" class="btn btn-link text-secondary p-0 border-0 lh-1 ms-1 d-inline-flex align-items-center" 
+                          data-bs-toggle="popover" data-bs-trigger="focus" data-bs-html="true" data-bs-placement="top"
+                          data-bs-content="اسم فئة أيقونة Bootstrap المستعملة لتمييز نوع المحتوى بصرياً (مثال: bi-file-earmark-text)."
+                          style="text-decoration: none;" title="الأيقونة">
+                    <i class="bi bi-info-circle fs-8"></i>
+                  </button>
+                </label>
+                <div class="input-group">
+                  <span class="input-group-text" id="icon-preview"><i class="bi @Model.IconValue"></i></span>
+                  <input type="text" asp-for="IconValue" class="form-control" id="form-icon" />
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">
+                  <span data-page-i18n="labelStatus">حالة التنشيط</span>
+                  <button type="button" class="btn btn-link text-secondary p-0 border-0 lh-1 ms-1 d-inline-flex align-items-center" 
+                          data-bs-toggle="popover" data-bs-trigger="focus" data-bs-html="true" data-bs-placement="top"
+                          data-bs-content="تحديد ما إذا كان هذا القالب متاحاً للاستخدام الفوري لإنشاء محتوى جديد."
+                          style="text-decoration: none;" title="حالة التنشيط">
+                    <i class="bi bi-info-circle fs-8"></i>
+                  </button>
+                </label>
+                <div class="form-check form-switch mt-2">
+                  <input class="form-check-input" type="checkbox" asp-for="IsActive" id="form-isactive" />
+                  <label class="form-check-label fw-bold text-success ms-2" for="form-isactive" id="label-isactive" data-page-i18n="statusActive">نشط ومتاح للاستخدام</label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Single Sortable Workspace -->
+            <div class="d-flex align-items-center justify-content-between border-bottom pb-2 mb-3 mt-4">
+              <h6 class="fw-bold mb-0">
+                <i class="bi bi-layers-half text-primary me-1"></i>
+                <span data-page-i18n="customFieldsHeader">حقول قالب المحتوى والترتيب (سحب وإفلات لإعادة الترتيب)</span>
+              </h6>
+              <div class="d-flex gap-2">
+                <button type="button" class="btn btn-sm btn-outline-info rounded-3 px-3" onclick="showFormPreview()" title="معاينة نموذج إدخال المحتوى للكتّاب">
+                  <i class="bi bi-eye-fill"></i> <span data-page-i18n="btnPreviewForm">معاينة نموذج الإدخال</span>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-primary rounded-3 px-3" id="btn-add-field">
+                  <i class="bi bi-plus-circle-fill"></i> <span data-page-i18n="btnAddField">إضافة حقل مخصص</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Drag container -->
+            <div id="custom-fields-workspace" class="list-group d-flex flex-column gap-2 mb-4 min-vh-10 border border-dashed rounded-3 p-3 bg-body-tertiary">
+              <!-- Rendered via JS -->
+            </div>
+
+            <!-- SEO Fields Fixed Group -->
+            <div class="border border-primary-subtle rounded-4 p-3 bg-body mb-4 shadow-sm" id="seo-fields-group-wrapper">
+              <div class="d-flex align-items-center justify-content-between border-bottom pb-2 mb-3">
+                <h6 class="fw-bold mb-0 text-primary-emphasis">
+                  <i class="bi bi-google text-warning me-1"></i>
+                  <span class="tp-only-ar">مجموعة حقول تحسين محركات البحث (SEO)</span>
+                  <span class="tp-only-en">Search Engine Optimization Fields Group (SEO)</span>
+                </h6>
+                <span class="badge bg-primary-subtle text-primary-emphasis">
+                  <span class="tp-only-ar">أسفل نموذج الإدخال دائماً</span>
+                  <span class="tp-only-en">Always at entry form bottom</span>
+                </span>
+              </div>
+              <div id="seo-fields-group" class="list-group d-flex flex-column gap-2">
+                <!-- Rendered via JS -->
+              </div>
+            </div>
+
+            <!-- Save Form Action buttons -->
+            <div class="d-flex gap-2 border-top pt-4 mt-4">
+              <button type="submit" class="btn btn-primary px-4 py-2 shadow-sm rounded-3 fw-bold" id="btn-submit-form">
+                <i class="bi bi-save-fill me-1"></i> <span data-page-i18n="btnSave">حفظ نوع المحتوى وحقوله</span>
+              </button>
+              <a asp-page="/ContentTypes" asp-route-selectedId="@Model.SelectedTypeId" class="btn btn-outline-secondary px-4 py-2 rounded-3">
+                <span data-page-i18n="btnCancel">إلغاء التغييرات</span>
+              </a>
+            </div>
+
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- FIELD BUILDER POPUP MODAL (Add/Edit Custom Field) -->
+<div class="modal fade" id="fieldModal" tabindex="-1" aria-labelledby="fieldModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content shadow-lg rounded-3">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="fieldModalLabel">
+          <i class="bi bi-plus-circle-fill text-primary me-2"></i>
+          <span data-page-i18n="modalTitleAdd">إعداد الحقل المخصص</span>
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <form id="fieldForm" onsubmit="event.preventDefault(); saveFieldModal();">
+          <input type="hidden" id="modal-field-index" value="-1" />
+          
+          <div class="row g-3">
+            <!-- Programmatic Field Name -->
+            <div class="col-md-6">
+              <label class="form-label fw-bold" for="modal-fieldname">
+                <span class="tp-only-ar">الاسم البرمجي للحقل <span class="text-danger">*</span></span>
+                <span class="tp-only-en">Field Name <span class="text-danger">*</span></span>
+                
+                <button type="button" class="btn btn-link text-secondary p-0 border-0 lh-1 ms-1 d-inline-flex align-items-center tp-only-ar" 
+                        data-bs-toggle="popover" data-bs-trigger="focus" data-bs-html="true" data-bs-placement="top"
+                        data-bs-content="يستخدم كمعرف برمجياً للحقل في قاعدة البيانات ومخرجات الـ API (مثل: source)."
+                        style="text-decoration: none;" title="الاسم البرمجي">
+                  <i class="bi bi-info-circle fs-8"></i>
+                </button>
+                <button type="button" class="btn btn-link text-secondary p-0 border-0 lh-1 ms-1 d-inline-flex align-items-center tp-only-en" 
+                        data-bs-toggle="popover" data-bs-trigger="focus" data-bs-html="true" data-bs-placement="top"
+                        data-bs-content="Used as a programmatic identifier for the field in database and API outputs."
+                        style="text-decoration: none;" title="Field Name">
+                  <i class="bi bi-info-circle fs-8"></i>
+                </button>
+              </label>
+              <input type="text" class="form-control" id="modal-fieldname" required pattern="^[A-Za-z][A-Za-z0-9_]*$" dir="ltr"
+                     data-title-ar="يجب أن يبدأ بحرف إنجليزي، ويسمح بالأحرف الإنجليزية والأرقام والشرطة السفلية فقط دون مسافات أو رموز."
+                     data-title-en="Must start with an English letter. Only English letters, numbers, and underscores are allowed." />
+            </div>
+            
+            <!-- Field Type Select -->
+            <div class="col-md-6">
+              <label class="form-label fw-bold" for="modal-fieldtype">
+                <span class="tp-only-ar">نوع الحقل <span class="text-danger">*</span></span>
+                <span class="tp-only-en">Field Type <span class="text-danger">*</span></span>
+                
+                <button type="button" class="btn btn-link text-secondary p-0 border-0 lh-1 ms-1 d-inline-flex align-items-center tp-only-ar" 
+                        data-bs-toggle="popover" data-bs-trigger="focus" data-bs-html="true" data-bs-placement="top"
+                        data-bs-content="يحدد نوع المدخلات (نص، قائمة خيارات، تاريخ، صورة، إلخ) وطريقة عرضها للكتّاب."
+                        style="text-decoration: none;" title="نوع الحقل">
+                  <i class="bi bi-info-circle fs-8"></i>
+                </button>
+                <button type="button" class="btn btn-link text-secondary p-0 border-0 lh-1 ms-1 d-inline-flex align-items-center tp-only-en" 
+                        data-bs-toggle="popover" data-bs-trigger="focus" data-bs-html="true" data-bs-placement="top"
+                        data-bs-content="Defines the type of inputs (text, selection list, date, image, etc.) and how they are displayed."
+                        style="text-decoration: none;" title="Field Type">
+                  <i class="bi bi-info-circle fs-8"></i>
+                </button>
+              </label>
+              <select class="form-select" id="modal-fieldtype" required>
+                <optgroup label="Content Fields">
+                  <option value="Text">Text</option>
+                  <option value="Textarea">Textarea</option>
+                  <option value="RichText">RichText</option>
+                </optgroup>
+                <optgroup label="Selection Fields">
+                  <option value="Select">Select</option>
+                  <option value="MultiSelect">MultiSelect</option>
+                </optgroup>
+                <optgroup label="Media Fields">
+                  <option value="Image">Image</option>
+                  <option value="Gallery">Gallery</option>
+                  <option value="File">File</option>
+                </optgroup>
+                <optgroup label="Date Fields">
+                  <option value="Date">Date</option>
+                  <option value="DateTime">DateTime</option>
+                </optgroup>
+                <optgroup label="Other Fields">
+                  <option value="Number">Number</option>
+                  <option value="Decimal">Decimal</option>
+                  <option value="Boolean">Boolean</option>
+                  <option value="Url">Url</option>
+                  <option value="Email">Email</option>
+                  <option value="Phone">Phone</option>
+                </optgroup>
+              </select>
+            </div>
+
+            <!-- Labels Ar/En -->
+            <div class="col-md-6">
+              <label class="form-label fw-bold" for="modal-label">
+                العنوان الظاهر بالعربية (Label) <span class="text-danger">*</span>
+                <button type="button" class="btn btn-link text-secondary p-0 border-0 lh-1 ms-1 d-inline-flex align-items-center" 
+                        data-bs-toggle="popover" data-bs-trigger="focus" data-bs-html="true" data-bs-placement="top"
+                        data-bs-content="التسمية التوضيحية للحقل التي تظهر باللغة العربية بجانب صندوق الإدخال."
+                        style="text-decoration: none;" title="العنوان بالعربية">
+                  <i class="bi bi-info-circle fs-8"></i>
+                </button>
+              </label>
+              <input type="text" class="form-control" id="modal-label" required />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold" for="modal-label-en">
+                Label English <span class="text-danger">*</span>
+                <button type="button" class="btn btn-link text-secondary p-0 border-0 lh-1 ms-1 d-inline-flex align-items-center" 
+                        data-bs-toggle="popover" data-bs-trigger="focus" data-bs-html="true" data-bs-placement="top"
+                        data-bs-content="The display label shown next to the input field in the English version of the portal."
+                        style="text-decoration: none;" title="Label English">
+                  <i class="bi bi-info-circle fs-8"></i>
+                </button>
+              </label>
+              <input type="text" class="form-control" id="modal-label-en" required />
+            </div>
+
+            <!-- Help Texts Ar/En -->
+            <div class="col-md-6 tp-only-ar">
+              <label class="form-label" for="modal-helptext">
+                نص المساعدة والإرشاد بالعربية (Help Text)
+                <button type="button" class="btn btn-link text-secondary p-0 border-0 lh-1 ms-1 d-inline-flex align-items-center" 
+                        data-bs-toggle="popover" data-bs-trigger="focus" data-bs-html="true" data-bs-placement="top"
+                        data-bs-content="تعليمات تفصيلية تظهر بخط صغير تحت صندوق الإدخال لمساعدة المحررين وإيضاح أية شروط إضافية."
+                        style="text-decoration: none;" title="نص المساعدة">
+                  <i class="bi bi-info-circle fs-8"></i>
+                </button>
+              </label>
+              <input type="text" class="form-control" id="modal-helptext" />
+            </div>
+            <div class="col-md-6 tp-only-en">
+              <label class="form-label" for="modal-helptext-en">
+                نص المساعدة بالإنجليزية (Help Text English)
+                <button type="button" class="btn btn-link text-secondary p-0 border-0 lh-1 ms-1 d-inline-flex align-items-center" 
+                        data-bs-toggle="popover" data-bs-trigger="focus" data-bs-html="true" data-bs-placement="top"
+                        data-bs-content="Additional guideline instructions showing under the input box in English."
+                        style="text-decoration: none;" title="Help Text English">
+                  <i class="bi bi-info-circle fs-8"></i>
+                </button>
+              </label>
+              <input type="text" class="form-control" id="modal-helptext-en" />
+            </div>
+
+            <!-- Default Value -->
+            <div class="col-md-6">
+              <label class="form-label" for="modal-defaultvalue">
+                <span class="tp-only-ar">القيمة الافتراضية للحقل</span>
+                <span class="tp-only-en">Default Value</span>
+                <button type="button" class="btn btn-link text-secondary p-0 border-0 lh-1 ms-1 d-inline-flex align-items-center tp-only-ar" 
+                        data-bs-toggle="popover" data-bs-trigger="focus" data-bs-html="true" data-bs-placement="top"
+                        data-bs-content="القيمة التي يتم تعبئتها تلقائياً عند قيام الكاتب بإنشاء مقال أو محتوى جديد."
+                        style="text-decoration: none;" title="القيمة الافتراضية">
+                  <i class="bi bi-info-circle fs-8"></i>
+                </button>
+                <button type="button" class="btn btn-link text-secondary p-0 border-0 lh-1 ms-1 d-inline-flex align-items-center tp-only-en" 
+                        data-bs-toggle="popover" data-bs-trigger="focus" data-bs-html="true" data-bs-placement="top"
+                        data-bs-content="Value pre-populated automatically when a writer creates new content."
+                        style="text-decoration: none;" title="Default Value">
+                  <i class="bi bi-info-circle fs-8"></i>
+                </button>
+              </label>
+              <input type="text" class="form-control" id="modal-defaultvalue" />
+            </div>
+
+            <!-- Switches: Required, Translatable, Active -->
+            <div class="col-md-6 d-flex flex-column justify-content-center gap-2 pt-3">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="modal-isrequired" />
+                <label class="form-check-label fw-semibold" for="modal-isrequired">
+                  <span class="tp-only-ar">حقل مطلوب إجباري</span>
+                  <span class="tp-only-en">Required Field</span>
+                </label>
+              </div>
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="modal-istranslatable" />
+                <label class="form-check-label fw-semibold" for="modal-istranslatable">
+                  <span class="tp-only-ar">حقل يقبل الترجمة المتعددة</span>
+                  <span class="tp-only-en">Translatable Field</span>
+                </label>
+              </div>
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="modal-isactive" checked />
+                <label class="form-check-label fw-semibold" for="modal-isactive">
+                  <span class="tp-only-ar">حقل نشط ومفعل في شاشات الإدخال</span>
+                  <span class="tp-only-en">Active and Enabled Field</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Options JSON builder (Dynamic for lists like dropdowns/radios) -->
+            <div class="col-12 border-top pt-3 mt-3 d-none" id="modal-options-wrapper">
+              <label class="form-label fw-bold">
+                <span class="tp-only-ar">إعداد خيارات القائمة المنسدلة</span>
+                <span class="tp-only-en">Dropdown Options Setup</span>
+              </label>
+
+              <div class="row g-2 mb-3">
+                <div class="col-md-4">
+                  <label class="form-label fs-8 fw-semibold">
+                    <span class="tp-only-ar">نوع القيمة</span>
+                    <span class="tp-only-en">Value Mode</span>
+                  </label>
+                  <select class="form-select form-select-sm" id="options-mode" onchange="onOptionsModeChanged()">
+                    <option value="static">ثابتة / Static</option>
+                    <option value="dynamic">ديناميكية / Dynamic</option>
+                    <option value="query">استعلام / Query</option>
+                  </select>
+                </div>
+                <div class="col-md-4 d-none" id="dynamic-source-wrapper">
+                  <label class="form-label fs-8 fw-semibold">
+                    <span class="tp-only-ar">مصدر الخيارات</span>
+                    <span class="tp-only-en">Options Source</span>
+                  </label>
+                  <select class="form-select form-select-sm" id="dynamic-source" onchange="onDynamicSourceChanged()">
+                    <option value="category">تصنيف / Category</option>
+                    <option value="user">مستخدم / User</option>
+                  </select>
+                </div>
+                <div class="col-md-4 d-none" id="dynamic-parent-wrapper">
+                  <label class="form-label fs-8 fw-semibold" id="dynamic-parent-label">التصنيف الرئيسي</label>
+                  <select class="form-select form-select-sm" id="dynamic-parent" onchange="refreshDynamicOptionsPreview()"></select>
+                </div>
+              </div>
+
+              <div class="alert alert-info py-2 fs-8 d-none" id="dynamic-options-help">
+                <i class="bi bi-info-circle me-1"></i>
+                <span class="tp-only-ar">القيمة تحفظ كرقم السجل، والاسم يظهر كخيار حسب لغة الواجهة.</span>
+                <span class="tp-only-en">The stored value is the record ID, and the label follows the interface language.</span>
+              </div>
+
+              <div class="border rounded-3 bg-body-tertiary mb-3 d-none" id="query-options-builder">
+                <!-- Query Mode Tabs -->
+                <ul class="nav nav-tabs px-3 pt-2" id="query-mode-tabs" role="tablist">
+                  <li class="nav-item" role="presentation">
+                    <button class="nav-link active d-flex align-items-center gap-1" id="tab-builder-btn"
+                            data-bs-toggle="tab" data-bs-target="#tab-builder-pane" type="button" role="tab">
+                      <i class="bi bi-diagram-3"></i>
+                      <span class="tp-only-ar">منشئ مرئي</span>
+                      <span class="tp-only-en">Builder</span>
+                    </button>
+                  </li>
+                  <li class="nav-item" role="presentation">
+                    <button class="nav-link d-flex align-items-center gap-1" id="tab-sqlquery-btn"
+                            data-bs-toggle="tab" data-bs-target="#tab-sqlquery-pane" type="button" role="tab">
+                      <i class="bi bi-terminal"></i>
+                      <span class="tp-only-ar">استعلام SQL</span>
+                      <span class="tp-only-en">SQL Query</span>
+                    </button>
+                  </li>
+                </ul>
+                <div class="tab-content p-3">
+
+                  <!-- TAB 1: Visual Builder -->
+                  <div class="tab-pane fade show active" id="tab-builder-pane" role="tabpanel">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                      <div class="fw-bold text-primary-emphasis fs-8">
+                        <span class="tp-only-ar">حدد الجدول، أضف شروط الفلترة، ثم اضغط تنفيذ لتوليد الخيارات.</span>
+                        <span class="tp-only-en">Select a table, add filter rules, then click Execute to generate options.</span>
+                      </div>
+                      <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addOptionsQueryRule()">
+                          <i class="bi bi-plus-circle me-1"></i>Add Rule
+                        </button>
+                        <button type="button" class="btn btn-sm btn-success" onclick="executeOptionsQuery()">
+                          <i class="bi bi-play-fill me-1"></i>
+                          <span class="tp-only-ar">تنفيذ</span>
+                          <span class="tp-only-en">Execute</span>
+                        </button>
+                      </div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                      <select class="form-select form-select-sm" id="options-query-table" style="max-width:260px;" onchange="onOptionsQueryTableChanged()">
+                        @foreach (var table in Model.DatabaseTables)
+                        {
+                          <option value="@table.Name">@table.Name</option>
+                        }
+                      </select>
+                      <select class="form-select form-select-sm" id="options-query-logic" style="width:110px;">
+                        <option value="AND">AND</option>
+                        <option value="OR">OR</option>
+                      </select>
+                      <span class="text-muted fs-8 text-nowrap flex-shrink-0">
+                        <span class="tp-only-ar">العمليات باللغة الإنجليزية، والبحث يراعي الحقول العربية والإنجليزية مثل Title و Summary.</span>
+                        <span class="tp-only-en">Operators are English; Title/Summary search Arabic and English columns.</span>
+                      </span>
+                    </div>
+                    <div id="options-query-rules" class="vstack gap-2 mb-3"></div>
+                  </div>
+
+                  <!-- TAB 2: SQL Query -->
+                  <div class="tab-pane fade" id="tab-sqlquery-pane" role="tabpanel">
+                    <div class="alert alert-warning py-2 fs-8 mb-3">
+                      <i class="bi bi-shield-lock-fill me-1"></i>
+                      <span class="tp-only-ar">يُسمح فقط بجمل <strong>SELECT</strong>. لا يُسمح بأوامر INSERT أو UPDATE أو DELETE أو DROP. يجب أن يحتوي الاستعلام على عمودين على الأقل: الأول للقيمة (value) والثاني للاسم (label).</span>
+                      <span class="tp-only-en">Only <strong>SELECT</strong> statements are allowed. INSERT, UPDATE, DELETE, DROP are blocked. The query must return at least 2 columns: first for value, second for label.</span>
+                    </div>
+                    <div class="mb-3">
+                      <label class="form-label fw-semibold fs-8">
+                        <span class="tp-only-ar">الاستعلام (مثال: <code>SELECT Id, Name, Name_En FROM dbo.Categories WHERE IsActive=1</code>)</span>
+                        <span class="tp-only-en">SQL Query (e.g. <code>SELECT Id, Name, Name_En FROM dbo.Categories WHERE IsActive=1</code>)</span>
+                      </label>
+                      <textarea id="sql-query-textarea" class="form-control font-monospace" rows="5" dir="ltr"
+                                placeholder="SELECT Id, Name, Name_En FROM dbo.Categories WHERE IsActive = 1 ORDER BY Name"
+                                style="font-size:0.82rem; resize:vertical;"></textarea>
+                    </div>
+                    <div class="d-flex gap-2 align-items-center">
+                      <button type="button" class="btn btn-sm btn-success" onclick="executeSqlQuery()">
+                        <i class="bi bi-play-fill me-1"></i>
+                        <span class="tp-only-ar">تنفيذ الاستعلام</span>
+                        <span class="tp-only-en">Execute Query</span>
+                      </button>
+                      <span id="sql-query-spinner" class="d-none">
+                        <span class="spinner-border spinner-border-sm text-primary me-1" role="status"></span>
+                        <span class="tp-only-ar fs-8">جاري التنفيذ...</span>
+                        <span class="tp-only-en fs-8">Executing...</span>
+                      </span>
+                      <span id="sql-query-status" class="fs-8 text-muted"></span>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+              
+              <div class="input-group mb-2" id="static-options-builder">
+                <input type="text" class="form-control form-control-sm" id="opt-value" 
+                       data-title-ar="الكود (Value)" data-title-en="Value Code (Value)" />
+                <input type="text" class="form-control form-control-sm tp-only-ar" id="opt-label-ar" />
+                <input type="text" class="form-control form-control-sm tp-only-en" id="opt-label-en" />
+                <button type="button" class="btn btn-sm btn-primary" onclick="addOptionToBuilder()"><i class="bi bi-plus-lg"></i></button>
+              </div>
+
+              <div class="table-responsive border rounded-3 bg-body-tertiary">
+                <table class="table table-sm align-middle mb-0 text-center">
+                  <thead class="table-light">
+                    <tr>
+                      <th>
+                        <span class="tp-only-ar">الكود</span>
+                        <span class="tp-only-en">Value Code</span>
+                      </th>
+                      <th class="tp-only-ar">الاسم بالعربية</th>
+                      <th class="tp-only-en">Label (English)</th>
+                      <th>
+                        <span class="tp-only-ar">عمليات</span>
+                        <span class="tp-only-en">Actions</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody id="opt-table-body">
+                    <!-- Dynamic -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="d-flex gap-2 justify-content-end border-top pt-3 mt-4">
+            <button type="submit" class="btn btn-primary px-4 fw-bold">
+              <i class="bi bi-check2-circle me-1"></i> 
+              <span class="tp-only-ar">تأكيد وحفظ</span>
+              <span class="tp-only-en">Confirm & Save</span>
+            </button>
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+              <span class="tp-only-ar">إلغاء</span>
+              <span class="tp-only-en">Cancel</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PREVIEW ENTRY FORM MODAL -->
+<div class="modal fade" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content shadow-lg rounded-3">
+      <div class="modal-header bg-info-subtle border-bottom border-info-subtle text-info-emphasis">
+        <h5 class="modal-title fw-bold" id="previewModalLabel">
+          <i class="bi bi-eye-fill me-2"></i>
+          <span data-page-i18n="previewModalTitle">معاينة نموذج إدخال المحتوى</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <!-- Language Switcher for Preview -->
+        <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom">
+          <div class="fs-8 text-secondary">
+            <i class="bi bi-info-circle-fill me-1"></i>
+            <span data-page-i18n="previewDesc">هذه معاينة حية تفاعلية للنموذج النهائي كما سيظهر للكتّاب والمحررين.</span>
+          </div>
+          <div class="btn-group btn-group-sm" role="group">
+            <button type="button" class="btn btn-outline-primary active" id="preview-lang-ar" onclick="togglePreviewLang('ar')">العربية</button>
+            <button type="button" class="btn btn-outline-primary" id="preview-lang-en" onclick="togglePreviewLang('en')">English</button>
+          </div>
+        </div>
+        
+        <!-- Form Fields Container -->
+        <div id="preview-form-container" class="row g-3">
+          <!-- Dynamic content -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary shadow-sm" data-bs-dismiss="modal">
+          <span class="tp-only-ar">إغلاق المعاينة</span>
+          <span class="tp-only-en">Close Preview</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+@section Scripts {
+  <!-- SortableJS served locally -->
+  <script src="~/assets/js/sortable.min.js" asp-append-version="true"></script>
+  
+  <script>
+    // Initial load of custom fields from the page model
+    let customFields = [];
+    let modalOptions = []; // Array of options { value: '', label: '', labelEn: '' } for current editing field
+    let previewLang = 'ar';
+    const dynamicMainCategories = @Html.Raw(JsonSerializer.Serialize(Model.MainCategoryOptions));
+    const dynamicSubCategories = @Html.Raw(JsonSerializer.Serialize(Model.SubCategoryOptions));
+    const dynamicRoles = @Html.Raw(JsonSerializer.Serialize(Model.RoleOptions));
+    const dynamicRoleUsers = @Html.Raw(JsonSerializer.Serialize(Model.RoleUserOptions));
+    const databaseTables = @Html.Raw(JsonSerializer.Serialize(Model.DatabaseTables));
+    const databaseColumns = @Html.Raw(JsonSerializer.Serialize(Model.DatabaseColumns));
+
+    const pageTranslations = {
+      ar: {
+        pageTitle: "منشئ أنواع المحتوى (Content Type Builder)",
+        pageDesc: "قم بتصميم وتعديل أنواع المحتوى وقوالب البيانات، وإضافة حقول مخصصة بالكامل لصحفيتك الرقمية.",
+        btnAddNewType: "إنشاء نوع جديد",
+        listHeader: "قوالب أنواع المحتوى المتوفرة",
+        badgeSystem: "أساسي",
+        headerAdd: "إنشاء قالب نوع محتوى جديد",
+        headerEdit: "تعديل قالب المحتوى: ",
+        metaHeader: "البيانات التعريفية لنوع المحتوى",
+        labelTypeNameAr: "الاسم بالعربية",
+        labelTypeNameEn: "الاسم بالإنجليزية",
+        labelTypeDescAr: "الوصف بالعربية",
+        labelTypeDescEn: "الوصف بالإنجليزية",
+        labelIcon: "الأيقونة (Bootstrap Icons)",
+        labelStatus: "حالة التنشيط",
+        customFieldsHeader: "حقول قالب المحتوى والترتيب (سحب وإفلات لإعادة الترتيب)",
+        btnAddField: "إضافة حقل مخصص",
+        btnPreviewForm: "معاينة نموذج الإدخال",
+        btnSave: "حفظ نوع المحتوى وحقوله",
+        btnCancel: "إلغاء التغييرات",
+        statusActive: "نشط ومتاح للاستخدام",
+        modalTitleAdd: "إعداد الحقل المخصص",
+        modalSaveBtn: "تأكيد وحفظ",
+        noCustomFields: "لا توجد حقول معرفة حالياً. اضغط على 'إضافة حقل مخصص' للبدء.",
+        requiredLabel: "مطلوب إجباري",
+        translatableLabel: "يقبل الترجمة",
+        helpText: "مساعدة",
+        previewModalTitle: "معاينة نموذج إدخال المحتوى",
+        previewDesc: "هذه معاينة حية تفاعلية للنموذج النهائي كما سيظهر للكتّاب والمحررين."
+      },
+      en: {
+        pageTitle: "Content Type Builder",
+        pageDesc: "Design and build content models, schemas and data configurations with fully integrated custom fields.",
+        btnAddNewType: "Create New Type",
+        listHeader: "Available Content Models",
+        badgeSystem: "System",
+        headerAdd: "Create New Content Model",
+        headerEdit: "Edit Content Model: ",
+        metaHeader: "Content Model Details",
+        labelTypeNameAr: "Name (Arabic)",
+        labelTypeNameEn: "Name (English)",
+        labelTypeDescAr: "Description (Arabic)",
+        labelTypeDescEn: "Description (English)",
+        labelIcon: "Icon (Bootstrap Icons)",
+        labelStatus: "Status",
+        customFieldsHeader: "Content Model Layout & Schema (Drag and drop to reorder)",
+        btnAddField: "Add Custom Field",
+        btnPreviewForm: "Preview Entry Form",
+        btnSave: "Save Content Model & Schema",
+        btnCancel: "Cancel Changes",
+        statusActive: "Active and available for use",
+        modalTitleAdd: "Configure Custom Attribute",
+        modalSaveBtn: "Confirm & Add",
+        noCustomFields: "No attributes configured. Click 'Add Custom Field' to start.",
+        requiredLabel: "Required",
+        translatableLabel: "Translatable",
+        helpText: "Help Text",
+        previewModalTitle: "Preview Content Entry Form",
+        previewDesc: "This is a live interactive preview of the final entry form for writers/editors."
+      }
+    };
+
+    let currentLang = localStorage.getItem('tp-lang') || 'ar';
+    let fieldModalInstance = null;
+    let previewModalInstance = null;
+
+    const reservedNames = ['id', 'title', 'slug', 'summary', 'content', 'featuredimage', 'status', 'publishdate', 'categoryid', 'subcategoryid', 'seotitle', 'seodescription', 'seokeywords', 'canonicalurl'];
+    const seoFieldNames = ['seotitle', 'seodescription', 'seokeywords', 'canonicalurl'];
+
+    document.addEventListener('DOMContentLoaded', () => {
+      // Initialize Bootstrap Modals
+      fieldModalInstance = new bootstrap.Modal(document.getElementById('fieldModal'));
+      previewModalInstance = new bootstrap.Modal(document.getElementById('previewModal'));
+
+      // Initialize static label popovers on the page (metadata and modal)
+      const staticPopovers = document.querySelectorAll('label [data-bs-toggle="popover"], .form-label [data-bs-toggle="popover"]');
+      staticPopovers.forEach(el => {
+        new bootstrap.Popover(el, {
+          sanitize: false,
+          placement: 'auto'
+        });
+      });
+
+      // Load existing fields
+      const initialJson = document.getElementById('form-customfieldsjson').value;
+      try {
+        customFields = JSON.parse(initialJson || '[]');
+      } catch (e) {
+        customFields = [];
+      }
+
+      // Render custom fields
+      renderCustomFields();
+
+      // Initialize SortableJS
+      initSortableWorkspace();
+
+      // Align forms layout on initial load
+      applyPageTranslations(currentLang);
+
+      // Listen to language changes
+      window.addEventListener('tp-lang-changed', (e) => {
+        applyPageTranslations(e.detail.lang);
+      });
+
+      // Bind show field modal buttons
+      document.getElementById('btn-add-field').addEventListener('click', () => {
+        openFieldModalForAdd();
+      });
+
+      // Synchronize live icon preview
+      const iconInput = document.getElementById('form-icon');
+      if (iconInput) {
+        iconInput.addEventListener('input', function() {
+          const preview = document.getElementById('icon-preview');
+          preview.innerHTML = `<i class="bi ${this.value || 'bi-folder-fill'}"></i>`;
+        });
+      }
+
+      // Sync field type selection to show/hide options JSON builder
+      document.getElementById('modal-fieldtype').addEventListener('change', function() {
+        const type = this.value;
+        const optionsWrapper = document.getElementById('modal-options-wrapper');
+        if (type === 'Select' || type === 'MultiSelect') {
+          optionsWrapper.classList.remove('d-none');
+          onOptionsModeChanged();
+        } else {
+          optionsWrapper.classList.add('d-none');
+        }
+      });
+
+      document.getElementById('modal-fieldname').addEventListener('input', function() {
+        this.value = this.value.replace(/[^A-Za-z0-9_]/g, '');
+        if (this.value && !/^[A-Za-z]/.test(this.value)) {
+          this.value = this.value.replace(/^[^A-Za-z]+/, '');
+        }
+      });
+
+      // Form submission sync
+      document.getElementById('contentTypeForm').addEventListener('submit', function(e) {
+        customFields = [
+          ...customFields.filter(field => !isSeoField(field)),
+          ...customFields.filter(field => isSeoField(field))
+        ];
+
+        // Prepare sort indexes
+        customFields.forEach((field, index) => {
+          field.SortOrder = index + 1;
+        });
+
+        // Sync hidden Name / Description inputs to ensure backend validation passes
+        const nameAr = document.getElementById('form-name').value.trim();
+        const nameEn = document.getElementById('form-name-en').value.trim();
+        const descAr = document.getElementById('form-desc').value.trim();
+        const descEn = document.getElementById('form-desc-en').value.trim();
+        
+        if (currentLang === 'ar') {
+          if (!nameEn) {
+            document.getElementById('form-name-en').value = nameAr;
+          }
+          if (!descEn) {
+            document.getElementById('form-desc-en').value = descAr;
+          }
+        } else if (currentLang === 'en') {
+          if (!nameAr) {
+            document.getElementById('form-name').value = nameEn;
+          }
+          if (!descAr) {
+            document.getElementById('form-desc').value = descEn;
+          }
+        }
+
+        // Set value
+        document.getElementById('form-customfieldsjson').value = JSON.stringify(customFields);
+      });
+    });
+
+    function confirmDeleteType(e) {
+      const msg = currentLang === 'ar' 
+        ? 'هل أنت متأكد من رغبتك في حذف قالب نوع المحتوى هذا بجميع حقوله المخصصة نهائياً؟'
+        : 'Are you sure you want to delete this content model template and all its custom fields permanently?';
+      if (!confirm(msg)) {
+        e.preventDefault();
+        return false;
+      }
+      return true;
+    }
+
+    function applyPageTranslations(lang) {
+      currentLang = lang;
+
+      // Toggle body language classes
+      document.body.classList.toggle('lang-ar', lang === 'ar');
+      document.body.classList.toggle('lang-en', lang === 'en');
+
+      // Manage required attributes dynamically to prevent browser block on hidden elements
+      const formName = document.getElementById('form-name');
+      const formNameEn = document.getElementById('form-name-en');
+      const modalLabel = document.getElementById('modal-label');
+      const modalLabelEn = document.getElementById('modal-label-en');
+      
+      if (lang === 'ar') {
+        if (formName) formName.setAttribute('required', 'required');
+        if (formNameEn) formNameEn.removeAttribute('required');
+        if (modalLabel) modalLabel.setAttribute('required', 'required');
+        if (modalLabelEn) modalLabelEn.setAttribute('required', 'required');
+      } else {
+        if (formNameEn) formNameEn.setAttribute('required', 'required');
+        if (formName) formName.removeAttribute('required');
+        if (modalLabelEn) modalLabelEn.setAttribute('required', 'required');
+        if (modalLabel) modalLabel.setAttribute('required', 'required');
+      }
+
+      const elements = document.querySelectorAll('[data-page-i18n]');
+      elements.forEach(el => {
+        const key = el.getAttribute('data-page-i18n');
+        if (pageTranslations[lang] && pageTranslations[lang][key]) {
+          if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+            el.setAttribute('placeholder', pageTranslations[lang][key]);
+          } else {
+            el.textContent = pageTranslations[lang][key];
+          }
+        }
+      });
+
+      // Translate titles and placeholders for custom fields
+      const titleElements = document.querySelectorAll('[data-title-ar]');
+      titleElements.forEach(el => {
+        const text = lang === 'ar' ? el.getAttribute('data-title-ar') : el.getAttribute('data-title-en');
+        el.setAttribute('title', text);
+      });
+
+      // Translate optgroup labels in field type select
+      const selectEl = document.getElementById('modal-fieldtype');
+      if (selectEl) {
+        const optgroups = selectEl.querySelectorAll('optgroup');
+        if (optgroups.length >= 5) {
+          if (lang === 'ar') {
+            optgroups[0].label = 'حقول المحتوى';
+            optgroups[1].label = 'حقول الاختيار';
+            optgroups[2].label = 'حقول الوسائط';
+            optgroups[3].label = 'حقول التاريخ';
+            optgroups[4].label = 'حقول أخرى';
+          } else {
+            optgroups[0].label = 'Content Fields';
+            optgroups[1].label = 'Selection Fields';
+            optgroups[2].label = 'Media Fields';
+            optgroups[3].label = 'Date Fields';
+            optgroups[4].label = 'Other Fields';
+          }
+        }
+      }
+
+      // Re-render fields visually to show localized names/labels
+      renderCustomFields();
+      if (document.getElementById('modal-options-wrapper') && !document.getElementById('modal-options-wrapper').classList.contains('d-none')) {
+        const selectedDynamicParent = document.getElementById('dynamic-parent')?.value || '';
+        populateDynamicParentOptions(selectedDynamicParent);
+        if (document.getElementById('options-mode').value === 'dynamic') {
+          refreshDynamicOptionsPreview();
+        }
+      }
+    }
+
+    // Sortable reordering binding
+    function initSortableWorkspace() {
+      const el = document.getElementById('custom-fields-workspace');
+      if (el) {
+        new Sortable(el, {
+          handle: '.tp-drag-handle',
+          ghostClass: 'tp-sortable-ghost',
+          chosenClass: 'tp-sortable-chosen',
+          dragClass: 'tp-sortable-drag',
+          onEnd: function (evt) {
+            // Reorder the local array based on the DOM child node indices
+            const children = Array.from(el.children);
+            const newOrder = [];
+            children.forEach(child => {
+              const name = child.getAttribute('data-fieldname');
+              const item = customFields.find(f => f.FieldName === name);
+              if (item) {
+                newOrder.push(item);
+              }
+            });
+            const seoFields = customFields.filter(f => isSeoField(f));
+            customFields = [...newOrder, ...seoFields];
+            renderCustomFields(); // Re-render to keep indices fresh
+          }
+        });
+      }
+    }
+
+    function renderCustomFields() {
+      const container = document.getElementById('custom-fields-workspace');
+      if (!container) return;
+
+      // Dispose of existing popovers first to prevent memory leaks or orphaned elements
+      const existingPopovers = container.querySelectorAll('[data-bs-toggle="popover"]');
+      existingPopovers.forEach(el => {
+        const instance = bootstrap.Popover.getInstance(el);
+        if (instance) {
+          instance.dispose();
+        }
+      });
+
+      container.innerHTML = '';
+      const editableLayoutFields = customFields.filter(field => !isSeoField(field));
+      if (editableLayoutFields.length === 0) {
+        container.innerHTML = `
+          <div class="text-center text-muted py-4">
+            <i class="bi bi-grid-3x3-gap fs-1 d-block mb-2 text-secondary opacity-50"></i>
+            <span>${pageTranslations[currentLang].noCustomFields}</span>
+          </div>`;
+        renderSeoFieldsGroup();
+        return;
+      }
+
+      editableLayoutFields.forEach((field) => {
+        const index = customFields.indexOf(field);
+        const isSystem = field.IsSystemField || reservedNames.includes(field.FieldName.toLowerCase());
+        const fieldNameText = field.FieldName;
+        const labelText = currentLang === 'ar' ? field.Label : (field.Label_En || field.Label);
+        
+        let metaIndicators = '';
+        metaIndicators += `<span class="badge bg-secondary-subtle text-secondary-emphasis fs-8 me-1">${field.FieldType}</span>`;
+
+        if (field.IsRequired) {
+          metaIndicators += `<span class="badge bg-danger-subtle text-danger fs-8 me-1"><i class="bi bi-asterisk"></i> ${pageTranslations[currentLang].requiredLabel}</span>`;
+        }
+        if (field.IsTranslatable) {
+          metaIndicators += `<span class="badge bg-primary-subtle text-primary fs-8 me-1"><i class="bi bi-translate"></i> ${pageTranslations[currentLang].translatableLabel}</span>`;
+        }
+        if (!field.IsActive) {
+          metaIndicators += `<span class="badge bg-warning-subtle text-warning-emphasis fs-8 me-1">${currentLang === 'ar' ? 'مخفي' : 'Hidden'}</span>`;
+        }
+
+        const card = document.createElement('div');
+        if (isSystem) {
+          card.className = `list-group-item list-group-item-action p-3 rounded-3 border border-light-subtle bg-body-secondary mb-2 tp-cursor-pointer d-flex align-items-center justify-content-between ${field.IsActive ? '' : 'opacity-75'}`;
+        } else {
+          card.className = `list-group-item list-group-item-action p-3 rounded-3 border border-primary-subtle bg-body-tertiary mb-2 tp-cursor-pointer d-flex align-items-center justify-content-between ${field.IsActive ? '' : 'opacity-75'}`;
+        }
+
+        card.setAttribute('data-fieldname', field.FieldName);
+        card.setAttribute('data-index', index);
+
+        // Quick actions rendering
+        let actionsHtml = '';
+        if (isSystem) {
+          actionsHtml = `
+            <div class="d-flex align-items-center gap-2 flex-shrink-0 ms-2">
+              <span class="badge bg-dark text-light fs-8 me-1" title="حقل نظام أساسي مغلق / Predefined Locked System Field"><i class="bi bi-shield-lock-fill"></i> ${currentLang === 'ar' ? 'نظام مغلق' : 'Locked'}</span>
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="active-${index}" ${field.IsActive ? 'checked' : ''} onchange="toggleFieldActive(${index}, this.checked)" title="تبديل ظهور الحقل في نموذج الإدخال">
+                <label class="form-check-label fs-8 text-muted" for="active-${index}">${field.IsActive ? (currentLang === 'ar' ? 'ظاهر' : 'Visible') : (currentLang === 'ar' ? 'مخفي' : 'Hidden')}</label>
+              </div>
+            </div>`;
+        } else {
+          actionsHtml = `
+            <div class="d-flex align-items-center gap-2 flex-shrink-0 ms-2">
+              <div class="form-check form-switch mb-0 me-2">
+                <input class="form-check-input" type="checkbox" id="active-${index}" ${field.IsActive ? 'checked' : ''} onchange="toggleFieldActive(${index}, this.checked)" title="تبديل ظهور الحقل في نموذج الإدخال">
+                <label class="form-check-label fs-8 text-muted" for="active-${index}">${field.IsActive ? (currentLang === 'ar' ? 'ظاهر' : 'Visible') : (currentLang === 'ar' ? 'مخفي' : 'Hidden')}</label>
+              </div>
+              <button type="button" class="btn btn-sm btn-outline-primary" onclick="openFieldModalForEdit(${index})" title="${currentLang === 'ar' ? 'تعديل الحقل' : 'Edit Field'}">
+                <i class="bi bi-pencil-fill"></i>
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-success" onclick="duplicateField(${index})" title="${currentLang === 'ar' ? 'تكرار الحقل' : 'Duplicate Field'}">
+                <i class="bi bi-files"></i>
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteField(${index})" title="${currentLang === 'ar' ? 'حذف الحقل' : 'Delete Field'}">
+                <i class="bi bi-trash-fill"></i>
+              </button>
+            </div>`;
+        }
+
+        // Construct dynamic rich-HTML popover content for field details
+        let popoverContentHtml = '';
+        if (currentLang === 'ar') {
+          popoverContentHtml = `
+<div class='p-1 fs-8 text-start' dir='rtl' style='line-height: 1.6; text-align: right;'>
+  <div class='mb-1 pb-1 border-bottom border-light-subtle'>
+    <strong>التسمية التوضيحية:</strong> 
+    <span class='text-primary-emphasis'>${field.Label}</span>
+  </div>
+  ${field.HelpText ? `
+  <div class='mb-1 pb-1 border-bottom border-light-subtle'>
+    <strong>نص المساعدة:</strong> 
+    <span class='text-secondary'>${field.HelpText}</span>
+  </div>` : ''}
+  ${field.DefaultValue ? `
+  <div class='mb-0'>
+    <strong>القيمة الافتراضية:</strong> 
+    <code class='text-success'>${field.DefaultValue}</code>
+  </div>` : ''}
+</div>`.trim().replace(/"/g, '&quot;');
+        } else {
+          popoverContentHtml = `
+<div class='p-1 fs-8 text-start' dir='ltr' style='line-height: 1.6; text-align: left;'>
+  <div class='mb-1 pb-1 border-bottom border-light-subtle'>
+    <strong>Label:</strong> 
+    <span class='text-primary-emphasis'>${field.Label_En || field.Label}</span>
+  </div>
+  ${field.HelpText_En ? `
+  <div class='mb-1 pb-1 border-bottom border-light-subtle'>
+    <strong>Help Text:</strong> 
+    <span class='text-secondary'>${field.HelpText_En}</span>
+  </div>` : ''}
+  ${field.DefaultValue ? `
+  <div class='mb-0'>
+    <strong>Default Value:</strong> 
+    <code class='text-success'>${field.DefaultValue}</code>
+  </div>` : ''}
+</div>`.trim().replace(/"/g, '&quot;');
+        }
+
+        card.innerHTML = `
+          <div class="d-flex align-items-center gap-3 overflow-hidden flex-grow-1">
+            <!-- Grip handler -->
+            <span class="tp-drag-handle fs-5 text-muted"><i class="bi bi-grip-vertical"></i></span>
+            
+            <div class="overflow-hidden flex-grow-1">
+              <div class="d-flex align-items-center gap-2 flex-wrap">
+                <span class="fw-bold fs-7 text-primary-emphasis">${labelText}</span>
+                <small class="text-muted fs-8">@@${fieldNameText}</small>
+                
+                <!-- Info Popover Button -->
+                <button type="button" class="btn btn-link text-secondary p-0 border-0 lh-1 ms-1 d-inline-flex align-items-center" 
+                        data-bs-toggle="popover" 
+                        data-bs-trigger="focus" 
+                        data-bs-html="true" 
+                        data-bs-placement="top"
+                        data-bs-content="${popoverContentHtml}"
+                        style="text-decoration: none;"
+                        title="${currentLang === 'ar' ? 'تفاصيل الحقل' : 'Field Details'}">
+                  <i class="bi bi-info-circle fs-8 text-secondary"></i>
+                </button>
+                
+                <div class="d-inline-flex gap-1">${metaIndicators}</div>
+              </div>
+            </div>
+          </div>
+          ${actionsHtml}
+        `;
+
+        container.appendChild(card);
+      });
+
+      renderSeoFieldsGroup();
+
+      // Initialize newly created popovers
+      const popoverTriggerList = container.querySelectorAll('[data-bs-toggle="popover"]');
+      popoverTriggerList.forEach(popoverTriggerEl => {
+        new bootstrap.Popover(popoverTriggerEl, {
+          sanitize: false,
+          placement: 'auto'
+        });
+      });
+    }
+
+    function renderSeoFieldsGroup() {
+      const container = document.getElementById('seo-fields-group');
+      const wrapper = document.getElementById('seo-fields-group-wrapper');
+      if (!container || !wrapper) return;
+
+      const seoFields = customFields.filter(field => isSeoField(field));
+      if (seoFields.length === 0) {
+        wrapper.classList.add('d-none');
+        return;
+      }
+
+      wrapper.classList.remove('d-none');
+      container.innerHTML = '';
+
+      seoFields.forEach(field => {
+        const index = customFields.indexOf(field);
+        const labelText = currentLang === 'ar' ? field.Label : (field.Label_En || field.Label);
+        const helpText = currentLang === 'ar' ? (field.HelpText || '') : (field.HelpText_En || field.HelpText || '');
+        const isVisibleText = field.IsActive ? (currentLang === 'ar' ? 'ظاهر' : 'Visible') : (currentLang === 'ar' ? 'مخفي' : 'Hidden');
+
+        const card = document.createElement('div');
+        card.className = `list-group-item p-3 rounded-3 border border-warning-subtle bg-warning-subtle bg-opacity-10 d-flex align-items-center justify-content-between ${field.IsActive ? '' : 'opacity-75'}`;
+        card.setAttribute('data-fieldname', field.FieldName);
+        card.innerHTML = `
+          <div class="d-flex align-items-center gap-3 overflow-hidden flex-grow-1">
+            <span class="fs-5 text-warning"><i class="bi bi-lock-fill"></i></span>
+            <div class="overflow-hidden flex-grow-1">
+              <div class="d-flex align-items-center gap-2 flex-wrap">
+                <span class="fw-bold fs-7 text-primary-emphasis">${labelText}</span>
+                <small class="text-muted fs-8">@@${field.FieldName}</small>
+                <span class="badge bg-secondary-subtle text-secondary-emphasis fs-8">${field.FieldType}</span>
+                <span class="badge bg-warning text-dark fs-8">SEO</span>
+              </div>
+              ${helpText ? `<div class="text-secondary fs-8 mt-1 text-truncate">${helpText}</div>` : ''}
+            </div>
+          </div>
+          <div class="form-check form-switch mb-0 flex-shrink-0 ms-2">
+            <input class="form-check-input" type="checkbox" id="seo-active-${index}" ${field.IsActive ? 'checked' : ''} onchange="toggleFieldActive(${index}, this.checked)">
+            <label class="form-check-label fs-8 text-muted" for="seo-active-${index}">${isVisibleText}</label>
+          </div>`;
+
+        container.appendChild(card);
+      });
+    }
+
+    function isSeoField(field) {
+      return field && seoFieldNames.includes((field.FieldName || '').toLowerCase());
+    }
+
+    function toggleFieldActive(index, checked) {
+      customFields[index].IsActive = checked;
+      renderCustomFields();
+    }
+
+    function duplicateField(index) {
+      const original = customFields[index];
+      if (!original) return;
+
+      const baseName = original.FieldName;
+      const baseLabel = original.Label;
+      const baseLabelEn = original.Label_En || '';
+
+      // Generate unique FieldName
+      let newName = `${baseName}_copy`;
+      let counter = 1;
+      while (customFields.some(f => f.FieldName.toLowerCase() === newName.toLowerCase())) {
+        newName = `${baseName}_copy${counter}`;
+        counter++;
+      }
+
+      // Generate labels
+      const newLabel = `${baseLabel} Copy`;
+      const newLabelEn = baseLabelEn ? `${baseLabelEn} Copy` : '';
+
+      // Clone field object
+      const cloned = {
+        ...original,
+        Id: 0, // Mark as new
+        FieldName: newName,
+        Label: newLabel,
+        Label_En: newLabelEn || null,
+        SortOrder: customFields.length + 1,
+        IsActive: true
+      };
+
+      customFields.push(cloned);
+      renderCustomFields();
+    }
+
+    // Field Modal Management
+    function openFieldModalForAdd() {
+      document.getElementById('fieldModalLabel').textContent = currentLang === 'ar' ? "إعداد وإضافة حقل مخصص جديد" : "Add Custom Field";
+      document.getElementById('modal-field-index').value = "-1";
+      
+      // Clear inputs
+      document.getElementById('modal-fieldname').value = '';
+      document.getElementById('modal-fieldname').readOnly = false;
+      document.getElementById('modal-fieldtype').value = 'Text';
+      document.getElementById('modal-label').value = '';
+      document.getElementById('modal-label-en').value = '';
+      document.getElementById('modal-helptext').value = '';
+      document.getElementById('modal-helptext-en').value = '';
+      document.getElementById('modal-defaultvalue').value = '';
+      document.getElementById('modal-isrequired').checked = false;
+      document.getElementById('modal-istranslatable').checked = false;
+      document.getElementById('modal-isactive').checked = true;
+
+      modalOptions = [];
+      document.getElementById('options-mode').value = 'static';
+      document.getElementById('dynamic-source').value = 'category';
+      populateDynamicParentOptions();
+      onOptionsModeChanged();
+      renderOptionsTable();
+      document.getElementById('modal-options-wrapper').classList.add('d-none');
+
+      // Reset SQL query tab state
+      const sqlTextarea = document.getElementById('sql-query-textarea');
+      if (sqlTextarea) sqlTextarea.value = '';
+      const sqlStatus = document.getElementById('sql-query-status');
+      if (sqlStatus) sqlStatus.textContent = '';
+
+      fieldModalInstance.show();
+    }
+
+    function openFieldModalForEdit(index) {
+      const field = customFields[index];
+      if (!field) return;
+
+      document.getElementById('fieldModalLabel').textContent = currentLang === 'ar' ? `تعديل الحقل: ${field.Label}` : `Edit Field: ${field.Label_En || field.Label}`;
+      document.getElementById('modal-field-index').value = index;
+      
+      document.getElementById('modal-fieldname').value = field.FieldName;
+      // Do not allow changing programmatic field name to prevent breaking existing data mappings
+      document.getElementById('modal-fieldname').readOnly = true;
+
+      document.getElementById('modal-fieldtype').value = field.FieldType;
+      document.getElementById('modal-label').value = field.Label;
+      document.getElementById('modal-label-en').value = field.Label_En || '';
+      document.getElementById('modal-helptext').value = field.HelpText || '';
+      document.getElementById('modal-helptext-en').value = field.HelpText_En || '';
+      document.getElementById('modal-defaultvalue').value = field.DefaultValue || '';
+      document.getElementById('modal-isrequired').checked = field.IsRequired;
+      document.getElementById('modal-istranslatable').checked = field.IsTranslatable;
+      document.getElementById('modal-isactive').checked = field.IsActive;
+
+      // Handle Select/MultiSelect Options Json parsing
+      modalOptions = [];
+      document.getElementById('options-mode').value = 'static';
+      document.getElementById('dynamic-source').value = 'category';
+      if (field.OptionsJson) {
+        try {
+          const parsedOptions = JSON.parse(field.OptionsJson);
+          if (Array.isArray(parsedOptions)) {
+            modalOptions = parsedOptions;
+          } else if (parsedOptions && parsedOptions.mode === 'dynamic') {
+            document.getElementById('options-mode').value = 'dynamic';
+            document.getElementById('dynamic-source').value = parsedOptions.source || 'category';
+            populateDynamicParentOptions(parsedOptions.sourceId ? String(parsedOptions.sourceId) : '');
+            modalOptions = parsedOptions.options || [];
+          } else if (parsedOptions && parsedOptions.mode === 'query') {
+            document.getElementById('options-mode').value = 'query';
+            modalOptions = parsedOptions.options || [];
+            renderOptionsQuery(parsedOptions.query || null);
+            // Restore which sub-tab was used (builder or sql)
+            if (parsedOptions.sqlQuery) {
+              const sqlTextarea = document.getElementById('sql-query-textarea');
+              if (sqlTextarea) sqlTextarea.value = parsedOptions.sqlQuery;
+              // Switch to SQL tab
+              const sqlTabBtn = document.getElementById('tab-sqlquery-btn');
+              if (sqlTabBtn) {
+                const bsTab = new bootstrap.Tab(sqlTabBtn);
+                bsTab.show();
+              }
+            } else {
+              // Switch to Builder tab
+              const builderTabBtn = document.getElementById('tab-builder-btn');
+              if (builderTabBtn) {
+                const bsTab = new bootstrap.Tab(builderTabBtn);
+                bsTab.show();
+              }
+            }
+          }
+        } catch(e) {
+          modalOptions = [];
+        }
+      }
+      if (document.getElementById('options-mode').value !== 'dynamic') {
+        populateDynamicParentOptions();
+      }
+      onOptionsModeChanged(false);
+      renderOptionsTable();
+
+      const optionsWrapper = document.getElementById('modal-options-wrapper');
+      if (field.FieldType === 'Select' || field.FieldType === 'MultiSelect') {
+        optionsWrapper.classList.remove('d-none');
+      } else {
+        optionsWrapper.classList.add('d-none');
+      }
+
+      if (!/^[A-Za-z][A-Za-z0-9_]*$/.test(name)) {
+        alert(currentLang === 'ar' ? 'الاسم البرمجي يجب أن يبدأ بحرف إنجليزي ويحتوي فقط على أحرف إنجليزية وأرقام وشرطة سفلية.' : 'Field name must start with an English letter and contain only English letters, numbers, and underscores.');
+        return;
+      }
+
+      fieldModalInstance.show();
+    }
+
+    function saveFieldModal() {
+      const idx = parseInt(document.getElementById('modal-field-index').value);
+      const name = document.getElementById('modal-fieldname').value.trim();
+      const type = document.getElementById('modal-fieldtype').value;
+      let label = document.getElementById('modal-label').value.trim();
+      let labelEn = document.getElementById('modal-label-en').value.trim();
+      let helptext = document.getElementById('modal-helptext').value.trim();
+      let helptextEn = document.getElementById('modal-helptext-en').value.trim();
+      const defaultvalue = document.getElementById('modal-defaultvalue').value.trim();
+      const isreq = document.getElementById('modal-isrequired').checked;
+      const istrans = document.getElementById('modal-istranslatable').checked;
+      const isact = document.getElementById('modal-isactive').checked;
+
+      if (!label || !labelEn) {
+        alert(currentLang === 'ar' ? 'يجب إدخال العنوان الظاهر بالعربية والإنجليزية للحقل المخصص.' : 'Arabic and English labels are required for the custom field.');
+        return;
+      }
+
+      // Help text remains optional and can be synced when one language is empty.
+      if (currentLang === 'ar') {
+        if (!helptextEn) helptextEn = helptext;
+      } else if (currentLang === 'en') {
+        if (!helptext) helptext = helptextEn;
+      }
+
+      // Validation: Duplicate check and Reserved Names Validation (both client-side)
+      if (idx === -1) {
+        if (reservedNames.includes(name.toLowerCase())) {
+          alert(currentLang === 'ar' ? `الاسم البرمجي "${name}" محجوز من قبل النظام.` : `Programmatic field name "${name}" is reserved by the system.`);
+          return;
+        }
+
+        const nameConflict = customFields.some(f => f.FieldName.toLowerCase() === name.toLowerCase());
+        if (nameConflict) {
+          alert(currentLang === 'ar' ? `الاسم البرمجي للحقل "${name}" مستخدم بالفعل.` : `Programmatic field name "${name}" is already in use.`);
+          return;
+        }
+      }
+
+      // Serialize select options if needed
+      let optionsJsonVal = null;
+      if (type === 'Select' || type === 'MultiSelect') {
+        const mode = document.getElementById('options-mode').value;
+        if (mode === 'dynamic') {
+          refreshDynamicOptionsPreview();
+          const source = document.getElementById('dynamic-source').value;
+          const sourceId = document.getElementById('dynamic-parent').value;
+          if (!sourceId) {
+            alert(currentLang === 'ar' ? 'يرجى اختيار مصدر الخيارات الديناميكية.' : 'Please choose the dynamic options source.');
+            return;
+          }
+          optionsJsonVal = JSON.stringify({
+            mode: 'dynamic',
+            source: source,
+            sourceId: Number(sourceId),
+            options: modalOptions
+          });
+        } else if (mode === 'query') {
+          // Check which sub-tab is active: Builder or SQL Query
+          const sqlTabPane = document.getElementById('tab-sqlquery-pane');
+          const isSqlTabActive = sqlTabPane && sqlTabPane.classList.contains('active');
+
+          if (isSqlTabActive) {
+            // SQL Query mode
+            const sqlText = (document.getElementById('sql-query-textarea')?.value || '').trim();
+            if (modalOptions.length === 0) {
+              alert(currentLang === 'ar' ? 'يرجى تنفيذ استعلام SQL أولاً حتى يتم توليد الخيارات.' : 'Please execute the SQL query first to generate options.');
+              return;
+            }
+            optionsJsonVal = JSON.stringify({
+              mode: 'query',
+              queryType: 'sql',
+              sqlQuery: sqlText,
+              options: modalOptions
+            });
+          } else {
+            // Visual Builder mode
+            const query = collectOptionsQuery();
+            if (modalOptions.length === 0) {
+              alert(currentLang === 'ar' ? 'يرجى تنفيذ الاستعلام أولاً حتى يتم توليد الخيارات.' : 'Please execute the query first to generate options.');
+              return;
+            }
+            optionsJsonVal = JSON.stringify({
+              mode: 'query',
+              queryType: 'builder',
+              query: query,
+              options: modalOptions
+            });
+          }
+        } else if (modalOptions.length > 0) {
+          optionsJsonVal = JSON.stringify(modalOptions);
+        }
+      }
+
+      const fieldData = {
+        Id: idx >= 0 ? customFields[idx].Id : 0,
+        FieldName: name,
+        FieldType: type,
+        Label: label,
+        Label_En: labelEn || null,
+        Placeholder: null,
+        Placeholder_En: null,
+        HelpText: helptext || null,
+        HelpText_En: helptextEn || null,
+        DefaultValue: defaultvalue || null,
+        OptionsJson: optionsJsonVal,
+        IsRequired: isreq,
+        IsTranslatable: istrans,
+        IsActive: isact,
+        IsSystemField: false,
+        SortOrder: idx >= 0 ? customFields[idx].SortOrder : (customFields.length + 1)
+      };
+
+      if (idx === -1) {
+        customFields.push(fieldData);
+      } else {
+        customFields[idx] = fieldData;
+      }
+
+      renderCustomFields();
+      fieldModalInstance.hide();
+    }
+
+    function deleteField(index) {
+      if (confirm(currentLang === 'ar' ? 'هل أنت متأكد من رغبتك في حذف هذا الحقل المخصص؟' : 'Are you sure you want to delete this custom field?')) {
+        customFields.splice(index, 1);
+        renderCustomFields();
+      }
+    }
+
+    // Option Builder helpers
+    function onOptionsModeChanged(refresh = true) {
+      const mode = document.getElementById('options-mode').value;
+      const isDynamic = mode === 'dynamic';
+      const isQuery = mode === 'query';
+
+      document.getElementById('dynamic-source-wrapper').classList.toggle('d-none', !isDynamic);
+      document.getElementById('dynamic-parent-wrapper').classList.toggle('d-none', !isDynamic);
+      document.getElementById('dynamic-options-help').classList.toggle('d-none', !isDynamic);
+      document.getElementById('static-options-builder').classList.toggle('d-none', isDynamic || isQuery);
+      document.getElementById('query-options-builder').classList.toggle('d-none', !isQuery);
+
+      if (isDynamic) {
+        if (refresh) {
+          populateDynamicParentOptions();
+        }
+        refreshDynamicOptionsPreview();
+      } else if (isQuery) {
+        if (refresh && document.getElementById('options-query-rules').children.length === 0) {
+          addOptionsQueryRule();
+        }
+        // Reset SQL query status when switching to query mode
+        const sqlStatus = document.getElementById('sql-query-status');
+        if (sqlStatus) sqlStatus.textContent = '';
+        // Switch to Builder tab by default
+        const builderTabBtn = document.getElementById('tab-builder-btn');
+        if (builderTabBtn && refresh) {
+          const bsTab = new bootstrap.Tab(builderTabBtn);
+          bsTab.show();
+        }
+        renderOptionsTable();
+      } else if (refresh) {
+        renderOptionsTable();
+      }
+    }
+
+    function getSelectedQueryTable() {
+      const tableSelect = document.getElementById('options-query-table');
+      return tableSelect ? tableSelect.value : (databaseTables[0]?.Name || '');
+    }
+
+    function getColumnsForQueryTable(tableName = getSelectedQueryTable()) {
+      return databaseColumns.filter(c => c.TableName === tableName);
+    }
+
+    function onOptionsQueryTableChanged() {
+      const rules = document.querySelectorAll('#options-query-rules .options-query-rule');
+      rules.forEach(rule => {
+        const currentValue = rule.querySelector('.options-query-field').value;
+        rule.querySelector('.options-query-field').innerHTML = buildQueryFieldOptions(currentValue);
+      });
+      modalOptions = [];
+      renderOptionsTable();
+    }
+
+    function buildQueryFieldOptions(selectedValue = '') {
+      const columns = getColumnsForQueryTable();
+      return columns.map(c => `<option value="${c.Name}" ${c.Name === selectedValue ? 'selected' : ''}>${c.Name} (${c.DataType})</option>`).join('');
+    }
+
+    function addOptionsQueryRule(rule = null) {
+      const columns = getColumnsForQueryTable();
+      const defaultField = rule?.field || columns[0]?.Name || '';
+      const operators = ['Equals', 'DoesNotEqual', 'Contains', 'StartsWith', 'EndsWith', 'GreaterThan', 'LessThan', 'IsBlank', 'IsNotBlank', 'In'];
+      const row = document.createElement('div');
+      row.className = 'options-query-rule row g-2 align-items-center bg-body border rounded-3 p-2';
+      row.innerHTML = `
+        <div class="col-md-3"><select class="form-select form-select-sm options-query-field">${buildQueryFieldOptions(defaultField)}</select></div>
+        <div class="col-md-3"><select class="form-select form-select-sm options-query-operator">${operators.map(o => `<option value="${o}" ${o === (rule?.operator || 'Equals') ? 'selected' : ''}>${o}</option>`).join('')}</select></div>
+        <div class="col-md-5"><input type="text" class="form-control form-control-sm options-query-value" value="${escapeHtml(rule?.value || '')}" placeholder="Value"></div>
+        <div class="col-md-1 text-end"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('.options-query-rule').remove()"><i class="bi bi-x-lg"></i></button></div>`;
+      document.getElementById('options-query-rules').appendChild(row);
+    }
+
+    function collectOptionsQuery() {
+      return {
+        tableName: getSelectedQueryTable(),
+        logic: document.getElementById('options-query-logic').value,
+        rules: Array.from(document.querySelectorAll('#options-query-rules .options-query-rule')).map(row => ({
+          field: row.querySelector('.options-query-field').value,
+          operator: row.querySelector('.options-query-operator').value,
+          value: row.querySelector('.options-query-value').value
+        })),
+        groups: []
+      };
+    }
+
+    function renderOptionsQuery(query) {
+      if (query?.tableName && document.getElementById('options-query-table')) {
+        document.getElementById('options-query-table').value = query.tableName;
+      }
+      document.getElementById('options-query-logic').value = query?.logic || 'AND';
+      document.getElementById('options-query-rules').innerHTML = '';
+      (query?.rules || [null]).forEach(rule => addOptionsQueryRule(rule));
+    }
+
+    function executeOptionsQuery() {
+      const query = collectOptionsQuery();
+      $.ajax({
+        url: '?handler=ExecuteQuery',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(query),
+        headers: { "RequestVerificationToken": $('input[name="__RequestVerificationToken"]').val() },
+        success: function(response) {
+          if (response.success) {
+            modalOptions = (response.results || []).map(item => ({
+              value: String(item.value),
+              label: item.label || String(item.value),
+              labelEn: item.labelEn || item.label || String(item.value)
+            }));
+            renderOptionsTable();
+          } else {
+            alert(response.message || 'Query failed');
+          }
+        },
+        error: function(xhr, status, error) {
+          alert(error || 'Query failed');
+        }
+      });
+    }
+
+    function executeSqlQuery() {
+      const textarea = document.getElementById('sql-query-textarea');
+      const spinner = document.getElementById('sql-query-spinner');
+      const status = document.getElementById('sql-query-status');
+      const sql = (textarea?.value || '').trim();
+
+      if (!sql) {
+        status.textContent = currentLang === 'ar' ? '⚠ يرجى إدخال استعلام SQL.' : '⚠ Please enter a SQL query.';
+        status.className = 'fs-8 text-warning';
+        return;
+      }
+
+      spinner.classList.remove('d-none');
+      status.textContent = '';
+      status.className = 'fs-8 text-muted';
+
+      $.ajax({
+        url: '?handler=ExecuteSqlQuery',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ sql }),
+        headers: { "RequestVerificationToken": $('input[name="__RequestVerificationToken"]').val() },
+        success: function(response) {
+          spinner.classList.add('d-none');
+          if (response.success) {
+            modalOptions = (response.results || []).map(item => ({
+              value: String(item.value),
+              label: item.label || String(item.value),
+              labelEn: item.labelEn || item.label || String(item.value)
+            }));
+            renderOptionsTable();
+            const count = modalOptions.length;
+            status.textContent = currentLang === 'ar'
+              ? `✔ تم توليد ${count} خيار بنجاح.`
+              : `✔ ${count} option(s) generated successfully.`;
+            status.className = 'fs-8 text-success fw-bold';
+          } else {
+            status.textContent = '✖ ' + (response.message || 'Query failed');
+            status.className = 'fs-8 text-danger';
+          }
+        },
+        error: function(xhr) {
+          spinner.classList.add('d-none');
+          let msg = 'Query failed';
+          try { msg = JSON.parse(xhr.responseText)?.message || msg; } catch(e) {}
+          status.textContent = '✖ ' + msg;
+          status.className = 'fs-8 text-danger';
+        }
+      });
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>'"]/g, char => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        "'": '&#39;',
+        '"': '&quot;'
+      }[char]));
+    }
+
+    function onDynamicSourceChanged() {
+      populateDynamicParentOptions();
+      refreshDynamicOptionsPreview();
+    }
+
+    function populateDynamicParentOptions(selectedValue = '') {
+      const source = document.getElementById('dynamic-source').value;
+      const parentSelect = document.getElementById('dynamic-parent');
+      const parentLabel = document.getElementById('dynamic-parent-label');
+      parentSelect.innerHTML = '';
+
+      const emptyOption = document.createElement('option');
+      emptyOption.value = '';
+      emptyOption.textContent = source === 'category'
+        ? (currentLang === 'ar' ? 'اختر التصنيف الرئيسي...' : 'Choose main category...')
+        : (currentLang === 'ar' ? 'اختر الدور...' : 'Choose role...');
+      parentSelect.appendChild(emptyOption);
+
+      const data = source === 'category' ? dynamicMainCategories : dynamicRoles;
+      parentLabel.textContent = source === 'category'
+        ? (currentLang === 'ar' ? 'التصنيف الرئيسي' : 'Main Category')
+        : (currentLang === 'ar' ? 'الدور' : 'Role');
+
+      data.forEach(item => {
+        const option = document.createElement('option');
+        option.value = item.Id;
+        option.textContent = currentLang === 'ar' ? item.Name : (item.Name_En || item.Name);
+        parentSelect.appendChild(option);
+      });
+
+      if (selectedValue) {
+        parentSelect.value = selectedValue;
+      }
+    }
+
+    function refreshDynamicOptionsPreview() {
+      const source = document.getElementById('dynamic-source').value;
+      const sourceId = Number(document.getElementById('dynamic-parent').value || 0);
+      modalOptions = [];
+
+      if (!sourceId) {
+        renderOptionsTable();
+        return;
+      }
+
+      if (source === 'category') {
+        modalOptions = dynamicSubCategories
+          .filter(item => Number(item.ParentId) === sourceId)
+          .map(item => ({
+            value: String(item.Id),
+            label: item.Name,
+            labelEn: item.Name_En || item.Name
+          }));
+      } else {
+        modalOptions = dynamicRoleUsers
+          .filter(item => Number(item.RoleId) === sourceId)
+          .map(item => ({
+            value: String(item.Id),
+            label: item.FullName || item.Username,
+            labelEn: item.FullName || item.Username
+          }));
+      }
+
+      renderOptionsTable();
+    }
+
+    function renderOptionsTable() {
+      const tbody = document.getElementById('opt-table-body');
+      tbody.innerHTML = '';
+      if (modalOptions.length === 0) {
+        tbody.innerHTML = currentLang === 'ar'
+          ? `<tr><td colspan="4" class="text-muted py-2">لا توجد خيارات معينة بعد.</td></tr>`
+          : `<tr><td colspan="4" class="text-muted py-2">No options configured yet.</td></tr>`;
+        return;
+      }
+
+      modalOptions.forEach((opt, idx) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td><code>${opt.value}</code></td>
+          <td>${opt.label}</td>
+          <td>${opt.labelEn || ''}</td>
+          <td>
+            <button type="button" class="btn btn-sm btn-link text-danger p-0" onclick="removeOptionFromBuilder(${idx})">
+              <i class="bi bi-trash-fill"></i>
+            </button>
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    function addOptionToBuilder() {
+      const valEl = document.getElementById('opt-value');
+      const labelArEl = document.getElementById('opt-label-ar');
+      const labelEnEl = document.getElementById('opt-label-en');
+
+      const val = valEl.value.trim();
+      let labelAr = labelArEl.value.trim();
+      let labelEn = labelEnEl.value.trim();
+
+      if (currentLang === 'ar') {
+        if (!val || !labelAr) {
+          alert('يجب إدخال الكود والاسم بالعربية.');
+          return;
+        }
+        if (!labelEn) labelEn = labelAr;
+      } else {
+        if (!val || !labelEn) {
+          alert('Please enter both Value Code and English Label.');
+          return;
+        }
+        if (!labelAr) labelAr = labelEn;
+      }
+
+      // Check duplicate code
+      if (modalOptions.some(opt => opt.value === val)) {
+        alert(currentLang === 'ar' ? 'الكود مدخل بالفعل.' : 'Value Code already exists.');
+        return;
+      }
+
+      modalOptions.push({
+        value: val,
+        label: labelAr,
+        labelEn: labelEn
+      });
+
+      // Clear input fields
+      valEl.value = '';
+      labelArEl.value = '';
+      labelEnEl.value = '';
+
+      renderOptionsTable();
+    }
+
+    function removeOptionFromBuilder(index) {
+      modalOptions.splice(index, 1);
+      renderOptionsTable();
+    }
+
+    function togglePreviewLang(lang) {
+      previewLang = lang;
+      document.getElementById('preview-lang-ar').classList.toggle('active', lang === 'ar');
+      document.getElementById('preview-lang-en').classList.toggle('active', lang === 'en');
+      renderPreviewForm();
+    }
+
+    function showFormPreview() {
+      renderPreviewForm();
+      previewModalInstance.show();
+    }
+
+    function renderPreviewForm() {
+      const container = document.getElementById('preview-form-container');
+      if (!container) return;
+
+      container.innerHTML = '';
+      
+      // Filter visible fields (IsActive === true), force SEO at the bottom
+      const visibleFields = [
+        ...customFields.filter(f => f.IsActive && !isSeoField(f)),
+        ...customFields.filter(f => f.IsActive && isSeoField(f))
+      ];
+      
+      if (visibleFields.length === 0) {
+        container.innerHTML = `
+          <div class="text-center text-muted py-4 w-100">
+            <i class="bi bi-eye-slash fs-1 d-block mb-2 text-secondary opacity-50"></i>
+            <span>${previewLang === 'ar' ? 'لا توجد حقول مرئية حالياً في شاشة الإدخال.' : 'No visible fields currently in the entry screen.'}</span>
+          </div>`;
+        return;
+      }
+
+      // Apply RTL/LTR to modal preview based on previewLang
+      const modalBody = document.querySelector('#previewModal .modal-body');
+      if (previewLang === 'ar') {
+        modalBody.setAttribute('dir', 'rtl');
+        modalBody.style.textAlign = 'right';
+      } else {
+        modalBody.setAttribute('dir', 'ltr');
+        modalBody.style.textAlign = 'left';
+      }
+
+      let seoPreviewHeaderAdded = false;
+      visibleFields.forEach(field => {
+        if (isSeoField(field) && !seoPreviewHeaderAdded) {
+          const header = document.createElement('div');
+          header.className = 'col-12 mt-3 pt-3 border-top';
+          header.innerHTML = `
+            <div class="fw-bold text-primary-emphasis mb-2">
+              <i class="bi bi-google text-warning me-1"></i>
+              ${previewLang === 'ar' ? 'حقول تحسين محركات البحث (SEO)' : 'Search Engine Optimization Fields (SEO)'}
+            </div>`;
+          container.appendChild(header);
+          seoPreviewHeaderAdded = true;
+        }
+
+        const label = previewLang === 'ar' ? field.Label : (field.Label_En || field.Label);
+        const helpText = previewLang === 'ar' ? (field.HelpText || '') : (field.HelpText_En || field.HelpText || '');
+        const isRequired = field.IsRequired;
+        
+        let colSize = 'col-md-6';
+        if (['Textarea', 'RichText', 'Gallery', 'Content'].includes(field.FieldType) || field.FieldName === 'Content' || field.FieldName === 'Summary') {
+          colSize = 'col-md-12';
+        }
+
+        const formGroup = document.createElement('div');
+        formGroup.className = `${colSize} mb-3`;
+
+        let labelHtml = `<label class="form-label fw-bold">${label} ${isRequired ? '<span class="text-danger">*</span>' : ''}</label>`;
+        let controlHtml = '';
+        const type = field.FieldType;
+
+        if (type === 'Text' || type === 'Url' || type === 'Email' || type === 'Phone') {
+          let inputType = 'text';
+          if (type === 'Email') inputType = 'email';
+          if (type === 'Url') inputType = 'url';
+          if (type === 'Phone') inputType = 'tel';
+          controlHtml = `<input type="${inputType}" class="form-control" value="${field.DefaultValue || ''}" />`;
+        } 
+        else if (type === 'Number' || type === 'Decimal') {
+          controlHtml = `<input type="number" step="${type === 'Decimal' ? '0.01' : '1'}" class="form-control" value="${field.DefaultValue || ''}" />`;
+        } 
+        else if (type === 'Textarea') {
+          controlHtml = `<textarea class="form-control" rows="3">${field.DefaultValue || ''}</textarea>`;
+        } 
+        else if (type === 'RichText') {
+          controlHtml = `
+            <div class="border rounded-3 p-3 bg-body-tertiary">
+              <div class="border-bottom pb-2 mb-2 d-flex gap-2 text-secondary border-light-subtle">
+                <i class="bi bi-type-bold"></i> <i class="bi bi-type-italic"></i> <i class="bi bi-type-underline"></i> 
+                <i class="bi bi-list-ul"></i> <i class="bi bi-list-ol"></i> <i class="bi bi-link-45deg"></i> <i class="bi bi-image"></i>
+              </div>
+              <div class="text-muted fs-8 py-3">${previewLang === 'ar' ? 'اكتب المحتوى هنا...' : 'Write content here...'}</div>
+            </div>`;
+        } 
+        else if (type === 'Date') {
+          controlHtml = `<input type="date" class="form-control" />`;
+        } 
+        else if (type === 'DateTime') {
+          controlHtml = `<input type="datetime-local" class="form-control" />`;
+        } 
+        else if (type === 'Boolean') {
+          labelHtml = '';
+          controlHtml = `
+            <div class="form-check form-switch mt-2">
+              <input class="form-check-input" type="checkbox" id="prev-${field.FieldName}" ${field.DefaultValue === 'true' ? 'checked' : ''}>
+              <label class="form-check-label fw-bold" for="prev-${field.FieldName}">${label} ${isRequired ? '<span class="text-danger">*</span>' : ''}</label>
+            </div>`;
+        } 
+        else if (type === 'Select' || type === 'MultiSelect') {
+          let options = [];
+          if (field.OptionsJson) {
+            try {
+              options = JSON.parse(field.OptionsJson);
+            } catch(e) {
+              options = [];
+            }
+          }
+          
+          let optionsHtml = '';
+          if (options.length === 0) {
+            optionsHtml = `<option>${previewLang === 'ar' ? 'لا توجد خيارات معينة' : 'No options configured'}</option>`;
+          } else {
+            options.forEach(opt => {
+              const optLabel = previewLang === 'ar' ? opt.label : (opt.labelEn || opt.label);
+              optionsHtml += `<option value="${opt.value}">${optLabel}</option>`;
+            });
+          }
+          controlHtml = `<select class="form-select" ${type === 'MultiSelect' ? 'multiple' : ''}>${optionsHtml}</select>`;
+        } 
+        else if (type === 'Image') {
+          controlHtml = `
+            <div class="border border-dashed rounded-3 p-3 text-center bg-body-tertiary tp-cursor-pointer">
+              <i class="bi bi-image fs-4 text-primary d-block mb-1"></i>
+              <span class="fs-8 text-secondary">${previewLang === 'ar' ? 'اضغط لرفع صورة منفردة أو تصفح مكتبة الوسائط' : 'Click to upload featured image or browse media library'}</span>
+            </div>`;
+        } 
+        else if (type === 'Gallery') {
+          controlHtml = `
+            <div class="border border-dashed rounded-3 p-3 text-center bg-body-tertiary tp-cursor-pointer">
+              <i class="bi bi-images fs-4 text-primary d-block mb-1"></i>
+              <span class="fs-8 text-secondary">${previewLang === 'ar' ? 'اضغط لرفع عدة صور أو اختيار من المعرض' : 'Click to upload multiple images or select gallery'}</span>
+            </div>`;
+        } 
+        else if (type === 'File') {
+          controlHtml = `
+            <div class="border border-dashed rounded-3 p-3 text-center bg-body-tertiary tp-cursor-pointer">
+              <i class="bi bi-cloud-arrow-up fs-4 text-primary d-block mb-1"></i>
+              <span class="fs-8 text-secondary">${previewLang === 'ar' ? 'ارفاق ملف مستند (PDF, Word...)' : 'Attach file document (PDF, Word...)'}</span>
+            </div>`;
+        }
+
+        let helpHtml = '';
+        if (helpText) {
+          helpHtml = `<div class="form-text fs-8 text-muted mt-1"><i class="bi bi-info-circle me-1"></i>${helpText}</div>`;
+        }
+
+        formGroup.innerHTML = `
+          ${labelHtml}
+          ${controlHtml}
+          ${helpHtml}
+        `;
+        container.appendChild(formGroup);
+      });
+    }
+  </script>
+}

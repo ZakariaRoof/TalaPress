@@ -1,0 +1,73 @@
+@page "/api/docs/content"
+@model TalaPress.Pages.ApiDocs.ContentModel
+
+@await Html.PartialAsync("_ApiEndpointHeader", (
+    "GET",
+    "/api/v1/content",
+    "قائمة المحتوى",
+    "List Content",
+    "جلب محتوى منشور أو مفلتر مع pagination وترتيب وحقول مخصصة.",
+    "Fetch filtered content with pagination, sorting, and custom fields."
+))
+
+<h3 class="h6 text-uppercase text-secondary">Query Parameters</h3>
+<div class="table-responsive mb-4">
+    <table class="table table-striped table-bordered table-sm align-middle">
+        <thead><tr><th>Name</th><th>Type</th><th>Default</th><th class="tp-only-ar">الوصف</th><th class="tp-only-en">Description</th></tr></thead>
+        <tbody>
+            <tr><td><code>page</code></td><td>int</td><td>1</td><td class="tp-only-ar">رقم الصفحة</td><td class="tp-only-en">Page number</td></tr>
+            <tr><td><code>pageSize</code></td><td>int</td><td>20</td><td class="tp-only-ar">1–100 عنصر</td><td class="tp-only-en">1–100 items</td></tr>
+            <tr><td><code>q</code> / <code>search</code></td><td>string</td><td>—</td><td class="tp-only-ar">بحث نصي</td><td class="tp-only-en">Free-text search</td></tr>
+            <tr><td><code>contentTypeId</code></td><td>long</td><td>—</td><td class="tp-only-ar">فلترة بنوع المحتوى</td><td class="tp-only-en">Filter by content type ID</td></tr>
+            <tr><td><code>contentType</code></td><td>string</td><td>—</td><td class="tp-only-ar">اسم النوع (عربي/EN)</td><td class="tp-only-en">Type name (AR/EN)</td></tr>
+            <tr><td><code>categoryId</code></td><td>long</td><td>—</td><td class="tp-only-ar">تصنيف رئيسي</td><td class="tp-only-en">Main category</td></tr>
+            <tr><td><code>subCategoryId</code></td><td>long</td><td>—</td><td class="tp-only-ar">تصنيف فرعي</td><td class="tp-only-en">Sub-category</td></tr>
+            <tr><td><code>status</code></td><td>string</td><td>Published</td><td class="tp-only-ar">Published / All / …</td><td class="tp-only-en">Published / All / …</td></tr>
+            <tr><td><code>slug</code></td><td>string</td><td>—</td><td class="tp-only-ar">Slug محدد</td><td class="tp-only-en">Exact slug</td></tr>
+            <tr><td><code>authorId</code></td><td>long</td><td>—</td><td class="tp-only-ar">معرّف الكاتب</td><td class="tp-only-en">Author user ID</td></tr>
+            <tr><td><code>publishDateFrom</code> / <code>To</code></td><td>datetime</td><td>—</td><td class="tp-only-ar">نطاق تاريخ النشر</td><td class="tp-only-en">Publish date range</td></tr>
+            <tr><td><code>createdFrom</code> / <code>To</code></td><td>datetime</td><td>—</td><td class="tp-only-ar">نطاق تاريخ الإنشاء</td><td class="tp-only-en">Created date range</td></tr>
+            <tr><td><code>hasFeaturedImage</code></td><td>bool</td><td>—</td><td class="tp-only-ar">وجود صورة بارزة</td><td class="tp-only-en">Has featured image</td></tr>
+            <tr><td><code>sortBy</code></td><td>string</td><td>publishDate</td><td class="tp-only-ar">publishDate, createdAt, title, hits</td><td class="tp-only-en">publishDate, createdAt, title, hits</td></tr>
+            <tr><td><code>sortDir</code></td><td>string</td><td>desc</td><td class="tp-only-ar">asc / desc</td><td class="tp-only-en">asc / desc</td></tr>
+        </tbody>
+    </table>
+</div>
+
+@{
+    var listExample = $@"curl -H ""Authorization: Pearl YOUR_KEY"" ""{Model.ApiV1BaseUrl}/content?contentType=News&status=Published&page=1&pageSize=10""";
+}
+@await Html.PartialAsync("_ApiCodeBlock", ("content-list-curl", listExample))
+
+<h3 class="h6 text-uppercase text-secondary mt-4">
+    <span class="tp-only-ar">مثال استجابة</span>
+    <span class="tp-only-en">Sample Response</span>
+</h3>
+@await Html.PartialAsync("_ApiCodeBlock", ("content-list-res", @"{
+  ""data"": [ { ""id"": 1, ""title"": ""..."", ""fields"": {} } ],
+  ""meta"": {
+    ""pagination"": { ""page"": 1, ""pageSize"": 10, ""total"": 42, ""hasNext"": true },
+    ""filters"": { ""status"": ""Published"", ""contentType"": ""News"" }
+  }
+}"))
+
+<hr class="my-5" />
+
+@await Html.PartialAsync("_ApiEndpointHeader", (
+    "GET",
+    "/api/v1/content/{id}",
+    "تفاصيل محتوى",
+    "Content Details",
+    "جلب عنصر واحد بالمعرّف مع SEO والحقول المخصصة.",
+    "Fetch a single item by ID with SEO and custom fields."
+))
+
+@{
+    var detailExample = $@"curl -H ""Authorization: Pearl YOUR_KEY"" ""{Model.ApiV1BaseUrl}/content/1""";
+}
+@await Html.PartialAsync("_ApiCodeBlock", ("content-detail-curl", detailExample))
+
+<p class="text-secondary small">
+    <span class="tp-only-ar">الحقول المخصصة في <code>fields</code> و<code>fieldsDisplay</code> — الحقول الحساسة تُزال تلقائياً.</span>
+    <span class="tp-only-en">Custom fields in <code>fields</code> and <code>fieldsDisplay</code> — sensitive fields are stripped automatically.</span>
+</p>

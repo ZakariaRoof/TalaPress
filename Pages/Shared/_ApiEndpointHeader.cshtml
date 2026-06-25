@@ -1,0 +1,25 @@
+@model (string Method, string Path, string TitleAr, string TitleEn, string DescAr, string DescEn)
+@{
+    var methodClass = Model.Method.ToUpperInvariant() switch
+    {
+        "GET" => "success",
+        "POST" => "primary",
+        "PUT" => "warning",
+        "DELETE" => "danger",
+        _ => "secondary"
+    };
+}
+<section class="tp-api-docs-endpoint mb-5">
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+        <span class="badge text-bg-@methodClass">@Model.Method</span>
+        <code class="tp-api-docs-path">@Model.Path</code>
+    </div>
+    <h2 class="h4 mb-2">
+        <span class="tp-only-ar">@Model.TitleAr</span>
+        <span class="tp-only-en">@Model.TitleEn</span>
+    </h2>
+    <p class="text-secondary mb-0">
+        <span class="tp-only-ar">@Model.DescAr</span>
+        <span class="tp-only-en">@Model.DescEn</span>
+    </p>
+</section>

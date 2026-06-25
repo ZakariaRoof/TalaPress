@@ -1,0 +1,447 @@
+@page
+@model TalaPress.Pages.SettingsModel
+@inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment HostEnvironment
+@{
+    ViewData["Title"] = "إعدادات النظام - System Settings";
+    var (resolvedLogo, resolvedFavicon) = TalaPress.Infrastructure.BrandingHelper.ResolveFromDisk(HostEnvironment.WebRootPath);
+    if (string.IsNullOrEmpty(resolvedLogo) && !string.IsNullOrEmpty(Model.Logo))
+    {
+        resolvedLogo = Model.Logo;
+    }
+    if (string.IsNullOrEmpty(resolvedFavicon) && !string.IsNullOrEmpty(Model.Favicon))
+    {
+        resolvedFavicon = Model.Favicon;
+    }
+    var brandingVersion = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+}
+
+<div class="container-fluid py-4">
+    <!-- Header Page Title -->
+    <div class="d-flex align-items-center justify-content-between mb-4">
+        <div>
+            <h1 class="h3 mb-1 fw-bold">
+                <i class="bi bi-gear-fill text-primary me-2"></i>
+                <span class="tp-only-ar">إعدادات النظام</span>
+                <span class="tp-only-en">System Settings</span>
+            </h1>
+            <p class="text-muted small mb-0">
+                <span class="tp-only-ar">إدارة وتهيئة الخيارات العامة للموقع والمنصة</span>
+                <span class="tp-only-en">Manage global configuration for your site and platform</span>
+            </p>
+        </div>
+    </div>
+
+    <!-- Alert Messages -->
+    @if (TempData["SuccessMessage"] != null || Model.SuccessMessage != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i>
+            @(TempData["SuccessMessage"] ?? Model.SuccessMessage)
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    @if (TempData["ErrorMessage"] != null || Model.ErrorMessage != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            @(TempData["ErrorMessage"] ?? Model.ErrorMessage)
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <form method="post" enctype="multipart/form-data" asp-page-handler="Save">
+        <!-- Settings Form Layout with Sidebar Tabs -->
+        <div class="row g-4">
+            <!-- Sidebar Tab Navigation (Classic Vertical or Horizontal tabs) -->
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm sticky-top" style="top: 80px; z-index: 10;">
+                    <div class="card-body p-3">
+                        <ul class="nav nav-pills flex-column gap-2" id="settingsTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link w-100 text-start active d-flex align-items-center gap-2" id="general-tab" data-bs-toggle="tab" data-bs-target="#general" type="button" role="tab" aria-controls="general" aria-selected="true">
+                                    <i class="bi bi-sliders fs-5"></i>
+                                    <div>
+                                        <span class="d-block fw-bold tp-only-ar">الإعدادات العامة</span>
+                                        <span class="d-block fw-bold tp-only-en">General Settings</span>
+                                    </div>
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link w-100 text-start d-flex align-items-center gap-2" id="content-tab" data-bs-toggle="tab" data-bs-target="#content" type="button" role="tab" aria-controls="content" aria-selected="false">
+                                    <i class="bi bi-journal-check fs-5"></i>
+                                    <div>
+                                        <span class="d-block fw-bold tp-only-ar">إعدادات المحتوى</span>
+                                        <span class="d-block fw-bold tp-only-en">Content Settings</span>
+                                    </div>
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link w-100 text-start d-flex align-items-center gap-2" id="seo-tab" data-bs-toggle="tab" data-bs-target="#seo" type="button" role="tab" aria-controls="seo" aria-selected="false">
+                                    <i class="bi bi-search fs-5"></i>
+                                    <div>
+                                        <span class="d-block fw-bold tp-only-ar">الأرشفة والربط (SEO)</span>
+                                        <span class="d-block fw-bold tp-only-en">SEO & Integrations</span>
+                                    </div>
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link w-100 text-start d-flex align-items-center gap-2" id="company-tab" data-bs-toggle="tab" data-bs-target="#company" type="button" role="tab" aria-controls="company" aria-selected="false">
+                                    <i class="bi bi-building fs-5"></i>
+                                    <div>
+                                        <span class="d-block fw-bold tp-only-ar">بيانات الشركة والتواصل</span>
+                                        <span class="d-block fw-bold tp-only-en">Company & Socials</span>
+                                    </div>
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab Contents -->
+            <div class="col-md-9">
+                <div class="tab-content" id="settingsTabContent">
+                    <!-- GENERAL SETTINGS TAB -->
+                    <div class="tab-pane fade show active" id="general" role="tabpanel" aria-labelledby="general-tab">
+                        <div class="card border-0 shadow-sm p-4">
+                            <h4 class="fw-bold mb-4 border-bottom pb-3">
+                                <span class="tp-only-ar">الإعدادات العامة</span>
+                                <span class="tp-only-en">General Settings</span>
+                            </h4>
+                            
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">اسم الموقع بالعربية <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" asp-for="SiteName" required />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Site Name (English)</label>
+                                    <input type="text" class="form-control text-start" dir="ltr" asp-for="SiteName_En" />
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">وصف الموقع بالعربية</label>
+                                    <textarea class="form-control" rows="3" asp-for="SiteDescription"></textarea>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Site Description (English)</label>
+                                    <textarea class="form-control text-start" dir="ltr" rows="3" asp-for="SiteDescription_En"></textarea>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">شعار الموقع (Logo URL)</label>
+                                    <input type="file" class="form-control text-start" dir="ltr" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml" asp-for="LogoFile" />
+                                    <input type="hidden" asp-for="Logo" />
+                                    @if (!string.IsNullOrEmpty(resolvedLogo))
+                                    {
+                                        <div class="mt-2">
+                                            <img src="@($"{resolvedLogo}?v={brandingVersion}")" alt="Current Logo" style="max-height: 50px;" />
+                                            <small class="text-muted d-block mt-1">الشعار الحالي</small>
+                                        </div>
+                                    }
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">أيقونة الموقع (Favicon URL)</label>
+                                    <input type="file" class="form-control text-start" dir="ltr" accept="image/png,image/jpeg,image/gif,image/webp,image/x-icon,.ico" asp-for="FaviconFile" />
+                                    <input type="hidden" asp-for="Favicon" />
+                                    @if (!string.IsNullOrEmpty(resolvedFavicon))
+                                    {
+                                        <div class="mt-2">
+                                            <img src="@($"{resolvedFavicon}?v={brandingVersion}")" alt="Current Favicon" style="max-height: 50px;" />
+                                            <small class="text-muted d-block mt-1">الأيقونة الحالية</small>
+                                        </div>
+                                    }
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">اللغة الافتراضية</label>
+                                    <select class="form-select" asp-for="DefaultLanguage">
+                                        <option value="ar">العربية (Arabic)</option>
+                                        <option value="en">English (الإنجليزية)</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">اللغات المدعومة (مفصولة بفاصلة)</label>
+                                    <input type="text" class="form-control text-start" dir="ltr" asp-for="SupportedLanguages" />
+                                </div>
+
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">المظهر (Theme)</label>
+                                    <select class="form-select" asp-for="Theme">
+                                        <option value="Light">فاتح (Light)</option>
+                                        <option value="Dark">داكن (Dark)</option>
+                                        <option value="System">تلقائي مع النظام (System)</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">لون التمييز (Accent Color)</label>
+                                    <input type="color" class="form-control form-control-color w-100" asp-for="AccentColor" />
+                                </div>
+                                <div class="col-md-4 d-flex align-items-end">
+                                    <div class="form-check form-switch mb-2">
+                                        <input class="form-check-input" type="checkbox" role="switch" asp-for="EnableDarkMode" />
+                                        <label class="form-check-label fw-bold" asp-for="EnableDarkMode">تفعيل الوضع الداكن للمشرفين</label>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">صيغة التاريخ</label>
+                                    <input type="text" class="form-control text-start" dir="ltr" asp-for="DateFormat" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">صيغة الوقت</label>
+                                    <input type="text" class="form-control text-start" dir="ltr" asp-for="TimeFormat" />
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">صيغة التاريخ والوقت الكاملة</label>
+                                    <input type="text" class="form-control text-start" dir="ltr" asp-for="DateTimeFormat" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">المنطقة الزمنية</label>
+                                    <input type="text" class="form-control text-start" dir="ltr" asp-for="TimeZone" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CONTENT SETTINGS TAB -->
+                    <div class="tab-pane fade" id="content" role="tabpanel" aria-labelledby="content-tab">
+                        <div class="card border-0 shadow-sm p-4">
+                            <h4 class="fw-bold mb-4 border-bottom pb-3">
+                                <span class="tp-only-ar">إعدادات المحتوى</span>
+                                <span class="tp-only-en">Content Settings</span>
+                            </h4>
+
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">عدد السجلات الافتراضي في الصفحة</label>
+                                    <input type="number" class="form-control" asp-for="DefaultPageSize" min="5" max="100" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">الحجم الأقصى للمرفقات (ميغابايت)</label>
+                                    <input type="number" class="form-control" asp-for="MaxUploadSizeMB" min="1" max="500" />
+                                </div>
+
+                                <div class="col-md-12">
+                                    <label class="form-label fw-bold">الامتدادات المسموح برفعها (مفصولة بفاصلة)</label>
+                                    <input type="text" class="form-control text-start" dir="ltr" asp-for="AllowedFileExtensions" />
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">حالة المحتوى الافتراضية عند الإضافة</label>
+                                    <select class="form-select" asp-for="DefaultContentStatus">
+                                        <option value="Draft">مسودة (Draft)</option>
+                                        <option value="Published">منشور مباشرة (Published)</option>
+                                    </select>
+                                </div>
+
+                                <div class="col-md-12 mt-4">
+                                    <div class="card bg-body-tertiary border-0 p-3 mb-3">
+                                        <div class="form-check form-switch d-flex align-items-center justify-content-between p-0">
+                                            <div>
+                                                <h6 class="mb-1 fw-bold text-primary">إظهار وإخفاء عدد الزيارات (Show/Hide Hits)</h6>
+                                                <span class="text-muted small">عند تعطيل هذا الخيار، سيتم إخفاء عداد المشاهدات والزيارات من الواجهة الأمامية تماماً.</span>
+                                            </div>
+                                            <div class="form-check form-switch ps-0">
+                                                <input class="form-check-input fs-4 ms-0" type="checkbox" role="switch" asp-for="ShowHits" style="cursor: pointer;" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch" asp-for="AutoGenerateSlug" />
+                                        <label class="form-check-label fw-bold" asp-for="AutoGenerateSlug">توليد الرابط الفرعي تلقائياً من العنوان (Slug)</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch" asp-for="EnableCategories" />
+                                        <label class="form-check-label fw-bold" asp-for="EnableCategories">تمكين نظام الفئات والتصنيفات</label>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch" asp-for="EnableMediaLibrary" />
+                                        <label class="form-check-label fw-bold" asp-for="EnableMediaLibrary">تمكين مكتبة الوسائط</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch" asp-for="EnableContentVersioning" />
+                                        <label class="form-check-label fw-bold" asp-for="EnableContentVersioning">تمكين إصدارات وأرشيف تعديل المحتوى</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SEO & INTEGRATIONS TAB -->
+                    <div class="tab-pane fade" id="seo" role="tabpanel" aria-labelledby="seo-tab">
+                        <div class="card border-0 shadow-sm p-4">
+                            <h4 class="fw-bold mb-4 border-bottom pb-3">
+                                <span class="tp-only-ar">الأرشفة والربط (SEO & Integrations)</span>
+                                <span class="tp-only-en">SEO & Integrations</span>
+                            </h4>
+
+                            <div class="row g-3">
+                                <div class="col-md-12">
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" role="switch" asp-for="EnableSeo" />
+                                        <label class="form-check-label fw-bold" asp-for="EnableSeo">تفعيل حقول تحسين محركات البحث في المحتوى (Meta Keywords & Description)</label>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">معرف إحصائيات جوجل (Google Analytics ID)</label>
+                                    <input type="text" class="form-control text-start" dir="ltr" placeholder="G-XXXXXXXXXX" asp-for="GoogleAnalyticsCode" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">معرف مدير علامات جوجل (Google Tag Manager ID)</label>
+                                    <input type="text" class="form-control text-start" dir="ltr" placeholder="GTM-XXXXXXX" asp-for="GoogleTagManagerCode" />
+                                </div>
+
+                                <div class="col-md-12">
+                                    <div class="card bg-info bg-opacity-10 border-0 p-3 mt-2">
+                                        <div class="d-flex gap-2">
+                                            <i class="bi bi-info-circle-fill text-info fs-5"></i>
+                                            <div>
+                                                <h6 class="fw-bold mb-1">الربط البرمجي وواجهة التطبيقات (APIs)</h6>
+                                                <span class="small text-muted">يمكن الوصول لبيانات الموقع والمنصة عبر الـ API بعد تفعيل الاتصال والتفويض بالمفتاح.</span>
+                                                <div class="form-check form-switch mt-2">
+                                                    <input class="form-check-input" type="checkbox" role="switch" asp-for="ApiEnabled" />
+                                                    <label class="form-check-label fw-bold text-body" asp-for="ApiEnabled">تفعيل الـ API العامة للموقع</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- COMPANY & SOCIAL TAB -->
+                    <div class="tab-pane fade" id="company" role="tabpanel" aria-labelledby="company-tab">
+                        <div class="card border-0 shadow-sm p-4">
+                            <h4 class="fw-bold mb-4 border-bottom pb-3">
+                                <span class="tp-only-ar">بيانات الشركة والتواصل الاجتماعي</span>
+                                <span class="tp-only-en">Company Info & Social Networks</span>
+                            </h4>
+
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">اسم الشركة/المؤسسة بالعربية</label>
+                                    <input type="text" class="form-control" asp-for="CompanyName" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Company Name (English)</label>
+                                    <input type="text" class="form-control text-start" dir="ltr" asp-for="CompanyName_En" />
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">البريد الإلكتروني للتواصل</label>
+                                    <input type="email" class="form-control text-start" dir="ltr" asp-for="CompanyEmail" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">رقم الهاتف</label>
+                                    <input type="text" class="form-control text-start" dir="ltr" asp-for="CompanyPhone" />
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">عنوان الشركة بالعربية</label>
+                                    <input type="text" class="form-control" asp-for="CompanyAddress" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Company Address (English)</label>
+                                    <input type="text" class="form-control text-start" dir="ltr" asp-for="CompanyAddress_En" />
+                                </div>
+
+                                <h5 class="fw-bold mt-4 mb-2 text-primary-emphasis">حسابات التواصل الاجتماعي (Social URLs)</h5>
+                                
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold"><i class="bi bi-facebook text-primary me-1"></i> فيسبوك</label>
+                                    <input type="url" class="form-control text-start" dir="ltr" placeholder="https://facebook.com/..." asp-for="FacebookUrl" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold"><i class="bi bi-twitter text-info me-1"></i> تويتر (X)</label>
+                                    <input type="url" class="form-control text-start" dir="ltr" placeholder="https://twitter.com/..." asp-for="TwitterUrl" />
+                                </div>
+
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold"><i class="bi bi-instagram text-danger me-1"></i> انستغرام</label>
+                                    <input type="url" class="form-control text-start" dir="ltr" placeholder="https://instagram.com/..." asp-for="InstagramUrl" />
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold"><i class="bi bi-linkedin text-primary me-1"></i> لينكد إن</label>
+                                    <input type="url" class="form-control text-start" dir="ltr" placeholder="https://linkedin.com/..." asp-for="LinkedInUrl" />
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold"><i class="bi bi-youtube text-danger me-1"></i> يوتيوب</label>
+                                    <input type="url" class="form-control text-start" dir="ltr" placeholder="https://youtube.com/..." asp-for="YouTubeUrl" />
+                                </div>
+
+                                <h5 class="fw-bold mt-4 mb-2 text-primary-emphasis">حقوق التذييل (Footer Copyright)</h5>
+
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">حقوق التذييل بالعربية</label>
+                                    <input type="text" class="form-control" asp-for="FooterCopyright" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Footer Copyright (English)</label>
+                                    <input type="text" class="form-control text-start" dir="ltr" asp-for="FooterCopyright_En" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SAVE BUTTON ROW (Sticky Footer-like actions block) -->
+                @if (User.HasClaim("Permission", "Settings.Edit"))
+                {
+                    <div class="card border-0 shadow-sm mt-4 p-3 bg-body-tertiary">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span class="text-muted small">
+                                <i class="bi bi-info-circle me-1"></i>
+                                <span class="tp-only-ar">سيتم تطبيق هذه التغييرات على كامل النظام فور الحفظ.</span>
+                                <span class="tp-only-en">These changes will take effect globally upon saving.</span>
+                            </span>
+                            <button type="submit" class="btn btn-primary px-4 fw-bold">
+                                <i class="bi bi-save-fill me-2"></i>
+                                <span class="tp-only-ar">حفظ التغييرات</span>
+                                <span class="tp-only-en">Save Changes</span>
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Keep the active tab stored in session storage so it doesn't reset on postback/reload
+            var activeTab = sessionStorage.getItem('activeSettingsTab');
+            if (activeTab) {
+                var tabTrigger = document.querySelector('#settingsTabs button[data-bs-target="' + activeTab + '"]');
+                if (tabTrigger) {
+                    var tab = new bootstrap.Tab(tabTrigger);
+                    tab.show();
+                }
+            }
+
+            var tabButtons = document.querySelectorAll('#settingsTabs button[data-bs-toggle="tab"]');
+            tabButtons.forEach(function(button) {
+                button.addEventListener('shown.bs.tab', function(e) {
+                    var target = e.target.getAttribute('data-bs-target');
+                    sessionStorage.setItem('activeSettingsTab', target);
+                });
+            });
+        });
+    </script>
+}

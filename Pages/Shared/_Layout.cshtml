@@ -1,0 +1,479 @@
+@inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment HostEnvironment
+@{
+    string? logoWebPath = null;
+    string? faviconWebPath = null;
+    var brandingBasePath = System.IO.Path.Combine(HostEnvironment.WebRootPath, "uploads", "img");
+    if (System.IO.Directory.Exists(brandingBasePath))
+    {
+        var logoFiles = System.IO.Directory.GetFiles(brandingBasePath, "CMSLogo.*");
+        if (logoFiles.Length > 0)
+        {
+            logoWebPath = "/uploads/img/" + System.IO.Path.GetFileName(logoFiles[0]);
+        }
+
+        var faviconFiles = System.IO.Directory.GetFiles(brandingBasePath, "CMSFavicon.*");
+        if (faviconFiles.Length > 0)
+        {
+            faviconWebPath = "/uploads/img/" + System.IO.Path.GetFileName(faviconFiles[0]);
+        }
+    }
+}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" data-bs-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>@ViewData["Title"] - TalaPress</title>
+  
+  <!-- Bootstrap 5 CSS (Dynamic via JS, default is RTL) -->
+  <link id="bootstrap-style" rel="stylesheet" href="~/assets/css/bootstrap.rtl.min.css"
+        data-bootstrap-rtl="/assets/css/bootstrap.rtl.min.css"
+        data-bootstrap-ltr="/assets/css/bootstrap.min.css"
+        asp-append-version="true">
+  
+  <!-- Bootstrap Icons CSS -->
+  <link rel="stylesheet" href="~/assets/css/bootstrap-icons.min.css" asp-append-version="true">
+  
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="~/assets/css/custom.css" asp-append-version="true">
+  @if (faviconWebPath != null)
+  {
+      <link rel="icon" href="@($"{faviconWebPath}?v={DateTimeOffset.UtcNow:yyyyMMdd}")">
+  }
+
+  @await RenderSectionAsync("Styles", required: false)
+</head>
+<body>
+
+  <!-- MOBILE HEADER (visible on lg screens and down) -->
+  <header class="tp-mobile-header d-lg-none">
+    <button class="btn btn-outline-light border-0" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileSidebar" aria-controls="mobileSidebar">
+      <i class="bi bi-list fs-3"></i>
+    </button>
+    <a asp-page="/Index" class="tp-brand-logo text-decoration-none fw-bold fs-4">
+      @if (logoWebPath != null)
+      {
+          <img src="@logoWebPath" alt="TalaPress Logo" />
+      }
+      else
+      {
+          <text>TalaPress</text>
+      }
+    </a>
+    <div class="d-flex align-items-center gap-2">
+      <button class="btn btn-outline-light btn-sm tp-theme-toggle" title="Toggle Theme">
+        <i class="bi bi-sun-fill"></i>
+      </button>
+      <a href="#" class="btn btn-outline-light btn-sm tp-lang-toggle" title="Change Language">
+        <span class="tp-lang-toggle-text">English</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- MOBILE SIDEBAR / OFFCANVAS -->
+  <div class="offcanvas offcanvas-start tp-offcanvas-menu" tabindex="-1" id="mobileSidebar" aria-labelledby="mobileSidebarLabel">
+    <div class="offcanvas-header tp-offcanvas-header">
+      <h5 class="offcanvas-title fw-bold" id="mobileSidebarLabel">TalaPress</h5>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body tp-offcanvas-body">
+      <ul class="tp-mobile-nav-list">
+        @if (User.Identity?.IsAuthenticated == true)
+        {
+          @if (User.HasClaim("Permission", "Dashboard.View"))
+          {
+            <li>
+              <a asp-page="/Index" class="tp-mobile-nav-item">
+                <i class="bi bi-speedometer2"></i>
+                <span data-tp-i18n="navDashboard">لوحة التحكم</span>
+              </a>
+            </li>
+          }
+          @if (User.HasClaim("Permission", "Content.View"))
+          {
+            <li>
+              <a asp-page="/Content" class="tp-mobile-nav-item">
+                <i class="bi bi-journal-richtext"></i>
+                <span data-tp-i18n="navContent">إدارة المحتوى</span>
+              </a>
+            </li>
+          }
+          @if (User.HasClaim("Permission", "Category.View"))
+          {
+            <li>
+              <a asp-page="/Categories" class="tp-mobile-nav-item">
+                <i class="bi bi-tags-fill"></i>
+                <span data-tp-i18n="navCategories">إدارة التصنيفات</span>
+              </a>
+            </li>
+          }
+          @if (User.HasClaim("Permission", "ContentType.View"))
+          {
+            <li>
+              <a asp-page="/ContentTypes" class="tp-mobile-nav-item">
+                <i class="bi bi-folder-fill"></i>
+                <span data-tp-i18n="navContentTypes">أنواع المحتوى</span>
+              </a>
+            </li>
+          }
+
+          @if (User.HasClaim("Permission", "Media.View"))
+          {
+            <li>
+              <a asp-page="/Media" class="tp-mobile-nav-item">
+                <i class="bi bi-images"></i>
+                <span data-tp-i18n="navMedia">مكتبة الوسائط</span>
+              </a>
+            </li>
+          }
+
+          @if (User.HasClaim("Permission", "Settings.View"))
+          {
+            <li>
+              <a asp-page="/Settings" class="tp-mobile-nav-item">
+                <i class="bi bi-gear-fill"></i>
+                <span data-tp-i18n="navSettings">الإعدادات</span>
+              </a>
+            </li>
+            <li class="dropdown">
+              <a href="#" class="tp-mobile-nav-item dropdown-toggle no-caret" id="mobileNavAppGridDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="قائمة التطبيقات">
+                <i class="bi bi-grid-3x3-gap"></i>
+                <span>التطبيقات</span>
+              </a>
+              <div class="dropdown-menu shadow border-0 p-3" aria-labelledby="mobileNavAppGridDropdown" style="min-width: 250px; position: static;">
+                <h6 class="dropdown-header text-dark fw-bold mb-3 px-1">قائمة التطبيقات</h6>
+                <div class="tp-shortcut-grid">
+                  @if (User.HasClaim("Permission", "Settings.Edit"))
+                  {
+                    <a asp-page="/Workflow" class="tp-shortcut-btn text-decoration-none p-2 rounded custom-hover-bg">
+                      <i class="bi bi-diagram-3-fill fs-3 text-primary mb-1"></i>
+                      <span class="fs-8 text-dark text-center fw-bold">سير العمل</span>
+                    </a>
+                  }
+                  @if (User.HasClaim("Permission", "Roles.View") || User.HasClaim("Permission", "Permissions.View"))
+                  {
+                    <a asp-page="/Permissions" class="tp-shortcut-btn text-decoration-none p-2 rounded custom-hover-bg">
+                      <i class="bi bi-shield-lock-fill fs-3 text-success mb-1"></i>
+                      <span class="fs-8 text-dark text-center fw-bold">الأذونات</span>
+                    </a>
+                  }
+                  @if (User.Identity?.IsAuthenticated == true)
+                  {
+                    <a asp-page="/ApiDocs/Index" class="tp-shortcut-btn text-decoration-none p-2 rounded custom-hover-bg">
+                      <i class="bi bi-book fs-3 text-info mb-1"></i>
+                      <span class="fs-8 text-dark text-center fw-bold" data-tp-i18n="apiDocsNav">Pearl API</span>
+                    </a>
+                  }
+                  @if (User.HasClaim("Permission", "Settings.Edit") || User.HasClaim("Permission", "Permissions.View"))
+                  {
+                    <a asp-page="/ApiKeys" class="tp-shortcut-btn text-decoration-none p-2 rounded custom-hover-bg">
+                      <i class="bi bi-key-fill fs-3 text-warning mb-1"></i>
+                      <span class="fs-8 text-dark text-center fw-bold">API Keys</span>
+                    </a>
+                  }
+                  @if (User.HasClaim("Permission", "Users.View"))
+                  {
+                    <a asp-page="/Users" class="tp-shortcut-btn text-decoration-none p-2 rounded custom-hover-bg">
+                      <i class="bi bi-people-fill fs-3 text-info mb-1"></i>
+                      <span class="fs-8 text-dark text-center fw-bold">المستخدمين</span>
+                    </a>
+                  }
+                  @if (User.HasClaim("Permission", "Menu.View"))
+                  {
+                    <a asp-page="/Menus" class="tp-shortcut-btn text-decoration-none p-2 rounded custom-hover-bg">
+                      <i class="bi bi-list-stars fs-3 text-danger mb-1"></i>
+                      <span class="fs-8 text-dark text-center fw-bold" data-tp-i18n="navMenus">إدارة القوائم</span>
+                    </a>
+                  }
+                  @if (User.HasClaim("Permission", "Forms.View"))
+                  {
+                    <a asp-page="/Forms" class="tp-shortcut-btn text-decoration-none p-2 rounded custom-hover-bg">
+                      <i class="bi bi-ui-checks fs-3 text-primary mb-1"></i>
+                      <span class="fs-8 text-dark text-center fw-bold" data-tp-i18n="navForms">إدارة النماذج</span>
+                    </a>
+                  }
+                  @if (User.HasClaim("Permission", "FormSubmissions.View"))
+                  {
+                    <a asp-page="/FormSubmissions" class="tp-shortcut-btn text-decoration-none p-2 rounded custom-hover-bg">
+                      <i class="bi bi-inbox-fill fs-3 text-secondary mb-1"></i>
+                      <span class="fs-8 text-dark text-center fw-bold" data-tp-i18n="navFormSubmissions">ردود النماذج</span>
+                    </a>
+                  }
+                </div>
+              </div>
+            </li>
+          }
+        }
+      </ul>
+    </div>
+  </div>
+
+  <!-- DESKTOP TOP NAVIGATION BAR -->
+  <nav class="tp-top-nav d-none d-lg-block">
+    <div class="container-fluid d-flex align-items-center justify-content-between px-4">
+      <a asp-page="/Index" class="tp-brand-logo text-decoration-none fw-bold fs-4 me-4">
+        @if (logoWebPath != null)
+        {
+            <img src="@logoWebPath" alt="TalaPress Logo" />
+        }
+        else
+        {
+            <text>TalaPress</text>
+        }
+      </a>
+      
+      <!-- Horizontal Navigation Items -->
+      <div class="tp-nav-container flex-grow-1">
+        @if (User.Identity?.IsAuthenticated == true)
+        {
+          @if (User.HasClaim("Permission", "Dashboard.View"))
+          {
+            <a asp-page="/Index" class="tp-nav-item">
+              <i class="bi bi-speedometer2"></i>
+              <span data-tp-i18n="navDashboard">لوحة التحكم</span>
+            </a>
+          }
+          @if (User.HasClaim("Permission", "Content.View"))
+          {
+            <a asp-page="/Content" class="tp-nav-item">
+              <i class="bi bi-journal-richtext"></i>
+              <span data-tp-i18n="navContent">إدارة المحتوى</span>
+            </a>
+          }
+          @if (User.HasClaim("Permission", "Category.View"))
+          {
+            <a asp-page="/Categories" class="tp-nav-item">
+              <i class="bi bi-tags-fill"></i>
+              <span data-tp-i18n="navCategories">إدارة التصنيفات</span>
+            </a>
+          }
+          @if (User.HasClaim("Permission", "ContentType.View"))
+          {
+            <a asp-page="/ContentTypes" class="tp-nav-item">
+              <i class="bi bi-folder-fill"></i>
+              <span data-tp-i18n="navContentTypes">أنواع المحتوى</span>
+            </a>
+          }
+
+          @if (User.HasClaim("Permission", "Media.View"))
+          {
+            <a asp-page="/Media" class="tp-nav-item">
+              <i class="bi bi-images"></i>
+              <span data-tp-i18n="navMedia">مكتبة الوسائط</span>
+            </a>
+          }
+
+          @if (User.HasClaim("Permission", "Settings.View"))
+          {
+            <a asp-page="/Settings" class="tp-nav-item">
+              <i class="bi bi-gear-fill"></i>
+              <span data-tp-i18n="navSettings">الإعدادات</span>
+            </a>
+            
+            <div class="dropdown d-inline-block">
+              <a href="#" class="tp-nav-item dropdown-toggle no-caret" id="navAppGridDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="قائمة التطبيقات">
+                <i class="bi bi-grid-3x3-gap"></i>
+                <span>التطبيقات</span>
+              </a>
+              <div class="dropdown-menu dropdown-menu-end shadow border-0 p-3" aria-labelledby="navAppGridDropdown" style="min-width: 320px;">
+                <h6 class="dropdown-header text-dark fw-bold mb-3 px-1">قائمة التطبيقات</h6>
+                <div class="tp-shortcut-grid">
+                  @if (User.HasClaim("Permission", "Settings.Edit"))
+                  {
+                    <a asp-page="/Workflow" class="tp-shortcut-btn text-decoration-none p-2 rounded custom-hover-bg">
+                      <i class="bi bi-diagram-3-fill fs-3 text-primary mb-1"></i>
+                      <span class="fs-8 text-dark text-center fw-bold">سير العمل</span>
+                    </a>
+                  }
+                  @if (User.HasClaim("Permission", "Roles.View") || User.HasClaim("Permission", "Permissions.View"))
+                  {
+                    <a asp-page="/Permissions" class="tp-shortcut-btn text-decoration-none p-2 rounded custom-hover-bg">
+                      <i class="bi bi-shield-lock-fill fs-3 text-success mb-1"></i>
+                      <span class="fs-8 text-dark text-center fw-bold">الأذونات</span>
+                    </a>
+                  }
+                  @if (User.Identity?.IsAuthenticated == true)
+                  {
+                    <a asp-page="/ApiDocs/Index" class="tp-shortcut-btn text-decoration-none p-2 rounded custom-hover-bg">
+                      <i class="bi bi-book fs-3 text-info mb-1"></i>
+                      <span class="fs-8 text-dark text-center fw-bold" data-tp-i18n="apiDocsNav">Pearl API</span>
+                    </a>
+                  }
+                  @if (User.HasClaim("Permission", "Settings.Edit") || User.HasClaim("Permission", "Permissions.View"))
+                  {
+                    <a asp-page="/ApiKeys" class="tp-shortcut-btn text-decoration-none p-2 rounded custom-hover-bg">
+                      <i class="bi bi-key-fill fs-3 text-warning mb-1"></i>
+                      <span class="fs-8 text-dark text-center fw-bold">API Keys</span>
+                    </a>
+                  }
+                  @if (User.HasClaim("Permission", "Users.View"))
+                  {
+                    <a asp-page="/Users" class="tp-shortcut-btn text-decoration-none p-2 rounded custom-hover-bg">
+                      <i class="bi bi-people-fill fs-3 text-info mb-1"></i>
+                      <span class="fs-8 text-dark text-center fw-bold">المستخدمين</span>
+                    </a>
+                  }
+                  @if (User.HasClaim("Permission", "Menu.View"))
+                  {
+                    <a asp-page="/Menus" class="tp-shortcut-btn text-decoration-none p-2 rounded custom-hover-bg">
+                      <i class="bi bi-list-stars fs-3 text-danger mb-1"></i>
+                      <span class="fs-8 text-dark text-center fw-bold" data-tp-i18n="navMenus">إدارة القوائم</span>
+                    </a>
+                  }
+                  @if (User.HasClaim("Permission", "Forms.View"))
+                  {
+                    <a asp-page="/Forms" class="tp-shortcut-btn text-decoration-none p-2 rounded custom-hover-bg">
+                      <i class="bi bi-ui-checks fs-3 text-primary mb-1"></i>
+                      <span class="fs-8 text-dark text-center fw-bold" data-tp-i18n="navForms">إدارة النماذج</span>
+                    </a>
+                  }
+                  @if (User.HasClaim("Permission", "FormSubmissions.View"))
+                  {
+                    <a asp-page="/FormSubmissions" class="tp-shortcut-btn text-decoration-none p-2 rounded custom-hover-bg">
+                      <i class="bi bi-inbox-fill fs-3 text-secondary mb-1"></i>
+                      <span class="fs-8 text-dark text-center fw-bold" data-tp-i18n="navFormSubmissions">ردود النماذج</span>
+                    </a>
+                  }
+                </div>
+              </div>
+            </div>
+          }
+        }
+      </div>
+
+      <!-- Header Toolbar -->
+      <div class="tp-header-toolbar">
+        <!-- Notifications -->
+        <button class="tp-toolbar-btn position-relative" type="button" title="Notifications" onclick="alert('No new notifications / لا توجد إشعارات جديدة')">
+          <i class="bi bi-bell"></i>
+          <span class="badge rounded-circle bg-danger">5</span>
+        </button>
+        
+        <!-- Messages -->
+        <button class="tp-toolbar-btn position-relative" type="button" title="Messages" onclick="alert('No new messages / لا توجد رسائل جديدة')">
+          <i class="bi bi-envelope"></i>
+          <span class="badge rounded-circle bg-primary">7</span>
+        </button>
+        
+        <!-- Divider -->
+        <div class="tp-toolbar-divider"></div>
+        
+        <!-- Language Switcher -->
+        <button class="tp-toolbar-btn tp-lang-toggle" type="button" title="Change Language">
+          <i class="bi bi-translate"></i>
+        </button>
+        
+        <!-- Theme Switcher -->
+        <button class="tp-toolbar-btn tp-theme-toggle" type="button" title="Toggle Theme">
+          <i class="bi bi-sun"></i>
+        </button>
+        
+        <!-- Divider -->
+        <div class="tp-toolbar-divider"></div>
+        
+        <!-- User Profile Dropdown -->
+        <div class="dropdown">
+          <button class="btn btn-link p-0 border-0 dropdown-toggle no-caret" type="button" id="profileDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+            <img src="~/assets/images/avatar.svg" asp-append-version="true" alt="Avatar" class="rounded-circle border border-light-subtle" width="34" height="34">
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 py-0 tp-profile-dropdown" aria-labelledby="profileDropdown">
+            <li class="bg-body-tertiary px-3 py-3 border-bottom">
+              @if (User.Identity?.IsAuthenticated == true)
+              {
+                  <div class="fw-bold text-primary-emphasis fs-7 mb-1">@User.FindFirst("FullName")?.Value</div>
+                  <div class="text-muted fs-8">@@@User.Identity.Name</div>
+              }
+              else
+              {
+                  <span class="fw-bold text-secondary text-uppercase fs-7" data-tp-i18n="account">الحساب</span>
+              }
+            </li>
+            <li>
+              <a class="dropdown-item d-flex align-items-center justify-content-between px-3 py-2" href="#" onclick="event.preventDefault()">
+                <span class="d-flex align-items-center gap-2">
+                  <i class="bi bi-bell"></i>
+                  <span data-tp-i18n="updates">التحديثات</span>
+                </span>
+                <span class="badge bg-primary rounded-pill">42</span>
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item d-flex align-items-center justify-content-between px-3 py-2" href="#" onclick="event.preventDefault()">
+                <span class="d-flex align-items-center gap-2">
+                  <i class="bi bi-envelope"></i>
+                  <span data-tp-i18n="messages">الرسائل</span>
+                </span>
+                <span class="badge bg-success rounded-pill">42</span>
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item d-flex align-items-center justify-content-between px-3 py-2" href="#" onclick="event.preventDefault()">
+                <span class="d-flex align-items-center gap-2">
+                  <i class="bi bi-check2-square"></i>
+                  <span data-tp-i18n="tasks">المهام</span>
+                </span>
+                <span class="badge bg-danger rounded-pill">42</span>
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item d-flex align-items-center justify-content-between px-3 py-2" href="#" onclick="event.preventDefault()">
+                <span class="d-flex align-items-center gap-2">
+                  <i class="bi bi-chat-left-text"></i>
+                  <span data-tp-i18n="comments">التعليقات</span>
+                </span>
+                <span class="badge bg-warning text-dark rounded-pill">42</span>
+              </a>
+            </li>
+            <li>
+              <hr class="dropdown-divider my-0">
+            </li>
+            <li>
+              <a class="dropdown-item d-flex align-items-center gap-2 px-3 py-2 text-danger" asp-page="/Login" asp-page-handler="Logout">
+                <i class="bi bi-box-arrow-right text-danger"></i>
+                <span data-tp-i18n="login">تسجيل الخروج</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- MAIN CONTAINER -->
+  <main role="main">
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="container-fluid px-4 pt-3 mb-0">
+            <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm" role="alert">
+                <i class="bi bi-check-circle-fill me-2"></i> @TempData["SuccessMessage"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        </div>
+    }
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="container-fluid px-4 pt-3 mb-0">
+            <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i> @TempData["ErrorMessage"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        </div>
+    }
+    @RenderBody()
+  </main>
+
+  <!-- jQuery library -->
+  <script src="~/lib/jquery/dist/jquery.min.js" asp-append-version="true"></script>
+
+  <!-- Bootstrap Bundle JS -->
+  <script src="~/assets/js/bootstrap.bundle.min.js" asp-append-version="true"></script>
+
+  <!-- SweetAlert2 CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  
+  <!-- Main Controller JS -->
+  <script src="~/assets/js/main.js" asp-append-version="true"></script>
+
+  @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

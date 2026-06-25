@@ -1,0 +1,389 @@
+@page
+@model UsersModel
+@{
+    ViewData["Title"] = "إدارة مستخدمي لوحة التحكم";
+}
+
+<!-- SECONDARY HEADER (BLUE BAR) -->
+<section class="tp-sub-header">
+  <div class="container-fluid px-4">
+    <div class="row align-items-center">
+      <div class="col-md-6 mb-3 mb-md-0">
+        <h1>
+          <span class="tp-only-ar">إدارة حسابات المستخدمين</span>
+          <span class="tp-only-en">User Account Management</span>
+        </h1>
+        <p>
+          <span class="tp-only-ar">قم بإنشاء وتعديل حسابات مدراء ومحرري لوحة التحكم، وتعيين الأدوار الوظيفية لهم.</span>
+          <span class="tp-only-en">Create and edit control panel administrator and editor accounts, and assign their job roles.</span>
+        </p>
+      </div>
+      <div class="col-md-6 text-md-end">
+        <a asp-page="/Index" class="btn tp-btn-outline-light me-2">
+          <i class="bi bi-house-door-fill"></i> 
+          <span class="tp-only-ar">الرئيسية</span>
+          <span class="tp-only-en">Dashboard</span>
+        </a>
+        <a asp-page="/Users" asp-route-selectedId="0" class="btn btn-light shadow-sm">
+          <i class="bi bi-person-plus-fill text-primary"></i> 
+          <span class="text-primary fw-bold tp-only-ar">إضافة مستخدم جديد</span>
+          <span class="text-primary fw-bold tp-only-en">Add New User</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MAIN CONTAINER -->
+<main class="container-fluid px-4 pb-5">
+
+  @if (Model.SuccessMessage != null)
+  {
+      <div class="alert alert-success alert-dismissible fade show mb-4 border-0 shadow-sm" role="alert">
+          <i class="bi bi-check-circle-fill me-2"></i> @Model.SuccessMessage
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+  }
+
+  @if (Model.ErrorMessage != null)
+  {
+      <div class="alert alert-danger alert-dismissible fade show mb-4 border-0 shadow-sm" role="alert">
+          <i class="bi bi-exclamation-triangle-fill me-2"></i> @Model.ErrorMessage
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+  }
+
+  <div class="row g-4">
+    <!-- RIGHT SIDE (RTL): Users Table List -->
+    <div class="col-lg-7 col-xl-8">
+      <div class="tp-card">
+        <div class="tp-card-header d-flex flex-wrap align-items-center justify-content-between gap-3">
+          <h5>
+            <span class="tp-only-ar">قائمة المستخدمين المسجلين</span>
+            <span class="tp-only-en">Registered Users List</span>
+          </h5>
+          <!-- Realtime Search Bar -->
+          <div class="position-relative tp-min-w-250">
+            <span class="position-absolute top-50 start-0 translate-middle-y ps-3 text-muted">
+              <i class="bi bi-search"></i>
+            </span>
+            <input type="text" id="userSearch" class="form-control ps-5" data-tp-i18n="searchUserPlaceholder" />
+          </div>
+        </div>
+        <div class="tp-card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" id="usersTable">
+              <thead class="table-light">
+                <tr>
+                  <th>
+                    <span class="tp-only-ar">المستخدم</span>
+                    <span class="tp-only-en">User</span>
+                  </th>
+                  <th>
+                    <span class="tp-only-ar">البريد الإلكتروني</span>
+                    <span class="tp-only-en">Email Address</span>
+                  </th>
+                  <th>
+                    <span class="tp-only-ar">الأدوار الأمنية</span>
+                    <span class="tp-only-en">Security Roles</span>
+                  </th>
+                  <th class="text-center">
+                    <span class="tp-only-ar">الحالة</span>
+                    <span class="tp-only-en">Status</span>
+                  </th>
+                  <th class="text-center">
+                    <span class="tp-only-ar">العمليات</span>
+                    <span class="tp-only-en">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach (var user in Model.UserList)
+                {
+                    var isSelectedUser = Model.SelectedUserId == user.Id;
+                    <tr class="user-row tp-cursor-pointer @(isSelectedUser ? "table-primary" : "")" onclick="if(event.target.tagName !== 'BUTTON' && event.target.tagName !== 'I' && event.target.tagName !== 'FORM' && event.target.tagName !== 'A') { window.location.href='?selectedId=@user.Id'; }">
+                      <td>
+                        <div class="d-flex align-items-center gap-3">
+                          <div class="avatar-placeholder rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center fw-bold fs-6 tp-avatar-lg">
+                            @(string.IsNullOrEmpty(user.FullName) ? user.Username[0].ToString().ToUpper() : user.FullName[0].ToString().ToUpper())
+                          </div>
+                          <div>
+                            <div class="fw-bold fs-7 text-primary-emphasis search-name">
+                              @if (string.IsNullOrEmpty(user.FullName))
+                              {
+                                <span class="tp-only-ar">لم يحدد</span>
+                                <span class="tp-only-en">Not Specified</span>
+                              }
+                              else
+                              {
+                                @user.FullName
+                              }
+                            </div>
+                            <small class="text-muted search-username">@@@user.Username</small>
+                          </div>
+                        </div>
+                      </td>
+                      <td class="search-email text-secondary">@user.Email</td>
+                      <td>
+                        <div class="d-flex flex-wrap gap-1">
+                          @if (user.Roles.Count == 0)
+                          {
+                              <span class="badge bg-secondary-subtle text-secondary-emphasis fs-8">
+                                <span class="tp-only-ar">بدون دور</span>
+                                <span class="tp-only-en">No Role</span>
+                              </span>
+                          }
+                          else
+                          {
+                              foreach (var role in user.Roles)
+                              {
+                                  <span class="badge bg-primary-subtle text-primary-emphasis fs-8">
+                                    <span class="tp-only-ar">@role.Name</span>
+                                    <span class="tp-only-en">@role.Name_En</span>
+                                  </span>
+                              }
+                          }
+                        </div>
+                      </td>
+                      <td class="text-center">
+                        <span class="badge @(user.IsActive ? "bg-success" : "bg-danger") rounded-pill px-3 py-1">
+                          <span class="tp-only-ar">@(user.IsActive ? "نشط" : "معطل")</span>
+                          <span class="tp-only-en">@(user.IsActive ? "Active" : "Inactive")</span>
+                        </span>
+                      </td>
+                      <td class="text-center">
+                        <div class="d-flex justify-content-center gap-2">
+                          <a href="?selectedId=@user.Id" class="btn btn-sm btn-outline-primary" title="تعديل الحساب | Edit Account">
+                            <i class="bi bi-pencil-fill"></i>
+                          </a>
+                          @if (user.Id != 1)
+                          {
+                              <form method="post" asp-page-handler="Delete" asp-route-id="@user.Id" onsubmit="return confirm('هل أنت متأكد من رغبتك في حذف هذا الحساب نهائياً؟ لا يمكن التراجع عن هذا الإجراء. / Are you sure you want to permanently delete this account? This action cannot be undone.');" class="d-inline">
+                                  <button type="submit" class="btn btn-sm btn-outline-danger" title="حذف الحساب | Delete Account">
+                                    <i class="bi bi-trash-fill"></i>
+                                  </button>
+                              </form>
+                          }
+                          else
+                          {
+                              <button class="btn btn-sm btn-outline-secondary" disabled title="لا يمكن حذف الحساب الرئيسي | Cannot delete master account">
+                                <i class="bi bi-lock-fill"></i>
+                              </button>
+                          }
+                        </div>
+                      </td>
+                    </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LEFT SIDE: User Form -->
+    <div class="col-lg-5 col-xl-4">
+      <div class="tp-card">
+        <div class="tp-card-header">
+          <h5>
+            @if (Model.Id == 0)
+            {
+                <span class="tp-only-ar">إضافة مستخدم جديد</span>
+                <span class="tp-only-en">Add New User</span>
+            }
+            else
+            {
+                <span class="tp-only-ar">تعديل حساب: @Model.Username</span>
+                <span class="tp-only-en">Edit User: @Model.Username</span>
+            }
+          </h5>
+          @if (Model.Id > 0)
+          {
+              <a asp-page="/Users" asp-route-selectedId="0" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-plus-lg"></i> 
+                <span class="tp-only-ar">جديد</span>
+                <span class="tp-only-en">New</span>
+              </a>
+          }
+        </div>
+        <div class="tp-card-body">
+          <form method="post" asp-page-handler="Save" autocomplete="off">
+            <input type="hidden" asp-for="Id" />
+
+            <div class="mb-3">
+              <label class="form-label" for="usernameInput">
+                <span class="tp-only-ar">اسم المستخدم <span class="text-danger">*</span></span>
+                <span class="tp-only-en">Username <span class="text-danger">*</span></span>
+              </label>
+              @if (Model.Id == 1)
+              {
+                  <input type="text" class="form-control" asp-for="Username" readonly id="usernameInput" />
+                  <small class="text-muted">
+                    <span class="tp-only-ar">اسم حساب المسؤول العام ثابت لا يمكن تعديله.</span>
+                    <span class="tp-only-en">The super admin username is fixed and cannot be modified.</span>
+                  </small>
+              }
+              else
+              {
+                  <input type="text" class="form-control" asp-for="Username" required id="usernameInput" />
+              }
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label" for="emailInput">
+                <span class="tp-only-ar">البريد الإلكتروني <span class="text-danger">*</span></span>
+                <span class="tp-only-en">Email Address <span class="text-danger">*</span></span>
+              </label>
+              <input type="email" class="form-control" asp-for="Email" required id="emailInput" />
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label" for="fullNameInput">
+                <span class="tp-only-ar">الاسم الكامل</span>
+                <span class="tp-only-en">Full Name</span>
+              </label>
+              <input type="text" class="form-control" asp-for="FullName" id="fullNameInput" />
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label" for="passwordInput">
+                <span class="tp-only-ar">كلمة المرور @if (Model.Id == 0) { <span class="text-danger">*</span> }</span>
+                <span class="tp-only-en">Password @if (Model.Id == 0) { <span class="text-danger">*</span> }</span>
+              </label>
+              <div class="input-group">
+                <input type="password" class="form-control" asp-for="Password" id="passwordInput" required="@(Model.Id == 0 ? "required" : null)" autocomplete="new-password" />
+                <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                  <i class="bi bi-eye"></i>
+                </button>
+              </div>
+              @if (Model.Id > 0)
+              {
+                  <small class="text-muted d-block mt-1">
+                    <span class="tp-only-ar">إذا كنت لا تريد تغيير كلمة المرور الحالية، اترك هذا الحقل فارغاً.</span>
+                    <span class="tp-only-en">Leave password blank if you do not want to modify it.</span>
+                  </small>
+              }
+            </div>
+
+            <!-- Active / Deactive status -->
+            <div class="mb-3">
+              <div class="form-check form-switch pt-2">
+                @if (Model.Id == 1)
+                {
+                    <input class="form-check-input" type="checkbox" asp-for="IsActive" id="isActiveSwitch" checked disabled />
+                    <label class="form-check-label fw-semibold" for="isActiveSwitch">
+                      <span class="tp-only-ar">الحساب نشط (المسؤول العام لا يمكن تعطيله)</span>
+                      <span class="tp-only-en">Account Active (Super Admin cannot be disabled)</span>
+                    </label>
+                    <input type="hidden" asp-for="IsActive" value="true" />
+                }
+                else
+                {
+                    <input class="form-check-input" type="checkbox" asp-for="IsActive" id="isActiveSwitch" />
+                    <label class="form-check-label fw-semibold" for="isActiveSwitch">
+                      <span class="tp-only-ar">حالة الحساب (نشط / معطل)</span>
+                      <span class="tp-only-en">Account Status (Active / Disabled)</span>
+                    </label>
+                }
+              </div>
+            </div>
+
+            <!-- Roles assignment -->
+            <div class="mb-4 border-top pt-3">
+              <label class="form-label fw-bold d-block mb-2">
+                <span class="tp-only-ar">تعيين الأدوار الوظيفية</span>
+                <span class="tp-only-en">Assign Security Roles</span>
+              </label>
+              
+              @if (Model.Id == 1)
+              {
+                  <div class="alert alert-light-secondary border py-2 px-3 mb-2 rounded-3 fs-8">
+                    <i class="bi bi-info-circle me-1"></i>
+                    <span class="tp-only-ar">المسؤول العام يجب أن يحتفظ بدور <strong>مدير النظام العام (Super Administrator)</strong> بشكل دائم.</span>
+                    <span class="tp-only-en">Super Admin must always retain the <strong>Super Administrator</strong> role permanently.</span>
+                  </div>
+              }
+
+              <div class="d-flex flex-column gap-2 tp-scroll-y-200">
+                @foreach (var role in Model.AvailableRoles)
+                {
+                    var isChecked = Model.SelectedRoleIds.Contains(role.Id) || (Model.Id == 1 && role.Id == 1);
+                    var isDisabled = Model.Id == 1 && role.Id == 1;
+
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" name="SelectedRoleIds" value="@role.Id" id="role-cb-@role.Id" @(isChecked ? "checked" : "") @(isDisabled ? "disabled" : "") />
+                      <label class="form-check-label d-block" for="role-cb-@role.Id">
+                        <span class="fs-7 tp-only-ar">@role.Name</span>
+                        <span class="fs-7 tp-only-en">@role.Name_En</span>
+                      </label>
+                    </div>
+                }
+              </div>
+            </div>
+
+            <div class="d-flex gap-2">
+              <button type="submit" class="btn btn-primary w-100 py-2 rounded-3 shadow-sm">
+                <i class="bi bi-save-fill me-1"></i> 
+                <span class="tp-only-ar">حفظ الحساب</span>
+                <span class="tp-only-en">Save Account</span>
+              </button>
+              <a asp-page="/Users" asp-route-selectedId="@Model.SelectedUserId" class="btn btn-outline-secondary w-100 py-2 rounded-3">
+                <span class="tp-only-ar">إلغاء</span>
+                <span class="tp-only-en">Cancel</span>
+              </a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+@section Scripts {
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Toggle Password visibility
+      const togglePassword = document.getElementById('togglePassword');
+      const passwordInput = document.getElementById('passwordInput');
+      
+      if (togglePassword && passwordInput) {
+        togglePassword.addEventListener('click', () => {
+          const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+          passwordInput.setAttribute('type', type);
+          
+          // Toggle eye icon
+          const icon = togglePassword.querySelector('i');
+          if (type === 'text') {
+            icon.classList.remove('bi-eye');
+            icon.classList.add('bi-eye-slash');
+          } else {
+            icon.classList.remove('bi-eye-slash');
+            icon.classList.add('bi-eye');
+          }
+        });
+      }
+
+      // Live search filter for Users list
+      const userSearch = document.getElementById('userSearch');
+      const tableRows = document.querySelectorAll('.user-row');
+
+      if (userSearch) {
+        userSearch.addEventListener('input', function() {
+          const query = this.value.toLowerCase().trim();
+
+          tableRows.forEach(row => {
+            const name = row.querySelector('.search-name').textContent.toLowerCase();
+            const username = row.querySelector('.search-username').textContent.toLowerCase();
+            const email = row.querySelector('.search-email').textContent.toLowerCase();
+
+            if (name.includes(query) || username.includes(query) || email.includes(query)) {
+              row.style.setProperty('display', '', 'important');
+            } else {
+              row.style.setProperty('display', 'none', 'important');
+            }
+          });
+        });
+      }
+    });
+  </script>
+}

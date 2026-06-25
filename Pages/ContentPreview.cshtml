@@ -1,0 +1,356 @@
+@page
+@model TalaPress.Pages.ContentPreviewModel
+@{
+    ViewData["Title"] = $"معاينة: {Model.Title ?? Model.Title_En}";
+}
+
+<!-- SECONDARY HEADER -->
+<section class="tp-sub-header">
+  <div class="container-fluid px-4">
+    <div class="row align-items-center">
+      <div class="col-md-7 mb-3 mb-md-0">
+        <h1>
+          <span class="tp-only-ar">معاينة المحتوى: @Model.Title</span>
+          <span class="tp-only-en">Preview Content: @(Model.Title_En ?? Model.Title)</span>
+        </h1>
+        <p data-page-i18n="subHeaderDesc">هذه الصفحة تمثل محاكاة لشكل ظهور المحتوى للمطورين والزوار على حد سواء.</p>
+      </div>
+      <div class="col-md-5 text-md-end d-flex align-items-center justify-content-md-end gap-2">
+        <a href="/ContentEdit?id=@Model.Id" class="btn btn-sm btn-light">
+          <i class="bi bi-pencil-fill"></i> <span data-page-i18n="btnEdit">تعديل المحتوى</span>
+        </a>
+        <a asp-page="/Content" class="btn btn-sm btn-outline-light">
+          <i class="bi bi-arrow-right-short fs-6 align-middle"></i> <span data-page-i18n="btnBack">الرجوع للمحتوى</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MAIN CONTAINER -->
+<main class="container-fluid px-4 pb-5">
+  <div class="row">
+    <!-- LEFT PANEL: Content details, Summary, and Custom Fields -->
+    <div class="col-lg-8 mb-4">
+      <div class="tp-card">
+        <div class="tp-card-body p-4">
+          
+          <!-- Category Breadcrumbs and Content Type Badge -->
+          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3 pb-3 border-bottom border-light-subtle">
+            <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0 fs-8">
+                <li class="breadcrumb-item">
+                  <span class="tp-only-ar">@Model.CategoryName</span>
+                  <span class="tp-only-en">@(Model.CategoryNameEn ?? Model.CategoryName)</span>
+                </li>
+                @if (!string.IsNullOrEmpty(Model.SubCategoryName))
+                {
+                    <li class="breadcrumb-item active" aria-current="page">
+                      <span class="tp-only-ar">@Model.SubCategoryName</span>
+                      <span class="tp-only-en">@(Model.SubCategoryNameEn ?? Model.SubCategoryName)</span>
+                    </li>
+                }
+              </ol>
+            </nav>
+            <div class="d-flex align-items-center gap-2">
+              <span class="badge bg-secondary-subtle text-secondary-emphasis fs-8">
+                <span class="tp-only-ar">نوع: @Model.ContentTypeName</span>
+                <span class="tp-only-en">Type: @Model.ContentTypeNameEn</span>
+              </span>
+              <span class="badge @(Model.Status == "Published" ? "bg-success" : Model.Status == "Draft" ? "bg-warning text-dark" : "bg-info text-dark") fs-8">
+                <span class="tp-only-ar">حالة: @Model.Status</span>
+                <span class="tp-only-en">Status: @Model.Status</span>
+              </span>
+            </div>
+          </div>
+
+          <!-- Featured Image -->
+          @if (!string.IsNullOrEmpty(Model.FeaturedImage))
+          {
+              <div class="mb-4 rounded-3 overflow-hidden shadow-sm border border-light-subtle bg-light text-center" style="max-height: 400px;">
+                <img src="@Model.FeaturedImage" alt="Featured Image" class="img-fluid w-100" style="object-fit: cover; max-height: 400px;">
+              </div>
+          }
+
+          <!-- Post Title -->
+          <h2 class="fw-bold mb-3">
+            <span class="tp-only-ar">@Model.Title</span>
+            <span class="tp-only-en">@(Model.Title_En ?? Model.Title)</span>
+          </h2>
+
+          <!-- Metadata -->
+          <div class="d-flex align-items-center gap-3 text-secondary fs-8 mb-4">
+            <div><i class="bi bi-person me-1"></i> @Model.AuthorName</div>
+            <div><i class="bi bi-calendar3 me-1"></i> @Model.CreatedAt.ToString("dd/MM/yyyy")</div>
+            @if (Model.PublishDate.HasValue)
+            {
+                <div><i class="bi bi-clock me-1"></i> @Model.PublishDate.Value.ToString("dd/MM/yyyy HH:mm")</div>
+            }
+            <div><i class="bi bi-eye-fill me-1"></i> @Model.Hits</div>
+          </div>
+
+          <!-- Summary / Lead -->
+          @if (!string.IsNullOrEmpty(Model.Summary) || !string.IsNullOrEmpty(Model.Summary_En))
+          {
+              <div class="lead p-3 bg-light border-start border-primary border-4 rounded-end-3 mb-4">
+                <p class="mb-0 fs-6 fw-semibold text-secondary">
+                  <span class="tp-only-ar">@Model.Summary</span>
+                  <span class="tp-only-en">@(Model.Summary_En ?? Model.Summary)</span>
+                </p>
+              </div>
+          }
+
+          <!-- Rich Content -->
+          <div class="rich-content-area fs-6 mb-5">
+            <div class="tp-only-ar">
+              @Html.Raw(Model.Content)
+            </div>
+            <div class="tp-only-en">
+              @Html.Raw(Model.Content_En ?? Model.Content)
+            </div>
+          </div>
+
+          <!-- DYNAMIC CUSTOM FIELDS SECTION -->
+          @if (Model.ContentFieldsList.Any(f => !f.IsSystemField))
+          {
+              <div class="border-top border-light-subtle pt-4">
+                <h5 class="fw-bold mb-3 text-primary">
+                  <i class="bi bi-tags me-1"></i>
+                  <span class="tp-only-ar">الحقول المخصصة الإضافية</span>
+                  <span class="tp-only-en">Additional Custom Fields</span>
+                </h5>
+                
+                <div class="row g-3" id="preview-custom-fields-wrapper">
+                  @foreach (var field in Model.ContentFieldsList.Where(f => !f.IsSystemField))
+                  {
+                      var fieldName = field.FieldName;
+                      var labelAr = field.Label;
+                      var labelEn = field.Label_En ?? field.Label;
+                      
+                      <div class="col-md-6 custom-field-item-preview" data-fieldname="@fieldName">
+                        <div class="p-3 border border-light-subtle rounded bg-body-tertiary">
+                          <small class="text-secondary d-block fs-8 fw-semibold mb-1">
+                            <span class="tp-only-ar">@labelAr</span>
+                            <span class="tp-only-en">@labelEn</span>
+                          </small>
+                          <div class="field-value-holder fw-bold" id="val-@fieldName">
+                            <span class="text-muted fs-8">—</span>
+                          </div>
+                        </div>
+                      </div>
+                  }
+                </div>
+              </div>
+          }
+
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL: SEO metadata and Headless API Response Code box -->
+    <div class="col-lg-4">
+      
+      <!-- SEO Metadata Card -->
+      <div class="tp-card mb-4">
+        <div class="tp-card-header d-flex justify-content-between align-items-center">
+          <h5 class="mb-0">
+            <i class="bi bi-google text-warning me-2"></i>
+            <span class="tp-only-ar">البيانات التعريفية (SEO)</span>
+            <span class="tp-only-en">SEO Metadata Parameters</span>
+          </h5>
+        </div>
+        <div class="tp-card-body">
+          <ul class="list-group list-group-flush fs-8">
+            <li class="list-group-item px-0 py-2">
+              <strong class="d-block text-secondary">SEO Title:</strong>
+              <span>
+                <span class="tp-only-ar">@(string.IsNullOrEmpty(Model.SeoTitle) ? "—" : Model.SeoTitle)</span>
+                <span class="tp-only-en">@(string.IsNullOrEmpty(Model.SeoTitle_En) ? "—" : Model.SeoTitle_En)</span>
+              </span>
+            </li>
+            <li class="list-group-item px-0 py-2">
+              <strong class="d-block text-secondary">SEO Description:</strong>
+              <span>
+                <span class="tp-only-ar">@(string.IsNullOrEmpty(Model.SeoDescription) ? "—" : Model.SeoDescription)</span>
+                <span class="tp-only-en">@(string.IsNullOrEmpty(Model.SeoDescription_En) ? "—" : Model.SeoDescription_En)</span>
+              </span>
+            </li>
+            <li class="list-group-item px-0 py-2">
+              <strong class="d-block text-secondary">SEO Keywords:</strong>
+              <span>
+                <span class="tp-only-ar">@(string.IsNullOrEmpty(Model.SeoKeywords) ? "—" : Model.SeoKeywords)</span>
+                <span class="tp-only-en">@(string.IsNullOrEmpty(Model.SeoKeywords_En) ? "—" : Model.SeoKeywords_En)</span>
+              </span>
+            </li>
+            <li class="list-group-item px-0 py-2">
+              <strong class="d-block text-secondary">Canonical URL:</strong>
+              <span class="text-primary-emphasis text-break">@(string.IsNullOrEmpty(Model.CanonicalUrl) ? "—" : Model.CanonicalUrl)</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Headless API Response Card -->
+      <div class="tp-card">
+        <div class="tp-card-header d-flex justify-content-between align-items-center">
+          <h5 class="mb-0">
+            <i class="bi bi-code-slash text-success me-2"></i>
+            <span class="tp-only-ar">الاستجابة لـ Headless API</span>
+            <span class="tp-only-en">Headless API Response</span>
+          </h5>
+          <button class="btn btn-sm btn-outline-secondary btn-icon" onclick="copyAPIJson()" title="Copy API payload"><i class="bi bi-clipboard"></i></button>
+        </div>
+        <div class="tp-card-body bg-dark text-white p-3 rounded-bottom border-0">
+          <pre class="mb-0 fs-8"><code id="preview-json-api-box" style="color: #A3E635; font-family: 'Consolas', 'Courier New', monospace;">Loading API parameters...</code></pre>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</main>
+
+@section Scripts {
+  <!-- SweetAlert2 CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  
+  <script>
+    let currentLang = localStorage.getItem('tp-lang') || 'ar';
+    const customFieldsValues = @Html.Raw(Model.CustomFieldsJson);
+    let apiResponsePayload = {};
+
+    const pageTranslations = {
+      ar: {
+        subHeaderDesc: "هذه الصفحة تمثل محاكاة لشكل ظهور المحتوى للمطورين والزوار على حد سواء.",
+        btnEdit: "تعديل المحتوى",
+        btnBack: "الرجوع للمحتوى",
+        copySuccess: "تم نسخ كود الـ JSON إلى الحافظة بنجاح."
+      },
+      en: {
+        subHeaderDesc: "This page simulates content appearance dynamically loaded for visitors or developers.",
+        btnEdit: "Edit Content",
+        btnBack: "Back to Content List",
+        copySuccess: "API JSON payload copied to clipboard."
+      }
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+      applyPageTranslations(currentLang);
+      loadCustomFieldsValues(customFieldsValues);
+      fetchHeadlessJSON();
+
+      window.addEventListener('tp-lang-changed', (e) => {
+        applyPageTranslations(e.detail.lang);
+      });
+    });
+
+    function applyPageTranslations(lang) {
+      currentLang = lang;
+      
+      // Update body classes
+      document.body.classList.toggle('lang-ar', lang === 'ar');
+      document.body.classList.toggle('lang-en', lang === 'en');
+
+      // Update static page translation elements
+      const elements = document.querySelectorAll('[data-page-i18n]');
+      elements.forEach(el => {
+        const key = el.getAttribute('data-page-i18n');
+        if (pageTranslations[lang] && pageTranslations[lang][key]) {
+          el.textContent = pageTranslations[lang][key];
+        }
+      });
+    }
+
+    // Render Custom fields dynamically in HTML preview based on type
+    function loadCustomFieldsValues(values) {
+      for (const fieldName in values) {
+        const val = values[fieldName];
+        const holder = document.getElementById('val-' + fieldName);
+        if (!holder || val === null || val === undefined || val === '') continue;
+
+        const container = holder.closest('.custom-field-item-preview');
+        
+        if (typeof val === 'boolean') {
+          if (val === true) {
+            holder.innerHTML = `<span class="badge bg-success-subtle text-success border border-success-subtle fs-8 px-2"><i class="bi bi-check-circle me-1"></i>نعم / Yes</span>`;
+          } else {
+            holder.innerHTML = `<span class="badge bg-danger-subtle text-danger border border-danger-subtle fs-8 px-2"><i class="bi bi-x-circle me-1"></i>لا / No</span>`;
+          }
+        }
+        else if (Array.isArray(val)) {
+          // MultiSelect list of values
+          let badges = '';
+          val.forEach(item => {
+            badges += renderFieldDisplayValue(item);
+          });
+          holder.innerHTML = badges;
+        }
+        else if (typeof val === 'object' && Object.prototype.hasOwnProperty.call(val, 'value')) {
+          holder.innerHTML = renderFieldDisplayValue(val);
+        }
+        else if (typeof val === 'object' && val.results) {
+          const count = Array.isArray(val.results) ? val.results.length : 0;
+          holder.innerHTML = `<span class="badge bg-info-subtle text-info-emphasis border fs-8"><i class="bi bi-diagram-3 me-1"></i>Query: ${count} result(s)</span>`;
+        }
+        else if (typeof val === 'string' && val.match(/\.(jpeg|jpg|gif|png|webp)$/i)) {
+          // Image upload path
+          holder.innerHTML = `
+            <div class="mt-1">
+              <img src="${val}" alt="Attachment" class="rounded border bg-light shadow-sm" style="max-height: 100px; object-fit: contain;">
+              <small class="d-block text-secondary text-truncate mt-1 fs-9" dir="ltr">${val}</small>
+            </div>`;
+        }
+        else if (typeof val === 'string' && val.startsWith('/uploads/')) {
+          // File download attachment mockup
+          holder.innerHTML = `
+            <a href="${val}" target="_blank" class="text-decoration-none d-inline-flex align-items-center gap-1 mt-1 text-primary">
+              <i class="bi bi-file-earmark-arrow-down fs-6"></i>
+              <span class="fs-8 fw-bold">${val.split('/').pop()}</span>
+            </a>`;
+        }
+        else {
+          // Text / URL / Email / rich HTML
+          holder.innerHTML = `<div class="fs-8">${val}</div>`;
+        }
+      }
+    }
+
+    function renderFieldDisplayValue(item) {
+      if (item && typeof item === 'object' && Object.prototype.hasOwnProperty.call(item, 'value')) {
+        const label = currentLang === 'ar' ? (item.label || item.labelEn || item.value) : (item.labelEn || item.label || item.value);
+        return `<span class="badge bg-primary-subtle text-primary-emphasis border fs-8 me-1 mb-1">${label}</span><small class="d-block text-muted mt-1" dir="ltr">${item.value}</small>`;
+      }
+
+      return `<span class="badge bg-secondary text-light fs-8 me-1 mb-1">${item}</span>`;
+    }
+
+    // Call simulated JSON Handler and render to code box
+    function fetchHeadlessJSON() {
+      $.ajax({
+        url: '?id=@Model.Id&handler=JSON',
+        type: 'GET',
+        success: function(response) {
+          apiResponsePayload = response;
+          if (response.fieldsDisplay) {
+            loadCustomFieldsValues(response.fieldsDisplay);
+          }
+          document.getElementById('preview-json-api-box').textContent = JSON.stringify(response, null, 4);
+        },
+        error: function(xhr, status, error) {
+          document.getElementById('preview-json-api-box').textContent = `Failed to contact Headless API: ${error}`;
+        }
+      });
+    }
+
+    function copyAPIJson() {
+      const text = document.getElementById('preview-json-api-box').textContent;
+      navigator.clipboard.writeText(text).then(() => {
+        Swal.fire({
+          title: pageTranslations[currentLang].copySuccess,
+          icon: 'success',
+          timer: 1200,
+          showConfirmButton: false
+        });
+      });
+    }
+  </script>
+}

@@ -1,0 +1,1246 @@
+@page
+@model TalaPress.Pages.CategoriesModel
+@{
+    ViewData["Title"] = "إدارة التصنيفات";
+}
+
+@section Styles {
+    <style>
+        html[dir="rtl"] #categoryForm .form-label,
+        html[dir="rtl"] #categoryForm .form-text {
+            display: block;
+            text-align: right;
+        }
+
+        html[dir="ltr"] #categoryForm .form-label,
+        html[dir="ltr"] #categoryForm .form-text {
+            display: block;
+            text-align: left;
+        }
+
+        #categoryForm .mb-3 {
+            margin-bottom: .8rem !important;
+        }
+
+        #categoryForm .form-control,
+        #categoryForm .form-select,
+        #categoryForm .input-group-text,
+        #categoryForm .btn {
+            min-height: 42px;
+        }
+
+        #categoryForm .form-text {
+            margin-top: .3rem;
+            font-size: .78rem;
+        }
+
+        #categoryForm .tp-content-type-binding {
+            padding: .85rem;
+            border: 1px solid rgba(13, 110, 253, .18);
+            background: rgba(13, 110, 253, .045);
+            border-radius: .75rem;
+        }
+    </style>
+}
+
+
+
+<!-- SECONDARY HEADER -->
+<section class="tp-sub-header">
+    <div class="container-fluid px-4">
+        <div class="row align-items-center">
+            <div class="col-md-7 mb-3 mb-md-0">
+                <h1 data-page-i18n="categoriesTitle">إدارة التصنيفات والفئات</h1>
+                <p data-page-i18n="categoriesDesc">قم بإدارة هيكل شجرة الأقسام للمحتوى، وتعديل الفئات وإضافة فروع فرعية جديدة بشكل مرن وسهل.</p>
+            </div>
+            <div class="col-md-5 text-md-end">
+                <a asp-page="/Index" class="btn tp-btn-outline-light me-2">
+                    <i class="bi bi-house-door-fill"></i> <span data-tp-i18n="home">الرئيسية</span>
+                </a>
+                <button class="btn btn-light rounded-circle shadow-sm tp-sub-header-btn-icon" onclick="location.reload()" title="Reload Page">
+                    <i class="bi bi-arrow-clockwise text-primary fs-5"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- MAIN CONTAINER -->
+<main class="container-fluid px-4 pb-5">
+    
+    <!-- SYSTEM ALERTS -->
+    @if (!string.IsNullOrEmpty(Model.SuccessMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm rounded-3 mb-4" role="alert">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-check-circle-fill me-2 fs-5"></i>
+                <div class="fw-bold">@Model.SuccessMessage</div>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm rounded-3 mb-4" role="alert">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
+                <div class="fw-bold">@Model.ErrorMessage</div>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="row">
+        
+        <!-- COLUMN 1: Category Tree Panel -->
+        <div class="col-lg-5 mb-4">
+            <div class="tp-card h-100 mb-0">
+                <div class="tp-card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="bi bi-diagram-3 text-primary fs-5"></i>
+                        <h5 data-page-i18n="treeHeader">شجرة التصنيفات</h5>
+                        <span class="badge bg-primary rounded-pill" id="tree-count-badge">0</span>
+                    </div>
+                    <div class="d-flex gap-1">
+                        <button class="btn btn-sm btn-outline-secondary py-1 tp-font-xs" onclick="expandAll()" title="Expand All">
+                            <i class="bi bi-arrows-expand"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary py-1 tp-font-xs" onclick="collapseAll()" title="Collapse All">
+                            <i class="bi bi-arrows-collapse"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="tp-card-body">
+                    <!-- Search Input -->
+                    <div class="input-group mb-3 shadow-sm rounded-3 tp-overflow-hidden">
+                        <span class="input-group-text border-0 bg-body-tertiary"><i class="bi bi-search text-muted"></i></span>
+                        <input type="text" id="tree-search" class="form-control border-0 bg-body-tertiary" data-page-i18n="searchPlaceholder" placeholder="ابحث عن فئة..." />
+                        <button class="btn btn-outline-secondary border-0 bg-body-tertiary text-muted d-none" type="button" id="btn-clear-search" onclick="document.getElementById('tree-search').value = ''; renderTree();">
+                            <i class="bi bi-x-circle-fill"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- Add Root Category Button -->
+                    <button class="btn btn-outline-primary w-100 mb-3 py-2 border-dashed fw-bold rounded-3 d-flex align-items-center justify-content-center gap-2" onclick="setAddMode(null)">
+                        <i class="bi bi-plus-circle"></i>
+                        <span data-page-i18n="addRootBtn">إضافة فئة رئيسية جديدة</span>
+                    </button>
+                    
+                    <!-- Tree container -->
+                    <div class="tp-tree-container">
+                        <div id="tree-root">
+                            <!-- Populated dynamically via JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- COLUMN 2: Smart form Panel -->
+        <div class="col-lg-7 mb-4" id="forms-col">
+            <div class="tp-card h-100 mb-0" id="form-card">
+                <div class="tp-card-header">
+                    <h5 id="form-header-title">
+                        <i class="bi bi-plus-circle text-primary me-2"></i>
+                        <span data-page-i18n="formHeaderAdd">إضافة فئة جديدة</span>
+                    </h5>
+                    <i class="bi bi-pencil-square text-secondary"></i>
+                </div>
+                
+                <div class="tp-card-body">
+                    <form method="post" asp-page-handler="Save" id="categoryForm" class="tp-category-form">
+                        
+                        <!-- Hidden Fields -->
+                        <input type="hidden" asp-for="Id" id="form-Id" />
+                        <!-- Hidden parent state to prevent browser loss during lang toggles -->
+                        <input type="hidden" id="form-parentid-hidden" />
+                        
+                        <!-- Form Breadcrumb hierarchy -->
+                        <div id="form-breadcrumb" class="tp-form-breadcrumb d-none"></div>
+
+                        <!-- Content Type Binding -->
+                        <div class="mb-3 tp-content-type-binding">
+                            <label class="form-label fw-bold" data-page-i18n="labelContentType">ربط تصنيف المحتوى</label>
+                            <select asp-for="ContentTypeId" class="form-select" id="form-contenttypeid">
+                                <option value="" data-page-i18n="generalContentType">تصنيف عام (غير مرتبط بنوع محتوى)</option>
+                                @foreach (var type in Model.ContentTypesList)
+                                {
+                                    <option value="@type.Id" data-label-ar="@type.Name" data-label-en="@(type.Name_En ?? type.Name)">
+                                        @type.Name
+                                    </option>
+                                }
+                            </select>
+                            <div class="form-text" data-page-i18n="contentTypeHelp">التصنيفات العامة تظهر لأي نوع محتوى لا يملك تصنيفات خاصة.</div>
+                        </div>
+                        
+                        <!-- Name fields in two columns -->
+                        <div class="row mb-3">
+                            <div class="col-md-6 mb-3 mb-md-0">
+                                <label class="form-label" data-page-i18n="labelNameAr">اسم الفئة (عربي) <span class="text-danger">*</span></label>
+                                <input type="text" asp-for="Name" class="form-control" id="form-name" data-page-i18n="placeholderNameAr" placeholder="مثال: الأخبار المحلية" required />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" data-page-i18n="labelNameEn">اسم الفئة (إنجليزي)</label>
+                                <input type="text" asp-for="Name_En" class="form-control" id="form-name-en" data-page-i18n="placeholderNameEn" placeholder="Example: Local News" />
+                            </div>
+                        </div>
+                        
+                        <!-- Slug Field -->
+                        <div class="mb-3 tp-slug-wrapper">
+                            <label class="form-label" data-page-i18n="labelSlug">(Slug)</label>
+                            <div class="input-group tp-slug-input-group">
+                                <span class="input-group-text bg-body-tertiary text-muted tp-slug-prefix" dir="ltr">@($"{Request.Scheme}://{Request.Host}/category/")</span>
+                                <input type="text" asp-for="Slug" class="form-control tp-slug-input" id="form-slug" data-page-i18n="placeholderSlug" placeholder="local-news" dir="ltr" readonly="readonly" />
+                                <button class="btn btn-outline-secondary tp-slug-lock-btn" type="button" id="slug-lock-btn" title="Toggle Slug Lock"><i class="bi bi-lock-fill"></i></button>
+                            </div>
+                        </div>
+                        
+                        <!-- Parent Category Dropdown -->
+                        <div class="mb-3">
+                            <label class="form-label" data-page-i18n="labelParent">الفئة الأب</label>
+                            <select asp-for="ParentId" class="form-select" id="form-parentid">
+                                <!-- Populated dynamically to avoid circular nesting -->
+                            </select>
+                        </div>
+                        
+                        <!-- Interactive Icon Selector -->
+                        <div class="mb-3">
+                            <label class="form-label" data-page-i18n="labelIcon">أيقونة الفئة</label>
+                            <div class="input-group">
+                                <span class="input-group-text fs-5" id="form-icon-preview"><i class="bi bi-folder-fill"></i></span>
+                                <input type="text" asp-for="IconValue" class="form-control" id="form-iconvalue" placeholder="bi-folder-fill" />
+                                <button class="btn btn-outline-secondary" type="button" id="btn-toggle-icon-grid" title="Browse Icon Gallery">
+                                    <i class="bi bi-grid-3x3-gap-fill"></i>
+                                </button>
+                            </div>
+                            
+                            <!-- Icon Grid Search and Layout -->
+                            <div id="icon-grid-container" class="collapse mt-2">
+                                <div class="input-group mb-2 input-group-sm">
+                                    <span class="input-group-text bg-body-tertiary border-end-0"><i class="bi bi-search text-muted"></i></span>
+                                    <input type="text" id="icon-search-input" class="form-control form-control-sm border-start-0 bg-body-tertiary" placeholder="ابحث عن أيقونة... / Search icons..." />
+                                </div>
+                                <div class="tp-icon-selector-grid" id="icon-selector-grid">
+                                    <!-- Populated dynamically -->
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Row: SortOrder and Status Toggle -->
+                        <div class="row align-items-center mb-4">
+                            <div class="col-md-6 mb-3 mb-md-0">
+                                <label class="form-label" data-page-i18n="labelSortOrder">ترتيب العرض</label>
+                                <input type="number" asp-for="SortOrder" class="form-control" id="form-sortorder" min="0" value="0" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" data-page-i18n="labelStatus">الحالة</label>
+                                <div class="form-check form-switch mt-2">
+                                    <input class="form-check-input" type="checkbox" asp-for="IsActive" id="form-isactive" checked />
+                                    <label class="form-check-label fw-bold text-success ms-2" for="form-isactive" id="label-isactive" data-page-i18n="statusActive">نشطة ومفعلة</label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Form Action Buttons -->
+                        <div class="d-flex flex-wrap gap-2 tp-action-buttons">
+                            <!-- Submit Button -->
+                            <button type="submit" class="btn btn-primary px-4 fw-bold" id="form-save-btn">
+                                <i class="bi bi-plus-circle fs-6"></i>
+                                <span data-page-i18n="btnSaveAdd">إضافة الفئة الجديدة</span>
+                            </button>
+                            
+                            <!-- Cancel Button -->
+                            <button type="button" class="btn btn-outline-secondary px-4 d-none" id="form-cancel-btn" onclick="cancelEdit()">
+                                <i class="bi bi-x-circle fs-6"></i>
+                                <span data-page-i18n="btnCancel">إلغاء وتصفير النموذج</span>
+                            </button>
+                            
+                            <!-- Delete Button -->
+                            <button type="button" class="btn btn-danger px-4 ms-auto d-none" id="form-delete-btn">
+                                <i class="bi bi-trash fs-6"></i>
+                                <span data-page-i18n="btnDelete">حذف هذه الفئة</span>
+                            </button>
+                        </div>
+                        
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+</main>
+
+<!-- Hidden deletion form for secure ASP.NET Core page posts -->
+<form method="post" asp-page-handler="Delete" id="deleteForm" class="d-none">
+    <input type="hidden" name="id" id="delete-id-input" />
+</form>
+
+@section Scripts {
+    <script src="~/assets/js/sortable.min.js" asp-append-version="true"></script>
+    <script>
+        // Retrieve the flat category records list compiled on the server
+        const rawCategories = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.CategoryList));
+        const rawContentTypes = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.ContentTypesList));
+        
+        // Localization vocabulary
+        const pageTranslations = {
+            ar: {
+                categoriesTitle: "إدارة التصنيفات والفئات",
+                categoriesDesc: "قم بإدارة هيكل شجرة الأقسام للمحتوى، وتعديل الفئات وإضافة فروع فرعية جديدة بشكل مرن وسهل.",
+                treeHeader: "شجرة التصنيفات",
+                formHeaderAdd: "إضافة فئة جديدة",
+                formHeaderEdit: "تعديل الفئة",
+                formHeaderEditId: "رقم الفئة",
+                labelNameAr: "اسم الفئة (عربي) *",
+                placeholderNameAr: "مثال: الأخبار المحلية",
+                labelNameEn: "اسم الفئة (إنجليزي)",
+                placeholderNameEn: "Example: Local News",
+                labelSlug: "الرابط الفرعي (Slug)",
+                placeholderSlug: "local-news",
+                labelParent: "الفئة الأب",
+                rootCategory: "-- فئة رئيسية (بدون أب) --",
+                labelContentType: "ربط تصنيف المحتوى",
+                generalContentType: "تصنيف عام (غير مرتبط بنوع محتوى)",
+                contentTypeHelp: "التصنيفات العامة تظهر لأي نوع محتوى لا يملك تصنيفات خاصة.",
+                labelSortOrder: "ترتيب العرض",
+                labelStatus: "الحالة",
+                statusActive: "نشطة ومفعلة",
+                statusInactive: "معطلة وغير نشطة",
+                labelIcon: "أيقونة الفئة",
+                placeholderIcon: "اختر أو اكتب أيقونة (مثال: bi-folder)",
+                btnSaveAdd: "إضافة الفئة الجديدة",
+                btnSaveEdit: "حفظ التغييرات",
+                btnCancel: "إلغاء وتصفير النموذج",
+                btnDelete: "حذف هذه الفئة",
+                searchPlaceholder: "ابحث عن فئة...",
+                addRootBtn: "إضافة فئة رئيسية جديدة",
+                noCategories: "لا توجد فئات حالياً.",
+                confirmDelete: "هل أنت متأكد من رغبتك في حذف هذه الفئة؟",
+                validationNameAr: "اسم الفئة بالعربية مطلوب.",
+                activeBadge: "نشط",
+                inactiveBadge: "غير نشط",
+                errorSelfParent: "لا يمكن تعيين الفئة كأب لنفسها أو لأحد أبنائها.",
+                errorDeleteChildren: "لا يمكن حذف هذه الفئة لأنها تحتوي على فئات فرعية."
+            },
+            en: {
+                categoriesTitle: "Category & Taxonomy Management",
+                categoriesDesc: "Manage the content division tree structure. Edit existing categories and add new branches dynamically.",
+                treeHeader: "Category Tree Hierarchy",
+                formHeaderAdd: "Create New Category",
+                formHeaderEdit: "Edit Category",
+                formHeaderEditId: "Category ID",
+                labelNameAr: "Category Name (Arabic) *",
+                placeholderNameAr: "e.g., الأخبار المحلية",
+                labelNameEn: "Category Name (English)",
+                placeholderNameEn: "e.g., Local News",
+                labelSlug: "URL Slug",
+                placeholderSlug: "local-news",
+                labelParent: "Parent Category",
+                rootCategory: "-- Root Category (No Parent) --",
+                labelContentType: "Bind Content Category",
+                generalContentType: "General Category (not bound to a content type)",
+                contentTypeHelp: "General categories appear for content types that do not have dedicated categories.",
+                labelSortOrder: "Sort Order",
+                labelStatus: "Status",
+                statusActive: "Active & Enabled",
+                statusInactive: "Disabled & Inactive",
+                labelIcon: "Category Icon",
+                placeholderIcon: "Select or type icon (e.g., bi-folder)",
+                btnSaveAdd: "Create New Category",
+                btnSaveEdit: "Save Changes",
+                btnCancel: "Cancel & Reset Form",
+                btnDelete: "Delete Category",
+                searchPlaceholder: "Search categories...",
+                addRootBtn: "Add New Root Category",
+                noCategories: "No categories found.",
+                confirmDelete: "Are you sure you want to delete this category?",
+                validationNameAr: "Arabic Category Name is required.",
+                activeBadge: "Active",
+                inactiveBadge: "Inactive",
+                errorSelfParent: "Cannot set parent to self or one of its descendants.",
+                errorDeleteChildren: "Cannot delete this category because it contains subcategories."
+            }
+        };
+
+        // UI Preset Icons
+        const presetIcons = [
+            "bi-folder-fill", "bi-folder2", "bi-tags-fill", "bi-tag", "bi-newspaper", "bi-file-earmark-text",
+            "bi-briefcase", "bi-kanban", "bi-calendar-event", "bi-images", "bi-people", "bi-journal-richtext",
+            "bi-chat-quote", "bi-globe", "bi-gear", "bi-star-fill", "bi-heart-fill", "bi-cart-fill",
+            "bi-lightbulb", "bi-telephone", "bi-envelope", "bi-link-45deg", "bi-play-circle", "bi-info-circle",
+            "bi-shield-lock-fill", "bi-speedometer2", "bi-graph-up-arrow", "bi-layers-half", "bi-bookmark-fill", "bi-box-seam-fill"
+        ];
+
+        // Global State management
+        const formState = {
+            mode: 'add', // 'add' or 'edit'
+            id: 0,
+            nameAr: '',
+            nameEn: '',
+            slug: '',
+            parentId: null,
+            contentTypeId: null,
+            iconValue: 'bi-folder-fill',
+            sortOrder: 0,
+            isActive: true,
+            isSlugLocked: true
+        };
+
+        // Tree collapsing tracking
+        const collapsedNodes = new Set();
+        let currentLang = localStorage.getItem('tp-lang') || 'ar';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initializations
+            initLanguageSync();
+            populateIconGrid();
+            
+            // Initial render
+            document.getElementById('tree-count-badge').textContent = rawCategories.length;
+            syncStateToForm();
+            
+            // Setup form interaction listeners
+            setupFormListeners();
+            setupSearchListener();
+        });
+
+        // Setup dynamic localized page text sync
+        function initLanguageSync() {
+            // Apply initial localization
+            applyPageTranslations(currentLang);
+
+            // Listen to layout-wide changes
+            window.addEventListener('tp-lang-changed', (e) => {
+                applyPageTranslations(e.detail.lang);
+            });
+        }
+
+        function applyPageTranslations(lang) {
+            currentLang = lang;
+            
+            // Iterate elements with data-page-i18n and replace text/placeholders
+            const elements = document.querySelectorAll('[data-page-i18n]');
+            elements.forEach(el => {
+                const key = el.getAttribute('data-page-i18n');
+                if (pageTranslations[lang] && pageTranslations[lang][key]) {
+                    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                        el.setAttribute('placeholder', pageTranslations[lang][key]);
+                    } else {
+                        el.textContent = pageTranslations[lang][key];
+                    }
+                }
+            });
+            
+            // Re-render categories tree
+            const searchQuery = document.getElementById('tree-search').value.trim();
+            renderTree(searchQuery);
+            
+            // Update dropdown values
+            updateParentDropdown(formState.id > 0 ? formState.id : null);
+            document.getElementById('form-parentid').value = formState.parentId || '';
+            
+            // Adjust forms alignment
+            const formsCol = document.getElementById('forms-col');
+            if (lang === 'ar') {
+                formsCol.classList.remove('text-start');
+                formsCol.classList.add('text-end');
+            } else {
+                formsCol.classList.remove('text-end');
+                formsCol.classList.add('text-start');
+            }
+            
+            // Update switch indicator labels
+            updateSwitchLabel();
+            
+            // Force header state title rebuild
+            updateFormHeaderMode();
+        }
+
+        // Tree hierarchical compiler (client side)
+        function buildTree(list, parentId = null) {
+            return list.filter(item => {
+                if (parentId === null) {
+                    return item.ParentId === null || item.ParentId === 0;
+                }
+                return Number(item.ParentId) === Number(parentId);
+            }).map(item => ({
+                ...item,
+                children: buildTree(list, item.Id)
+            }));
+        }
+
+        // Rendering Tree nodes
+        function renderTree(query = '') {
+            const root = document.getElementById('tree-root');
+            root.innerHTML = '';
+            
+            if (rawCategories.length === 0) {
+                root.innerHTML = `<div class="text-center text-muted py-4">${pageTranslations[currentLang].noCategories}</div>`;
+                return;
+            }
+            
+            const treeData = buildTree(rawCategories);
+            
+            let html = '<ul class="tp-tree-list">';
+            treeData.forEach(node => {
+                html += renderNode(node, 0, query);
+            });
+            html += '</ul>';
+            
+            root.innerHTML = html;
+            
+            // Initialize SortableJS on all list containers
+            initSortable();
+            
+            // Toggle clear search button visibility
+            const clearBtn = document.getElementById('btn-clear-search');
+            if (query) {
+                clearBtn.classList.remove('d-none');
+            } else {
+                clearBtn.classList.add('d-none');
+            }
+        }
+
+        // Recursive rendering template
+        function renderNode(node, depth, query) {
+            const hasChildren = node.children && node.children.length > 0;
+            const isCollapsed = collapsedNodes.has(node.Id) && !query;
+            const nameText = currentLang === 'ar' ? node.Name : (node.Name_En || node.Name);
+            const isActive = node.IsActive;
+            const isEditing = Number(node.Id) === Number(formState.id);
+            const scopeText = getCategoryScopeLabel(node);
+            
+            // Filter match logic
+            if (query && !isNodeMatch(node, query)) {
+                return '';
+            }
+            
+            let html = `<li class="tp-tree-item" id="node-${node.Id}">`;
+            
+            // Node block
+            html += `
+                <div class="tp-tree-node ${isActive ? '' : 'inactive-node'} ${isEditing ? 'active-node' : ''}" 
+                     data-id="${node.Id}" 
+                     onclick="selectCategory(${node.Id})">
+                    
+                    <!-- Drag handle grip -->
+                    <span class="tp-drag-handle">
+                        <i class="bi bi-grip-vertical"></i>
+                    </span>
+                    
+                    <div class="tp-tree-node-content">
+                        <!-- Toggle collapse/expand -->
+                        ${hasChildren ? `
+                            <span class="tp-tree-toggle-btn ${isCollapsed ? 'collapsed' : ''}" 
+                                  onclick="event.stopPropagation(); toggleNode(${node.Id})">
+                                <i class="bi bi-chevron-down"></i>
+                            </span>
+                        ` : `<span class="tp-tree-indent-spacer"></span>`}
+                        
+                        <!-- Custom/Preset Icon -->
+                        <span class="tp-tree-node-icon">
+                            <i class="${node.IconValue || 'bi bi-folder-fill'}"></i>
+                        </span>
+                        
+                        <!-- Category Title -->
+                        <span class="tp-tree-node-text">${nameText}</span>
+                        <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle fs-9 tp-font-xxs">${scopeText}</span>
+                        
+                        <!-- Status Muted Indicator -->
+                        ${!isActive ? `
+                            <span class="badge bg-secondary rounded-pill fs-9 tp-font-xxs">
+                                ${pageTranslations[currentLang].inactiveBadge}
+                            </span>
+                        ` : ''}
+                    </div>
+                    
+                    <!-- Quick Row actions -->
+                    <div class="tp-tree-node-actions">
+                        <button class="tp-tree-btn" 
+                                type="button" 
+                                title="${currentLang === 'ar' ? 'إضافة فئة فرعية' : 'Add Subcategory'}" 
+                                onclick="event.stopPropagation(); setAddMode(${node.Id})">
+                            <i class="bi bi-plus-circle-dotted text-primary"></i>
+                        </button>
+                        <button class="tp-tree-btn btn-delete" 
+                                type="button" 
+                                title="${currentLang === 'ar' ? 'حذف الفئة' : 'Delete Category'}" 
+                                onclick="event.stopPropagation(); deleteCategory(${node.Id}, '${nameText.replace(/'/g, "\\'")}')">
+                            <i class="bi bi-trash text-danger"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            // Nested Children rendering (always render ul as a drop target zone even if empty)
+            html += `<ul class="tp-tree-list mt-2 ${isCollapsed ? 'd-none' : ''}">`;
+            if (hasChildren) {
+                node.children.forEach(child => {
+                    html += renderNode(child, depth + 1, query);
+                });
+            }
+            html += '</ul>';
+            
+            html += '</li>';
+            return html;
+        }
+
+        function getCategoryScopeLabel(node) {
+            if (!node.ContentTypeId) {
+                return currentLang === 'ar' ? 'عام' : 'General';
+            }
+
+            const type = rawContentTypes.find(t => Number(t.Id) === Number(node.ContentTypeId));
+            if (!type) {
+                return currentLang === 'ar' ? 'نوع محتوى' : 'Content Type';
+            }
+
+            return currentLang === 'ar' ? type.Name : (type.Name_En || type.Name);
+        }
+
+        // Check search matching recursively
+        function isNodeMatch(node, query) {
+            if (!query) return true;
+            const nameAr = (node.Name || "").toLowerCase();
+            const nameEn = (node.Name_En || "").toLowerCase();
+            const q = query.toLowerCase();
+            
+            if (nameAr.includes(q) || nameEn.includes(q)) {
+                return true;
+            }
+            
+            if (node.children && node.children.length > 0) {
+                return node.children.some(child => isNodeMatch(child, query));
+            }
+            
+            return false;
+        }
+
+        // Toggle node collapse/expand
+        function toggleNode(id) {
+            if (collapsedNodes.has(id)) {
+                collapsedNodes.delete(id);
+            } else {
+                collapsedNodes.add(id);
+            }
+            const query = document.getElementById('tree-search').value.trim();
+            renderTree(query);
+        }
+
+        // Expand all tree branches
+        function expandAll() {
+            collapsedNodes.clear();
+            const query = document.getElementById('tree-search').value.trim();
+            renderTree(query);
+        }
+
+        // Collapse all tree branches
+        function collapseAll() {
+            collapsedNodes.clear();
+            rawCategories.forEach(c => {
+                const hasChildren = rawCategories.some(child => Number(child.ParentId) === Number(c.Id));
+                if (hasChildren) {
+                    collapsedNodes.add(c.Id);
+                }
+            });
+            const query = document.getElementById('tree-search').value.trim();
+            renderTree(query);
+        }
+
+        // Select a category to Edit
+        function selectCategory(id) {
+            const cat = rawCategories.find(c => Number(c.Id) === Number(id));
+            if (!cat) return;
+            
+            formState.mode = 'edit';
+            formState.id = cat.Id;
+            formState.nameAr = cat.Name;
+            formState.nameEn = cat.Name_En || '';
+            formState.slug = cat.Slug || '';
+            formState.parentId = cat.ParentId;
+            formState.contentTypeId = cat.ContentTypeId;
+            formState.iconValue = cat.IconValue || 'bi-folder-fill';
+            formState.sortOrder = cat.SortOrder;
+            formState.isActive = cat.IsActive;
+            formState.isSlugLocked = true; // Default locked when loading edit mode
+            
+            syncStateToForm();
+            
+            // Scroll to form on small mobile screens
+            if (window.innerWidth < 992) {
+                document.getElementById('form-card').scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        // Reset form to Add Category Mode
+        function setAddMode(parentId = null) {
+            formState.mode = 'add';
+            formState.id = 0;
+            formState.nameAr = '';
+            formState.nameEn = '';
+            formState.slug = '';
+            formState.parentId = parentId;
+            const parent = parentId ? rawCategories.find(c => Number(c.Id) === Number(parentId)) : null;
+            formState.contentTypeId = parent ? parent.ContentTypeId : null;
+            formState.iconValue = 'bi-folder-fill';
+            formState.sortOrder = 0;
+            formState.isActive = true;
+            formState.isSlugLocked = true;
+            
+            syncStateToForm();
+            
+            if (window.innerWidth < 992) {
+                document.getElementById('form-card').scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        function cancelEdit() {
+            setAddMode(null);
+        }
+
+        // Sync local JavaScript state to HTML inputs
+        function syncStateToForm() {
+            document.getElementById('form-Id').value = formState.id;
+            document.getElementById('form-name').value = formState.nameAr;
+            document.getElementById('form-name-en').value = formState.nameEn;
+            document.getElementById('form-slug').value = formState.slug;
+            document.getElementById('form-iconvalue').value = formState.iconValue;
+            document.getElementById('form-sortorder').value = formState.sortOrder;
+            
+            const activeCheckbox = document.getElementById('form-isactive');
+            activeCheckbox.checked = formState.isActive;
+            updateSwitchLabel();
+            
+            // Update dropdown values dynamically (prevents circular hierarchies)
+            updateParentDropdown(formState.id > 0 ? formState.id : null);
+            document.getElementById('form-parentid').value = formState.parentId || '';
+            document.getElementById('form-parentid-hidden').value = formState.parentId || '';
+            document.getElementById('form-contenttypeid').value = formState.contentTypeId || '';
+            
+            // Update icon elements
+            updateIconPreview(formState.iconValue);
+            
+            // Update slug locks
+            const slugInput = document.getElementById('form-slug');
+            const slugLockBtn = document.getElementById('slug-lock-btn');
+            if (formState.isSlugLocked) {
+                slugInput.setAttribute('readonly', 'readonly');
+                slugLockBtn.innerHTML = '<i class="bi bi-lock-fill"></i>';
+                slugLockBtn.className = 'btn btn-outline-secondary';
+            } else {
+                slugInput.removeAttribute('readonly');
+                slugLockBtn.innerHTML = '<i class="bi bi-unlock-fill"></i>';
+                slugLockBtn.className = 'btn btn-outline-warning';
+            }
+            
+            // Highlight selected node in tree
+            document.querySelectorAll('.tp-tree-node').forEach(node => {
+                node.classList.remove('active-node');
+                if (Number(node.getAttribute('data-id')) === Number(formState.id)) {
+                    node.classList.add('active-node');
+                }
+            });
+            
+            updateFormHeaderMode();
+        }
+
+        function updateSwitchLabel() {
+            const label = document.getElementById('label-isactive');
+            const activeCheckbox = document.getElementById('form-isactive');
+            if (activeCheckbox.checked) {
+                label.textContent = pageTranslations[currentLang].statusActive;
+                label.className = 'form-check-label fw-bold text-success ms-2';
+            } else {
+                label.textContent = pageTranslations[currentLang].statusInactive;
+                label.className = 'form-check-label fw-bold text-danger ms-2';
+            }
+        }
+
+        // Manage parent dropdown listings
+        function updateParentDropdown(excludeId = null) {
+            const select = document.getElementById('form-parentid');
+            select.innerHTML = '';
+            
+            // Add root category option
+            const defOpt = document.createElement('option');
+            defOpt.value = '';
+            defOpt.textContent = pageTranslations[currentLang].rootCategory;
+            select.appendChild(defOpt);
+            
+            // Calculate child descendant IDs recursively to prevent loops
+            const forbiddenIds = new Set();
+            if (excludeId) {
+                forbiddenIds.add(Number(excludeId));
+                const addDescendants = (id) => {
+                    const children = rawCategories.filter(c => Number(c.ParentId) === Number(id));
+                    for (const child of children) {
+                        forbiddenIds.add(Number(child.Id));
+                        addDescendants(child.Id);
+                    }
+                };
+                addDescendants(excludeId);
+            }
+            
+            // Recursively construct dropdown tree options with indents
+            const selectedContentTypeId = formState.contentTypeId ? Number(formState.contentTypeId) : null;
+            const traverse = (nodes, depth = 0) => {
+                nodes.forEach(node => {
+                    if (forbiddenIds.has(Number(node.Id))) return;
+                    const nodeContentTypeId = node.ContentTypeId ? Number(node.ContentTypeId) : null;
+                    if (nodeContentTypeId !== selectedContentTypeId) return;
+                    
+                    const opt = document.createElement('option');
+                    opt.value = node.Id;
+                    
+                    // Unicode hierarchy branch drawing characters
+                    const prefix = '&nbsp;&nbsp;'.repeat(depth) + (depth > 0 ? '├─ ' : '');
+                    const nameText = currentLang === 'ar' ? node.Name : (node.Name_En || node.Name);
+                    opt.innerHTML = prefix + nameText;
+                    select.appendChild(opt);
+                    
+                    if (node.children && node.children.length > 0) {
+                        traverse(node.children, depth + 1);
+                    }
+                });
+            };
+            
+            const treeData = buildTree(rawCategories);
+            traverse(treeData);
+        }
+
+        // Refresh headers and actions buttons
+        function updateFormHeaderMode() {
+            const card = document.getElementById('form-card');
+            const headerTitle = document.getElementById('form-header-title');
+            const saveBtn = document.getElementById('form-save-btn');
+            const cancelBtn = document.getElementById('form-cancel-btn');
+            const deleteBtn = document.getElementById('form-delete-btn');
+            const breadcrumb = document.getElementById('form-breadcrumb');
+            
+            const lang = currentLang;
+            
+            if (formState.mode === 'edit') {
+                card.classList.add('smart-form-edit-mode');
+                headerTitle.innerHTML = `<i class="bi bi-pencil-square text-warning me-2"></i> <span>${pageTranslations[lang].formHeaderEdit}</span> <small class="text-muted fs-7">(${pageTranslations[lang].formHeaderEditId}: ${formState.id})</small>`;
+                
+                saveBtn.innerHTML = `<i class="bi bi-check2-circle fs-6"></i> <span>${pageTranslations[lang].btnSaveEdit}</span>`;
+                saveBtn.className = 'btn btn-warning px-4 fw-bold';
+                
+                cancelBtn.classList.remove('d-none');
+                deleteBtn.classList.remove('d-none');
+                
+                // Construct breadcrumbs path
+                let pathText = "";
+                if (formState.parentId) {
+                    const parent = rawCategories.find(c => Number(c.Id) === Number(formState.parentId));
+                    if (parent) {
+                        const parentName = lang === 'ar' ? parent.Name : (parent.Name_En || parent.Name);
+                        pathText = `${parentName} &gt; `;
+                    }
+                }
+                pathText += lang === 'ar' ? formState.nameAr : (formState.nameEn || formState.nameAr);
+                breadcrumb.innerHTML = pathText;
+                breadcrumb.classList.remove('d-none');
+            } else {
+                card.classList.remove('smart-form-edit-mode');
+                headerTitle.innerHTML = `<i class="bi bi-plus-circle text-primary me-2"></i> <span>${pageTranslations[lang].formHeaderAdd}</span>`;
+                
+                saveBtn.innerHTML = `<i class="bi bi-plus-circle fs-6"></i> <span>${pageTranslations[lang].btnSaveAdd}</span>`;
+                saveBtn.className = 'btn btn-primary px-4 fw-bold';
+                
+                if (formState.parentId) {
+                    cancelBtn.classList.remove('d-none');
+                    const parent = rawCategories.find(c => Number(c.Id) === Number(formState.parentId));
+                    const parentName = parent ? (lang === 'ar' ? parent.Name : (parent.Name_En || parent.Name)) : "";
+                    breadcrumb.innerHTML = `${parentName} &gt; <span class="text-primary">${lang === 'ar' ? 'فئة فرعية جديدة' : 'New Subcategory'}</span>`;
+                    breadcrumb.classList.remove('d-none');
+                } else {
+                    cancelBtn.classList.add('d-none');
+                    breadcrumb.classList.add('d-none');
+                }
+                
+                deleteBtn.classList.add('d-none');
+            }
+        }
+
+        // Set inputs updates
+        function setupFormListeners() {
+            document.getElementById('form-name').addEventListener('input', (e) => {
+                formState.nameAr = e.target.value;
+                if (formState.isSlugLocked && !formState.nameEn) {
+                    formState.slug = slugify(formState.nameAr);
+                    document.getElementById('form-slug').value = formState.slug;
+                }
+            });
+            
+            document.getElementById('form-name-en').addEventListener('input', (e) => {
+                formState.nameEn = e.target.value;
+                if (formState.isSlugLocked) {
+                    formState.slug = slugify(formState.nameEn ? formState.nameEn : formState.nameAr);
+                    document.getElementById('form-slug').value = formState.slug;
+                }
+            });
+            
+            document.getElementById('form-slug').addEventListener('input', (e) => {
+                formState.slug = slugify(e.target.value);
+                e.target.value = formState.slug;
+            });
+            
+            document.getElementById('slug-lock-btn').addEventListener('click', () => {
+                formState.isSlugLocked = !formState.isSlugLocked;
+                const slugInput = document.getElementById('form-slug');
+                const slugLockBtn = document.getElementById('slug-lock-btn');
+                if (formState.isSlugLocked) {
+                    slugInput.setAttribute('readonly', 'readonly');
+                    slugLockBtn.innerHTML = '<i class="bi bi-lock-fill"></i>';
+                    slugLockBtn.className = 'btn btn-outline-secondary';
+                    
+                    formState.slug = slugify(formState.nameEn ? formState.nameEn : formState.nameAr);
+                    slugInput.value = formState.slug;
+                } else {
+                    slugInput.removeAttribute('readonly');
+                    slugLockBtn.innerHTML = '<i class="bi bi-unlock-fill"></i>';
+                    slugLockBtn.className = 'btn btn-outline-warning';
+                    slugInput.focus();
+                }
+            });
+            
+            document.getElementById('form-parentid').addEventListener('change', (e) => {
+                formState.parentId = e.target.value ? Number(e.target.value) : null;
+                document.getElementById('form-parentid-hidden').value = e.target.value;
+                updateFormHeaderMode();
+            });
+
+            document.getElementById('form-contenttypeid').addEventListener('change', (e) => {
+                formState.contentTypeId = e.target.value ? Number(e.target.value) : null;
+                const parent = formState.parentId ? rawCategories.find(c => Number(c.Id) === Number(formState.parentId)) : null;
+                const parentContentTypeId = parent && parent.ContentTypeId ? Number(parent.ContentTypeId) : null;
+                const selectedContentTypeId = formState.contentTypeId ? Number(formState.contentTypeId) : null;
+                if (parent && parentContentTypeId !== selectedContentTypeId) {
+                    formState.parentId = null;
+                }
+                updateParentDropdown(formState.id > 0 ? formState.id : null);
+                document.getElementById('form-parentid').value = formState.parentId || '';
+                document.getElementById('form-parentid-hidden').value = formState.parentId || '';
+            });
+            
+            document.getElementById('form-iconvalue').addEventListener('input', (e) => {
+                formState.iconValue = e.target.value;
+                updateIconPreview(formState.iconValue);
+            });
+            
+            document.getElementById('form-sortorder').addEventListener('input', (e) => {
+                formState.sortOrder = Number(e.target.value) || 0;
+            });
+            
+            document.getElementById('form-isactive').addEventListener('change', (e) => {
+                formState.isActive = e.target.checked;
+                updateSwitchLabel();
+            });
+            
+            // Delete button post submitter
+            document.getElementById('form-delete-btn').addEventListener('click', () => {
+                deleteCategory(formState.id, currentLang === 'ar' ? formState.nameAr : (formState.nameEn || formState.nameAr));
+            });
+            
+            // Preset icons grid toggler
+            document.getElementById('btn-toggle-icon-grid').addEventListener('click', () => {
+                const container = document.getElementById('icon-grid-container');
+                const bootstrapCollapse = new bootstrap.Collapse(container, { toggle: true });
+            });
+            
+            // Form validator
+            document.getElementById('categoryForm').addEventListener('submit', (e) => {
+                const nameArInput = document.getElementById('form-name').value.trim();
+                if (!nameArInput) {
+                    e.preventDefault();
+                    alert(pageTranslations[currentLang].validationNameAr);
+                    document.getElementById('form-name').focus();
+                }
+            });
+        }
+
+        // Live Tree search filtering
+        function setupSearchListener() {
+            document.getElementById('tree-search').addEventListener('input', (e) => {
+                const query = e.target.value.trim();
+                renderTree(query);
+            });
+        }
+
+        // Render presets gallery list
+        function populateIconGrid() {
+            const grid = document.getElementById('icon-selector-grid');
+            grid.innerHTML = '';
+            
+            presetIcons.forEach(iconClass => {
+                const box = document.createElement('div');
+                box.className = 'tp-icon-select-box';
+                box.title = iconClass;
+                box.innerHTML = `<i class="bi ${iconClass}"></i>`;
+                box.addEventListener('click', () => {
+                    document.querySelectorAll('.tp-icon-select-box').forEach(b => b.classList.remove('selected'));
+                    box.classList.add('selected');
+                    
+                    formState.iconValue = iconClass;
+                    document.getElementById('form-iconvalue').value = iconClass;
+                    updateIconPreview(iconClass);
+                });
+                grid.appendChild(box);
+            });
+            
+            // Setup local search inside grid
+            document.getElementById('icon-search-input').addEventListener('input', (e) => {
+                const query = e.target.value.toLowerCase().trim();
+                document.querySelectorAll('.tp-icon-select-box').forEach(box => {
+                    const iconName = box.title.toLowerCase();
+                    if (iconName.includes(query)) {
+                        box.style.display = 'flex';
+                    } else {
+                        box.style.display = 'none';
+                    }
+                });
+            });
+        }
+
+        // Clean & update icon preview text
+        function updateIconPreview(iconClass) {
+            const preview = document.getElementById('form-icon-preview');
+            let cleanClass = iconClass.trim();
+            if (!cleanClass) {
+                cleanClass = 'bi-folder-fill';
+            }
+            if (!cleanClass.startsWith('bi-') && !cleanClass.startsWith('bi ')) {
+                cleanClass = 'bi-' + cleanClass;
+            }
+            preview.innerHTML = `<i class="bi ${cleanClass}"></i>`;
+            
+            // Mark corresponding grid icon as selected
+            document.querySelectorAll('.tp-icon-select-box').forEach(box => {
+                if (box.title === cleanClass) {
+                    box.classList.add('selected');
+                } else {
+                    box.classList.remove('selected');
+                }
+            });
+        }
+
+        // Triggers category deletion post form
+        function deleteCategory(id, name) {
+            // Check if this category has subcategories locally first
+            const hasSubcategories = rawCategories.some(c => Number(c.ParentId) === Number(id));
+            if (hasSubcategories) {
+                alert(pageTranslations[currentLang].errorDeleteChildren);
+                return;
+            }
+            
+            const confirmMsg = pageTranslations[currentLang].confirmDelete.replace('{0}', name) || `Are you sure you want to delete ${name}?`;
+            if (confirm(confirmMsg)) {
+                document.getElementById('delete-id-input').value = id;
+                document.getElementById('deleteForm').submit();
+            }
+        }
+
+        // Robust slugifier logic supporting multi-language defaults
+        function slugify(text) {
+            return text
+                .toString()
+                .toLowerCase()
+                .replace(/[^\w\s-]/g, '') // Remove special chars
+                .replace(/[\s_]+/g, '-')  // Replace spaces/underscores with dashes
+                .replace(/^-+|-+$/g, ''); // Trim leading/trailing dashes
+        }
+
+        // SortableJS Drag & Drop Initialization
+        function initSortable() {
+            const lists = document.querySelectorAll('.tp-tree-list');
+            lists.forEach(list => {
+                new Sortable(list, {
+                    group: {
+                        name: 'nested-categories',
+                        pull: true,
+                        put: true
+                    },
+                    animation: 200,
+                    fallbackOnBody: true,
+                    swapThreshold: 0.65,
+                    handle: '.tp-drag-handle', // drag only by handle
+                    ghostClass: 'tp-sortable-ghost',
+                    chosenClass: 'tp-sortable-chosen',
+                    dragClass: 'tp-sortable-drag',
+                    onStart: function (evt) {
+                        document.body.classList.add('dragging-active');
+                    },
+                    onEnd: function (evt) {
+                        document.body.classList.remove('dragging-active');
+                        saveDomOrder();
+                    }
+                });
+            });
+        }
+
+        // Parse DOM tree structure to save parentage and order
+        function saveDomOrder() {
+            const originalState = rawCategories.map(c => ({
+                Id: c.Id,
+                ParentId: c.ParentId,
+                SortOrder: c.SortOrder
+            }));
+
+            // Recursive DOM scanner
+            function scanList(ulElement, parentId = null) {
+                const liElements = ulElement.querySelectorAll(':scope > .tp-tree-item');
+                liElements.forEach((li, index) => {
+                    const id = Number(li.getAttribute('id').replace('node-', ''));
+                    const cat = rawCategories.find(c => Number(c.Id) === id);
+                    if (cat) {
+                        cat.ParentId = parentId;
+                        cat.SortOrder = index;
+                    }
+                    
+                    const childUl = li.querySelector(':scope > .tp-tree-list');
+                    if (childUl) {
+                        scanList(childUl, id);
+                    }
+                });
+            }
+
+            // Target the root list inside tree-root
+            const rootUl = document.querySelector('#tree-root > .tp-tree-list');
+            if (rootUl) {
+                scanList(rootUl, null);
+            }
+
+            // Extract changes
+            const changedItems = [];
+            rawCategories.forEach(c => {
+                const orig = originalState.find(o => Number(o.Id) === Number(c.Id));
+                if (orig && (orig.ParentId !== c.ParentId || orig.SortOrder !== c.SortOrder)) {
+                    changedItems.push({
+                        Id: c.Id,
+                        ParentId: c.ParentId,
+                        SortOrder: c.SortOrder
+                    });
+                }
+            });
+
+            // Re-render the tree with the new changes and update forms
+            const searchVal = document.getElementById('tree-search').value.trim();
+            renderTree(searchVal);
+            syncStateToForm();
+
+            // Send changed records only
+            if (changedItems.length > 0) {
+                sendReorderDataToServer(changedItems);
+            }
+        }
+
+        // Send updates using AJAX POST to the reorder handler
+        function sendReorderDataToServer(changedItems) {
+            const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+            
+            // Show saving toast loading spinner
+            showToast(currentLang === 'ar' ? 'جاري حفظ الترتيب الجديد...' : 'Saving new sort order...', 'info', true);
+
+            fetch('?handler=Reorder', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': token,
+                    'X-Request-Verification-Token': token
+                },
+                body: JSON.stringify(changedItems)
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Clear any loading toasts
+                clearLoadingToasts();
+                
+                if (data.success) {
+                    showToast(currentLang === 'ar' ? 'تم حفظ الترتيب الجديد بنجاح.' : 'Sort order updated successfully.', 'success');
+                    
+                    // Update client state and reload tree from server response!
+                    if (data.categories) {
+                        // Defensively map keys from camelCase/PascalCase to ensure compatibility
+                        const mappedCategories = data.categories.map(c => ({
+                            Id: c.Id !== undefined ? c.Id : c.id,
+                            Name: c.Name !== undefined ? c.Name : c.name,
+                            Name_En: c.Name_En !== undefined ? c.Name_En : (c.name_En !== undefined ? c.name_En : (c.nameEn !== undefined ? c.nameEn : c.name_en)),
+                            Slug: c.Slug !== undefined ? c.Slug : c.slug,
+                            ParentId: c.ParentId !== undefined ? c.ParentId : c.parentId,
+                            IconValue: c.IconValue !== undefined ? c.IconValue : c.iconValue,
+                            Image: c.Image !== undefined ? c.Image : c.image,
+                            SortOrder: c.SortOrder !== undefined ? c.SortOrder : c.sortOrder,
+                            IsActive: c.IsActive !== undefined ? c.IsActive : c.isActive,
+                            CreatedAt: c.CreatedAt !== undefined ? c.CreatedAt : c.createdAt,
+                            UpdatedAt: c.UpdatedAt !== undefined ? c.UpdatedAt : c.updatedAt
+                        }));
+
+                        rawCategories.length = 0;
+                        rawCategories.push(...mappedCategories);
+                        renderTree(document.getElementById('tree-search').value.trim());
+                        syncStateToForm();
+                    }
+                } else {
+                    showToast((currentLang === 'ar' ? 'فشل حفظ الترتيب: ' : 'Failed to save sort order: ') + data.message, 'danger');
+                }
+            })
+            .catch(err => {
+                clearLoadingToasts();
+                showToast((currentLang === 'ar' ? 'حدث خطأ في الاتصال: ' : 'Network connection error: ') + err.message, 'danger');
+            });
+        }
+
+        // Float-toast status feedback notifications system
+        function showToast(message, type = 'success', isLoading = false) {
+            const toastContainer = document.getElementById('toast-container') || createToastContainer();
+            const toast = document.createElement('div');
+            toast.className = `alert alert-${type} alert-dismissible fade show border-0 shadow-sm rounded-3 mb-2`;
+            toast.style.minWidth = '300px';
+            toast.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+            if (isLoading) {
+                toast.classList.add('tp-loading-toast');
+            }
+
+            const iconClass = type === 'info' ? 'bi-info-circle-fill text-info' : 
+                             (type === 'success' ? 'bi-check-circle-fill text-success' : 'bi-exclamation-triangle-fill text-danger');
+
+            toast.innerHTML = `
+                <div class="d-flex align-items-center">
+                    ${isLoading ? `<div class="spinner-border spinner-border-sm text-info me-2" role="status"></div>` : `<i class="bi ${iconClass} me-2 fs-5"></i>`}
+                    <div class="fw-bold">${message}</div>
+                </div>
+                ${isLoading ? '' : `<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>`}
+            `;
+            toastContainer.appendChild(toast);
+
+            if (!isLoading) {
+                setTimeout(() => {
+                    const bsAlert = new bootstrap.Alert(toast);
+                    bsAlert.close();
+                }, 4000);
+            }
+        }
+
+        function clearLoadingToasts() {
+            document.querySelectorAll('.tp-loading-toast').forEach(toast => {
+                const bsAlert = new bootstrap.Alert(toast);
+                bsAlert.close();
+            });
+        }
+
+        function createToastContainer() {
+            const container = document.createElement('div');
+            container.id = 'toast-container';
+            container.style.position = 'fixed';
+            container.style.top = '24px';
+            container.style.right = currentLang === 'ar' ? 'auto' : '24px';
+            container.style.left = currentLang === 'ar' ? '24px' : 'auto';
+            container.style.zIndex = '9999';
+            document.body.appendChild(container);
+            return container;
+        }
+    </script>
+}

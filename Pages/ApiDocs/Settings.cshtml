@@ -1,0 +1,34 @@
+@page "/api/docs/settings"
+@model TalaPress.Pages.ApiDocs.SettingsModel
+
+@await Html.PartialAsync("_ApiEndpointHeader", (
+    "GET",
+    "/api/v1/settings",
+    "إعدادات الموقع",
+    "Site Settings",
+    "إعدادات عامة للموقع: الاسم، الشعار، اللغة، SEO، روابط التواصل، وغيرها.",
+    "Public site settings: name, logo, language, SEO, social links, and more."
+))
+
+@{
+    var example = $@"curl -H ""Authorization: Pearl YOUR_KEY"" ""{Model.ApiV1BaseUrl}/settings""";
+}
+@await Html.PartialAsync("_ApiCodeBlock", ("settings-curl", example))
+
+<h3 class="h6 text-uppercase text-secondary mt-4">
+    <span class="tp-only-ar">حقول رئيسية في الاستجابة</span>
+    <span class="tp-only-en">Key Response Fields</span>
+</h3>
+<div class="table-responsive">
+    <table class="table table-striped table-bordered table-sm">
+        <thead><tr><th>Field</th><th class="tp-only-ar">الوصف</th><th class="tp-only-en">Description</th></tr></thead>
+        <tbody>
+            <tr><td><code>siteName</code> / <code>siteNameEn</code></td><td class="tp-only-ar">اسم الموقع</td><td class="tp-only-en">Site name</td></tr>
+            <tr><td><code>logo</code> / <code>favicon</code></td><td class="tp-only-ar">مسارات الصور</td><td class="tp-only-en">Image paths</td></tr>
+            <tr><td><code>defaultLanguage</code></td><td class="tp-only-ar">اللغة الافتراضية</td><td class="tp-only-en">Default language</td></tr>
+            <tr><td><code>enableRTL</code></td><td class="tp-only-ar">دعم RTL</td><td class="tp-only-en">RTL support</td></tr>
+            <tr><td><code>apiEnabled</code></td><td class="tp-only-ar">تفعيل API</td><td class="tp-only-en">API enabled flag</td></tr>
+            <tr><td><code>facebookUrl</code> …</td><td class="tp-only-ar">روابط التواصل</td><td class="tp-only-en">Social URLs</td></tr>
+        </tbody>
+    </table>
+</div>

@@ -1,0 +1,89 @@
+@page "/api/docs"
+@model TalaPress.Pages.ApiDocs.IndexModel
+@{
+    ViewData["Title"] = "Overview";
+}
+
+<div class="tp-api-docs-page-header mb-4">
+    <h1 class="display-6 fw-bold mb-2">
+        <span class="tp-only-ar">مرجع Pearl API</span>
+        <span class="tp-only-en">Pearl API Reference</span>
+    </h1>
+    <p class="lead text-secondary mb-0">
+        <span class="tp-only-ar">دليل داخلي لاستخدام Headless API في TalaPress. مسارات التوثيق منفصلة عن مسارات الـ API الفعلية ولا تؤثر على استدعاءات <code>/api/v1/*</code>.</span>
+        <span class="tp-only-en">Internal guide for TalaPress Headless API. Documentation routes are separate from live API routes and do not affect <code>/api/v1/*</code> calls.</span>
+    </p>
+</div>
+
+<div class="alert alert-info border-0">
+    <i class="bi bi-info-circle me-1"></i>
+    <span class="tp-only-ar">هذه الصفحات متاحة فقط للمستخدمين المسجّلين في لوحة TalaPress.</span>
+    <span class="tp-only-en">These pages are available only to authenticated TalaPress admin users.</span>
+</div>
+
+<h2 class="h5 mt-4">
+    <span class="tp-only-ar">Base URL</span>
+    <span class="tp-only-en">Base URL</span>
+</h2>
+<p>
+    <span class="tp-only-ar">جميع endpoints الـ API تبدأ من:</span>
+    <span class="tp-only-en">All API endpoints start from:</span>
+</p>
+@await Html.PartialAsync("_ApiCodeBlock", ("base-url", Model.ApiV1BaseUrl))
+
+<h2 class="h5 mt-4">
+    <span class="tp-only-ar">البدء السريع</span>
+    <span class="tp-only-en">Quick Start</span>
+</h2>
+<ol class="mb-4">
+    <li>
+        <span class="tp-only-ar">أنشئ Pearl Key من صفحة</span>
+        <span class="tp-only-en">Create a Pearl Key from</span>
+        <a asp-page="/ApiKeys">API Keys</a>.
+    </li>
+    <li>
+        <span class="tp-only-ar">أرسل المفتاح في كل طلب (راجع صفحة المصادقة).</span>
+        <span class="tp-only-en">Send the key with every request (see Authentication page).</span>
+    </li>
+    <li>
+        <span class="tp-only-ar">جرّب جلب المحتوى:</span>
+        <span class="tp-only-en">Try fetching content:</span>
+    </li>
+</ol>
+
+@{
+    var quickStart = $@"curl -H ""Authorization: Pearl YOUR_KEY"" ""{Model.ApiV1BaseUrl}/content?status=Published&page=1&pageSize=5""";
+}
+@await Html.PartialAsync("_ApiCodeBlock", ("quick-start", quickStart))
+
+<h2 class="h5 mt-4">
+    <span class="tp-only-ar">Endpoints المتاحة</span>
+    <span class="tp-only-en">Available Endpoints</span>
+</h2>
+<div class="table-responsive">
+    <table class="table table-striped table-bordered align-middle">
+        <thead>
+            <tr>
+                <th>Method</th>
+                <th>Path</th>
+                <th class="tp-only-ar">الوصف</th>
+                <th class="tp-only-en">Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td><span class="badge text-bg-success">GET</span></td><td><code>/content</code></td><td class="tp-only-ar">قائمة المحتوى مع فلترة</td><td class="tp-only-en">Content list with filters</td></tr>
+            <tr><td><span class="badge text-bg-success">GET</span></td><td><code>/content/{id}</code></td><td class="tp-only-ar">تفاصيل محتوى</td><td class="tp-only-en">Content details</td></tr>
+            <tr><td><span class="badge text-bg-success">GET</span></td><td><code>/content-types</code></td><td class="tp-only-ar">أنواع المحتوى</td><td class="tp-only-en">Content types</td></tr>
+            <tr><td><span class="badge text-bg-success">GET</span></td><td><code>/content-types/{id}/categories</code></td><td class="tp-only-ar">تصنيفات نوع محتوى</td><td class="tp-only-en">Categories for content type</td></tr>
+            <tr><td><span class="badge text-bg-success">GET</span></td><td><code>/categories</code></td><td class="tp-only-ar">التصنيفات</td><td class="tp-only-en">Categories</td></tr>
+            <tr><td><span class="badge text-bg-success">GET</span></td><td><code>/menus</code></td><td class="tp-only-ar">فهرس القوائم</td><td class="tp-only-en">Menus index</td></tr>
+            <tr><td><span class="badge text-bg-success">GET</span></td><td><code>/menus/{code}</code></td><td class="tp-only-ar">شجرة قائمة</td><td class="tp-only-en">Menu tree</td></tr>
+            <tr><td><span class="badge text-bg-success">GET</span></td><td><code>/settings</code></td><td class="tp-only-ar">إعدادات الموقع</td><td class="tp-only-en">Site settings</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<p class="text-secondary small mb-0">
+    <span class="tp-only-ar">مسار التوثيق: <code>/api/docs</code> — مسار الـ API: <code>/api/v1/*</code></span>
+    <span class="tp-only-en">Docs path: <code>/api/docs</code> — API path: <code>/api/v1/*</code></span>
+</p>

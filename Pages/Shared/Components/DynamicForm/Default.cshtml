@@ -1,0 +1,184 @@
+@model TalaPress.ViewComponents.DynamicFormViewModel
+
+@if (Model.Form == null || !Model.Form.IsActive)
+{
+    <!-- Form not found or inactive -->
+    return;
+}
+
+<div class="tp-dynamic-form-container" id="form-container-@Model.Form.Id">
+    
+    @if (!string.IsNullOrEmpty(Model.Form.Description))
+    {
+        <p class="form-description tp-only-ar">@Model.Form.Description</p>
+    }
+    @if (!string.IsNullOrEmpty(Model.Form.Description_En))
+    {
+        <p class="form-description tp-only-en">@Model.Form.Description_En</p>
+    }
+
+    <form id="dynamic-form-@Model.Form.Id" onsubmit="submitDynamicForm(event, @Model.Form.Id)">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="FormId" value="@Model.Form.Id" />
+
+        <div class="row g-3">
+            @foreach (var field in Model.Fields)
+            {
+                <div class="col-12 mb-3">
+                    <label class="form-label fw-bold" for="field-@field.FieldName">
+                        <span class="tp-only-ar">@field.Label</span>
+                        <span class="tp-only-en">@(field.Label_En ?? field.Label)</span>
+                        @if (field.IsRequired)
+                        {
+                            <span class="text-danger">*</span>
+                        }
+                    </label>
+
+                    @if (field.FieldType == "Text" || field.FieldType == "Email" || field.FieldType == "Number" || field.FieldType == "Phone")
+                    {
+                        var inputType = field.FieldType == "Text" ? "text" : (field.FieldType == "Email" ? "email" : (field.FieldType == "Number" ? "number" : "tel"));
+                        <input type="@inputType" class="form-control" 
+                               id="field-@field.FieldName" name="@field.FieldName" 
+                               value="@field.DefaultValue"
+                               required="@field.IsRequired" />
+                    }
+                    else if (field.FieldType == "Textarea")
+                    {
+                        <textarea class="form-control" rows="4"
+                                  id="field-@field.FieldName" name="@field.FieldName"
+                                  required="@field.IsRequired">@field.DefaultValue</textarea>
+                    }
+                    else if (field.FieldType == "Select")
+                    {
+                        <select class="form-select" id="field-@field.FieldName" name="@field.FieldName" required="@field.IsRequired">
+                            <option value="">-- اختر --</option>
+                            @foreach (var opt in field.DynamicOptionsList)
+                            {
+                                <option value="@opt.Value" selected="@(opt.Value == field.DefaultValue)">@opt.Text</option>
+                            }
+                        </select>
+                    }
+                    else if (field.FieldType == "Radio")
+                    {
+                        <div class="d-flex flex-wrap gap-3">
+                        @foreach (var opt in field.DynamicOptionsList)
+                        {
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" 
+                                       name="@field.FieldName" id="radio-@field.FieldName-@opt.Value" 
+                                       value="@opt.Value" required="@field.IsRequired"
+                                       checked="@(opt.Value == field.DefaultValue)">
+                                <label class="form-check-label" for="radio-@field.FieldName-@opt.Value">
+                                    @opt.Text
+                                </label>
+                            </div>
+                        }
+                        </div>
+                    }
+                    else if (field.FieldType == "Checkbox")
+                    {
+                        <div class="d-flex flex-wrap gap-3">
+                        @foreach (var opt in field.DynamicOptionsList)
+                        {
+                            <div class="form-check">
+                                <!-- Checkbox array support -->
+                                <input class="form-check-input" type="checkbox" 
+                                       name="@field.FieldName" id="chk-@field.FieldName-@opt.Value" 
+                                       value="@opt.Value">
+                                <label class="form-check-label" for="chk-@field.FieldName-@opt.Value">
+                                    @opt.Text
+                                </label>
+                            </div>
+                        }
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(field.HelpText) || !string.IsNullOrEmpty(field.HelpText_En))
+                    {
+                        <div class="form-text">
+                            <span class="tp-only-ar">@field.HelpText</span>
+                            <span class="tp-only-en">@(field.HelpText_En ?? field.HelpText)</span>
+                        </div>
+                    }
+                </div>
+            }
+
+            <div class="col-12 mt-4 text-end">
+                <button type="submit" class="btn btn-primary px-4 fw-bold" id="btn-submit-@Model.Form.Id">
+                    <span class="tp-only-ar">@(Model.Form.SubmitButtonText ?? "إرسال")</span>
+                    <span class="tp-only-en">@(Model.Form.SubmitButtonText_En ?? "Submit")</span>
+                    <span class="spinner-border spinner-border-sm ms-2 d-none" role="status" id="spinner-@Model.Form.Id"></span>
+                </button>
+            </div>
+        </div>
+    </form>
+
+    <div id="form-alert-@Model.Form.Id" class="alert mt-3 d-none" role="alert"></div>
+</div>
+
+<script>
+    if (typeof submitDynamicForm === 'undefined') {
+        function submitDynamicForm(event, formId) {
+            event.preventDefault();
+            var form = event.target;
+            var btn = document.getElementById('btn-submit-' + formId);
+            var spinner = document.getElementById('spinner-' + formId);
+            var alertBox = document.getElementById('form-alert-' + formId);
+            
+            // Build data
+            var formData = new FormData(form);
+            var dataObj = {};
+            formData.forEach((value, key) => {
+                if (key === '__RequestVerificationToken' || key === 'FormId') return;
+                
+                if (!dataObj[key]) {
+                    dataObj[key] = value;
+                } else {
+                    dataObj[key] += ', ' + value; // join multiple checkboxes
+                }
+            });
+
+            var payload = {
+                FormId: formId,
+                SubmittedDataJson: JSON.stringify(dataObj)
+            };
+
+            // Setup UI
+            btn.disabled = true;
+            spinner.classList.remove('d-none');
+            alertBox.classList.add('d-none');
+            
+            // Submit
+            fetch('/api/forms/submit', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': formData.get('__RequestVerificationToken')
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(response => response.json())
+            .then(result => {
+                btn.disabled = false;
+                spinner.classList.add('d-none');
+                
+                alertBox.classList.remove('d-none', 'alert-success', 'alert-danger');
+                if (result.success) {
+                    alertBox.classList.add('alert-success');
+                    alertBox.innerHTML = result.message || 'تم الإرسال بنجاح.';
+                    form.reset();
+                } else {
+                    alertBox.classList.add('alert-danger');
+                    alertBox.innerHTML = result.message || 'حدث خطأ أثناء الإرسال.';
+                }
+            })
+            .catch(error => {
+                btn.disabled = false;
+                spinner.classList.add('d-none');
+                alertBox.classList.remove('d-none', 'alert-danger', 'alert-success');
+                alertBox.classList.add('alert-danger');
+                alertBox.innerHTML = 'فشل الاتصال بالخادم. يرجى المحاولة لاحقاً.';
+            });
+        }
+    }
+</script>

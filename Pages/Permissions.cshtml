@@ -1,0 +1,328 @@
+@page
+@model PermissionsModel
+@{
+    ViewData["Title"] = "إدارة الأدوار والصلاحيات";
+}
+
+<!-- SECONDARY HEADER (BLUE BAR) -->
+<section class="tp-sub-header">
+  <div class="container-fluid px-4">
+    <div class="row align-items-center">
+      <div class="col-md-6 mb-3 mb-md-0">
+        <h1>
+          <span class="tp-only-ar">إدارة الأدوار والصلاحيات</span>
+          <span class="tp-only-en">Roles & Permissions Management</span>
+        </h1>
+        <p>
+          <span class="tp-only-ar">قم بإنشاء الأدوار الأمنية وتحديد الصلاحيات التفصيلية لكل دور للتحكم في لوحة التحكم.</span>
+          <span class="tp-only-en">Create security roles and define detailed permissions for each role to manage the control panel.</span>
+        </p>
+      </div>
+      <div class="col-md-6 text-md-end">
+        <a asp-page="/Index" class="btn tp-btn-outline-light me-2">
+          <i class="bi bi-house-door-fill"></i> 
+          <span class="tp-only-ar">الرئيسية</span>
+          <span class="tp-only-en">Dashboard</span>
+        </a>
+        <a asp-page="/Permissions" asp-route-selectedId="0" class="btn btn-light shadow-sm">
+          <i class="bi bi-plus-lg text-primary fw-bold"></i> 
+          <span class="text-primary fw-bold tp-only-ar">إضافة دور جديد</span>
+          <span class="text-primary fw-bold tp-only-en">Add New Role</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MAIN CONTAINER -->
+<main class="container-fluid px-4 pb-5">
+
+  @if (Model.SuccessMessage != null)
+  {
+      <div class="alert alert-success alert-dismissible fade show mb-4 border-0 shadow-sm" role="alert">
+          <i class="bi bi-check-circle-fill me-2"></i> @Model.SuccessMessage
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+  }
+
+  @if (Model.ErrorMessage != null)
+  {
+      <div class="alert alert-danger alert-dismissible fade show mb-4 border-0 shadow-sm" role="alert">
+          <i class="bi bi-exclamation-triangle-fill me-2"></i> @Model.ErrorMessage
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+  }
+
+  <div class="row g-4">
+    <!-- RIGHT SIDE (or Left in RTL): Roles List -->
+    <div class="col-lg-5 col-xl-4">
+      <div class="tp-card">
+        <div class="tp-card-header">
+          <h5>
+            <span class="tp-only-ar">الأدوار الأمنية المتوفرة</span>
+            <span class="tp-only-en">Available Security Roles</span>
+          </h5>
+          <span class="badge bg-secondary rounded-pill">@Model.RoleList.Count</span>
+        </div>
+        <div class="tp-card-body p-0">
+          <div class="list-group list-group-flush tp-permissions-list">
+            @foreach (var role in Model.RoleList)
+            {
+                var isActiveRole = Model.SelectedRoleId == role.Id;
+                <div class="list-group-item list-group-item-action p-3 tp-role-item @(isActiveRole ? "active bg-primary-subtle text-primary-emphasis border-start border-primary border-4" : "")">
+                    <div class="d-flex w-100 justify-content-between align-items-center" onclick="window.location.href='?selectedId=@role.Id'">
+                        <div>
+                            <div class="fw-bold fs-6">
+                                <span class="tp-only-ar">@role.Name</span>
+                                <span class="tp-only-en">@role.Name_En</span>
+                                @if (role.IsSystem)
+                                {
+                                    <span class="badge bg-info text-dark fs-8 ms-1">
+                                        <span class="tp-only-ar">نظامي</span>
+                                        <span class="tp-only-en">System</span>
+                                    </span>
+                                }
+                            </div>
+                        </div>
+                        <span class="badge @(role.IsActive ? "bg-success" : "bg-danger") rounded-pill mb-2">
+                            <span class="tp-only-ar">@(role.IsActive ? "نشط" : "معطل")</span>
+                            <span class="tp-only-en">@(role.IsActive ? "Active" : "Inactive")</span>
+                        </span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top border-light-subtle">
+                        <small class="text-secondary text-truncate me-2" onclick="window.location.href='?selectedId=@role.Id'">
+                            <span class="tp-only-ar">@(string.IsNullOrWhiteSpace(role.Description) ? "لا يوجد وصف لهذا الدور." : role.Description)</span>
+                            <span class="tp-only-en">@(string.IsNullOrWhiteSpace(role.Description_En) ? "No description for this role." : role.Description_En)</span>
+                        </small>
+                        <div>
+                            @if (!role.IsSystem)
+                            {
+                                <form method="post" asp-page-handler="DeleteRole" asp-route-id="@role.Id" onsubmit="return confirm('هل أنت متأكد من رغبتك في حذف هذا الدور؟ قد يؤدي هذا لإزالة الصلاحيات عن بعض المستخدمين.');" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-link text-danger p-0 border-0" title="حذف الدور">
+                                        <i class="bi bi-trash-fill fs-5"></i>
+                                    </button>
+                                </form>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LEFT SIDE: Role Editor Form & Permissions -->
+    <div class="col-lg-7 col-xl-8">
+      <div class="tp-card">
+        <div class="tp-card-header">
+          <h5>
+            @if (Model.Id == 0)
+            {
+                <span class="tp-only-ar">إضافة دور جديد</span>
+                <span class="tp-only-en">Add New Role</span>
+            }
+            else
+            {
+                <span class="tp-only-ar">تعديل صلاحيات الدور: @Model.Name</span>
+                <span class="tp-only-en">Edit Role Permissions: @Model.Name_En</span>
+            }
+          </h5>
+          @if (Model.Id > 0)
+          {
+              <a asp-page="/Permissions" asp-route-selectedId="0" class="btn btn-sm btn-outline-secondary">
+                  <i class="bi bi-plus-lg"></i> 
+                  <span class="tp-only-ar">إنشاء جديد</span>
+                  <span class="tp-only-en">Create New</span>
+              </a>
+          }
+        </div>
+        <div class="tp-card-body">
+          <form method="post" asp-page-handler="SaveRole">
+            <input type="hidden" asp-for="Id" />
+
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label" for="roleName">
+                  <span class="tp-only-ar">اسم الدور (بالعربية) <span class="text-danger">*</span></span>
+                  <span class="tp-only-en">Role Name (Arabic) <span class="text-danger">*</span></span>
+                </label>
+                @if (Model.Id > 0 && Model.RoleList.Any(r => r.Id == Model.Id && r.IsSystem))
+                {
+                    <input type="text" class="form-control" asp-for="Name" readonly id="roleName" />
+                    <small class="text-muted">
+                      <span class="tp-only-ar">أدوار النظام الأساسية لا يمكن تعديل أسمائها.</span>
+                      <span class="tp-only-en">System roles cannot have their names modified.</span>
+                    </small>
+                }
+                else
+                {
+                    <input type="text" class="form-control" asp-for="Name" required id="roleName" />
+                }
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label" for="roleNameEn">
+                  <span class="tp-only-ar">اسم الدور (بالإنجليزية) <span class="text-danger">*</span></span>
+                  <span class="tp-only-en">Role Name (English) <span class="text-danger">*</span></span>
+                </label>
+                @if (Model.Id > 0 && Model.RoleList.Any(r => r.Id == Model.Id && r.IsSystem))
+                {
+                    <input type="text" class="form-control" asp-for="Name_En" readonly id="roleNameEn" />
+                }
+                else
+                {
+                    <input type="text" class="form-control" asp-for="Name_En" required id="roleNameEn" />
+                }
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label" for="roleDesc">
+                  <span class="tp-only-ar">الوصف بالعربية</span>
+                  <span class="tp-only-en">Description (Arabic)</span>
+                </label>
+                <textarea class="form-control" asp-for="Description" rows="2" id="roleDesc"></textarea>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label" for="roleDescEn">
+                  <span class="tp-only-ar">الوصف بالإنجليزية</span>
+                  <span class="tp-only-en">Description (English)</span>
+                </label>
+                <textarea class="form-control" asp-for="Description_En" rows="2" id="roleDescEn"></textarea>
+              </div>
+            </div>
+
+            <!-- Permission Matrix -->
+            <div class="mt-4">
+              <h5 class="border-bottom pb-2 mb-3">
+                <i class="bi bi-shield-lock-fill text-primary"></i> 
+                <span class="tp-only-ar">مصفوفة الصلاحيات الممنوحة</span>
+                <span class="tp-only-en">Granted Permissions Matrix</span>
+              </h5>
+
+              @if (Model.Id == 1)
+              {
+                  <div class="alert alert-warning border-0 shadow-sm d-flex align-items-center mb-4">
+                      <i class="bi bi-info-circle-fill fs-4 me-3"></i>
+                      <div>
+                          <span class="tp-only-ar"><strong>تنبيه خاص:</strong> يمتلك مدير النظام العام (Super Administrator) كافة الصلاحيات بشكل تلقائي ولا يمكن تعديل صلاحياته لضمان عدم تعطل النظام.</span>
+                          <span class="tp-only-en"><strong>Special Notice:</strong> The Super Administrator automatically possesses all permissions, and they cannot be modified to ensure system integrity.</span>
+                      </div>
+                  </div>
+              }
+
+              <div class="row g-3">
+                @foreach (var moduleGroup in Model.GroupedPermissions)
+                {
+                    var moduleName = moduleGroup.Key;
+                    var permissions = moduleGroup.Value;
+                    var translatedModuleName = Model.GetFriendlyModuleName(moduleName);
+
+                    <div class="col-md-6 col-xxl-4">
+                      <div class="card h-100 border border-light-subtle shadow-sm rounded-3 overflow-hidden">
+                        <div class="card-header bg-body-tertiary px-3 py-2 d-flex justify-content-between align-items-center border-bottom border-light-subtle">
+                          <span class="fw-bold fs-7 text-secondary">@Html.Raw(translatedModuleName)</span>
+                          @if (Model.Id != 1)
+                          {
+                              <div class="form-check form-switch mb-0">
+                                <input class="form-check-input select-all-toggle" type="checkbox" id="toggle-@moduleName" data-target="@moduleName" />
+                                <label class="form-check-label fs-8 text-muted" for="toggle-@moduleName">
+                                  <span class="tp-only-ar">تحديد الكل</span>
+                                  <span class="tp-only-en">Select All</span>
+                                </label>
+                              </div>
+                          }
+                        </div>
+                        <div class="card-body p-3">
+                          <div class="d-flex flex-column gap-2">
+                            @foreach (var perm in permissions)
+                            {
+                                var isChecked = Model.Id == 1 || Model.SelectedRolePermissionIds.Contains(perm.Id);
+                                <div class="form-check">
+                                  <input class="form-check-input perm-checkbox-@moduleName" 
+                                         type="checkbox" 
+                                         name="SelectedPermissionIds" 
+                                         value="@perm.Id" 
+                                         id="perm-@perm.Id" 
+                                         @(isChecked ? "checked" : "")
+                                         @(Model.Id == 1 ? "disabled" : "") />
+                                  <label class="form-check-label d-block" for="perm-@perm.Id">
+                                    <span class="fw-semibold fs-7 d-block">
+                                      <span class="tp-only-ar">@perm.Name</span>
+                                      <span class="tp-only-en">@perm.Name_En</span>
+                                    </span>
+                                    <small class="text-muted fs-8">
+                                      <span class="tp-only-ar">@perm.Description</span>
+                                      <span class="tp-only-en">@perm.Description_En</span>
+                                    </small>
+                                  </label>
+                                </div>
+                            }
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                }
+              </div>
+            </div>
+
+            <!-- Submit Buttons -->
+            <div class="mt-4 pt-3 border-top d-flex gap-2">
+              <button type="submit" class="btn btn-primary px-4 py-2 rounded-3 shadow-sm">
+                <i class="bi bi-save-fill me-1"></i> 
+                <span class="tp-only-ar">حفظ التغييرات</span>
+                <span class="tp-only-en">Save Changes</span>
+              </button>
+              <a asp-page="/Permissions" asp-route-selectedId="@Model.SelectedRoleId" class="btn btn-outline-secondary px-4 py-2 rounded-3">
+                <span class="tp-only-ar">إلغاء التغييرات</span>
+                <span class="tp-only-en">Cancel Changes</span>
+              </a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+@section Scripts {
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Manage select-all switch logic for permission groups
+      const selectAllToggles = document.querySelectorAll('.select-all-toggle');
+      
+      selectAllToggles.forEach(toggle => {
+        const module = toggle.getAttribute('data-target');
+        const checkboxes = document.querySelectorAll(`.perm-checkbox-${module}`);
+        
+        // Initial state sync
+        updateToggleState(toggle, checkboxes);
+
+        // When toggled
+        toggle.addEventListener('change', () => {
+          checkboxes.forEach(cb => {
+            if (!cb.disabled) {
+              cb.checked = toggle.checked;
+            }
+          });
+        });
+
+        // When sub-checkbox changed, sync back to select-all toggle
+        checkboxes.forEach(cb => {
+          cb.addEventListener('change', () => {
+            updateToggleState(toggle, checkboxes);
+          });
+        });
+      });
+
+      function updateToggleState(toggle, checkboxes) {
+        const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+        const noneChecked = Array.from(checkboxes).every(cb => !cb.checked);
+        
+        toggle.checked = allChecked;
+        toggle.indeterminate = (!allChecked && !noneChecked);
+      }
+    });
+  </script>
+}

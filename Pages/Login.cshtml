@@ -1,0 +1,251 @@
+@page
+@model LoginModel
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" data-bs-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TalaPress - تسجيل الدخول</title>
+  
+  <!-- Bootstrap 5 CSS -->
+  <link id="bootstrap-style" rel="stylesheet" href="~/assets/css/bootstrap.rtl.min.css" asp-append-version="true">
+  
+  <!-- Bootstrap Icons CSS -->
+  <link rel="stylesheet" href="~/assets/css/bootstrap-icons.min.css" asp-append-version="true">
+  
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="~/assets/css/custom.css" asp-append-version="true">
+</head>
+<body class="tp-login-body">
+
+  <!-- Floating Settings Toolbar -->
+  <div class="tp-login-toolbar">
+    <button class="tp-theme-toggle" title="Toggle Theme">
+      <i class="bi bi-sun"></i>
+    </button>
+    <div class="tp-login-toolbar-divider"></div>
+    <a href="#" class="tp-lang-toggle">
+      <span class="tp-lang-toggle-text font-semibold fs-7">English</span>
+    </a>
+  </div>
+
+  <div class="tp-login-container">
+    
+    <!-- LEFT PANEL: Image + Quote -->
+    <div class="tp-login-left">
+      <div>
+        <h3 class="fw-bold mb-0">TalaPress</h3>
+        <p class="fs-7 opacity-75">نظام النشر الذكي والمحتوى الرقمي</p>
+      </div>
+      
+      <div>
+        <div class="d-flex align-items-center gap-3 mb-3">
+          <div class="bg-white bg-opacity-20 rounded-3 d-flex align-items-center justify-content-center tp-login-feature-icon-wrapper">
+            <i class="bi bi-diagram-3-fill fs-3 text-white" id="feature-icon"></i>
+          </div>
+          <div>
+            <h5 class="fw-bold mb-0" id="feature-title">سير العمل الذكي</h5>
+            <span class="badge bg-white bg-opacity-25 text-white fs-8" id="feature-badge">مخطط BPMN 2.0</span>
+          </div>
+        </div>
+        <p class="fs-6 lh-base mb-4 tp-login-feature-desc-wrapper" id="feature-desc">
+          قم بتخطيط وتعديل مسارات النشر والمراجعة لصحفيتك بشكل مرئي وتفاعلي كامل عبر نموذج BPMN 2.0 المدمج.
+        </p>
+        
+        <!-- Slider Pagination Indicator -->
+        <div class="tp-slider-dots">
+          <div class="tp-slider-dot active" onclick="switchFeature(0)"></div>
+          <div class="tp-slider-dot" onclick="switchFeature(1)"></div>
+          <div class="tp-slider-dot" onclick="switchFeature(2)"></div>
+        </div>
+      </div>
+      
+      <div class="fs-8 opacity-50">
+        © 2026 TalaPress. جميع الحقوق محفوظة.
+      </div>
+    </div>
+    
+    <!-- RIGHT PANEL: Login Form -->
+    <div class="tp-login-right">
+      <h3 class="fw-bold mb-1" data-tp-i18n="loginWelcome">مرحباً بك مجدداً!</h3>
+      <p class="text-secondary fs-7 mb-4" data-tp-i18n="loginSubtitle">سجل الدخول للمتابعة إلى TalaPress</p>
+      
+      @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+      {
+          <div class="alert alert-danger fs-7 py-2 px-3 mb-3 border-0 rounded-3 d-flex align-items-center gap-2">
+              <i class="bi bi-exclamation-triangle-fill"></i>
+              <span>@Model.ErrorMessage</span>
+          </div>
+      }
+
+      <form method="post">
+        <!-- Input Username/Email -->
+        <div class="mb-3">
+          <label asp-for="UsernameOrEmail" class="form-label fw-bold fs-7" data-tp-i18n="usernameLabel">اسم المستخدم أو البريد الإلكتروني</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-person"></i></span>
+            <input type="text" class="form-control" asp-for="UsernameOrEmail" data-tp-i18n="usernamePlaceholder" placeholder="أدخل اسم المستخدم أو البريد" required>
+          </div>
+        </div>
+        
+        <!-- Input Password -->
+        <div class="mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <label asp-for="Password" class="form-label fw-bold fs-7 mb-0" data-tp-i18n="passwordLabel">كلمة المرور</label>
+            <a href="#" class="fs-8 text-decoration-none" data-tp-i18n="forgotPassword">هل نسيت كلمة المرور؟</a>
+          </div>
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-lock"></i></span>
+            <input type="password" class="form-control" asp-for="Password" id="passwordInput" data-tp-i18n="passwordPlaceholder" placeholder="أدخل كلمة المرور" required>
+            <button class="btn btn-outline-secondary" type="button" id="togglePasswordBtn">
+              <i class="bi bi-eye"></i>
+            </button>
+          </div>
+        </div>
+        
+        <!-- Remember Me Checkbox -->
+        <div class="mb-4 form-check">
+          <input type="checkbox" class="form-check-input" id="rememberMe">
+          <label class="form-check-label fs-7 fw-semibold" for="rememberMe" data-tp-i18n="rememberMeLabel">تذكرني على هذا الجهاز</label>
+        </div>
+        
+        <!-- Submit Button -->
+        <button type="submit" class="btn btn-primary w-100 py-2.5 fw-bold mb-4" data-tp-i18n="signInBtn">تسجيل الدخول</button>
+        
+        <!-- Footer Register Link -->
+        <div class="text-center">
+          <span class="text-secondary fs-7" data-tp-i18n="noAccountText">ليس لديك حساب؟</span>
+          <a href="#" class="fs-7 text-decoration-none fw-bold" data-tp-i18n="signupText">إنشاء حساب جديد</a>
+        </div>
+      </form>
+    </div>
+    
+  </div>
+
+  <!-- Bootstrap Bundle JS -->
+  <script src="~/assets/js/bootstrap.bundle.min.js" asp-append-version="true"></script>
+  
+  <!-- Main Controller JS -->
+  <script src="~/assets/js/main.js" asp-append-version="true"></script>
+
+  <!-- Login page local logic -->
+  <script>
+    // Password toggle visibility
+    const passwordInput = document.getElementById('passwordInput');
+    const togglePasswordBtn = document.getElementById('togglePasswordBtn');
+    
+    togglePasswordBtn.addEventListener('click', () => {
+      const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+      passwordInput.setAttribute('type', type);
+      
+      const icon = togglePasswordBtn.querySelector('i');
+      if (type === 'text') {
+        icon.className = 'bi bi-eye-slash';
+      } else {
+        icon.className = 'bi bi-eye';
+      }
+    });
+
+    // Platform features list (multilingual support)
+    const features = {
+      ar: [
+        {
+          title: "سير العمل الذكي",
+          badge: "مخطط BPMN 2.0",
+          desc: "قم بتخطيط وتعديل مسارات النشر والمراجعة لصحفيتك بشكل مرئي وتفاعلي كامل عبر نموذج BPMN 2.0 المدمج.",
+          icon: "bi-diagram-3-fill"
+        },
+        {
+          title: "تحليلات وتقارير متقدمة",
+          badge: "مخططات ApexCharts",
+          desc: "تتبع الزيارات، ومعدلات القراءة اليومية، وتوزيع المقالات حسب الأقسام برسوم بيانية تفاعلية دقيقة وسريعة الاستجابة.",
+          icon: "bi-bar-chart-line-fill"
+        },
+        {
+          title: "إدارة القوالب والمظهر",
+          badge: "تخصيص كامل",
+          desc: "إدارة وتخصيص قوالب العرض ومظاهر النشر بسهولة تامة لتتناسب مع الهوية البصرية لصحيفة TalaPress.",
+          icon: "bi-palette-fill"
+        }
+      ],
+      en: [
+        {
+          title: "Smart Workflows",
+          badge: "BPMN 2.0 Modeler",
+          desc: "Plan and edit your newspaper's publishing and review workflows visually with the built-in interactive BPMN 2.0 modeller.",
+          icon: "bi-diagram-3-fill"
+        },
+        {
+          title: "Advanced Analytics",
+          badge: "ApexCharts Reports",
+          desc: "Track visits, daily reading rates, and article distribution by section with precise, responsive interactive charts.",
+          icon: "bi-bar-chart-line-fill"
+        },
+        {
+          title: "Template Management",
+          badge: "Fully Customizable",
+          desc: "Manage and customize presentation templates and publishing themes easily to match the visual identity of TalaPress.",
+          icon: "bi-palette-fill"
+        }
+      ]
+    };
+
+    let activeFeatureIndex = 0;
+
+    function switchFeature(index) {
+      const lang = document.documentElement.getAttribute('lang') || 'ar';
+      const featureList = features[lang] || features.ar;
+      
+      activeFeatureIndex = index;
+      
+      // Update text and icon with transition fade
+      const fIcon = document.getElementById('feature-icon');
+      const fTitle = document.getElementById('feature-title');
+      const fBadge = document.getElementById('feature-badge');
+      const fDesc = document.getElementById('feature-desc');
+      
+      fIcon.style.opacity = 0;
+      fTitle.style.opacity = 0;
+      fBadge.style.opacity = 0;
+      fDesc.style.opacity = 0;
+      
+      setTimeout(() => {
+        // Update class list for the icon
+        fIcon.className = `bi ${featureList[index].icon} fs-3 text-white`;
+        fTitle.textContent = featureList[index].title;
+        fBadge.textContent = featureList[index].badge;
+        fDesc.textContent = featureList[index].desc;
+        
+        fIcon.style.opacity = 1;
+        fTitle.style.opacity = 1;
+        fBadge.style.opacity = 1;
+        fDesc.style.opacity = 1;
+      }, 200);
+
+      // Update dots
+      const dots = document.querySelectorAll('.tp-slider-dot');
+      dots.forEach((dot, idx) => {
+        if (idx === index) {
+          dot.classList.add('active');
+        } else {
+          dot.classList.remove('active');
+        }
+      });
+    }
+
+    // Auto rotate features every 6 seconds
+    setInterval(() => {
+      let nextIndex = (activeFeatureIndex + 1) % 3;
+      switchFeature(nextIndex);
+    }, 6000);
+
+    // Listen for language toggles to translate the feature content
+    window.addEventListener('tp-lang-changed', () => {
+      switchFeature(activeFeatureIndex);
+    });
+  </script>
+</body>
+</html>
