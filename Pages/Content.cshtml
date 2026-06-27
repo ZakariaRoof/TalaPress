@@ -5,10 +5,12 @@
 }
 
 @section Styles {
-  <!-- DataTables Bootstrap 5 CSS -->
-  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
-  <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css">
-  <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.bootstrap5.min.css">
+  <!-- DataTables Bootstrap 5 CSS (local) -->
+  <link rel="stylesheet" href="~/lib/datatables/css/dataTables.bootstrap5.min.css" asp-append-version="true">
+  <link rel="stylesheet" href="~/lib/datatables/css/responsive.bootstrap5.min.css" asp-append-version="true">
+  <link rel="stylesheet" href="~/lib/datatables/css/buttons.bootstrap5.min.css" asp-append-version="true">
+  <link rel="stylesheet" href="~/assets/css/fontawesome-all.min.css" asp-append-version="true">
+  <link rel="stylesheet" href="~/assets/css/fontawesome-pro-local.css" asp-append-version="true">
 
   <style>
     .tp-preview-modal .modal-content {
@@ -369,7 +371,7 @@
 <div class="modal fade" id="addContentModal" tabindex="-1" aria-labelledby="addContentModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content shadow-lg rounded-3 border-0">
-      <div class="modal-header bg-primary text-white">
+      <div class="modal-header">
         <h5 class="modal-title fw-bold" id="addContentModalLabel">
           <i class="bi bi-journal-plus me-2"></i>
           <span data-page-i18n="modalAddTitle">إنشاء محتوى جديد - اختر نوع المحتوى للبدء</span>
@@ -392,7 +394,7 @@
                   <div class="col-md-6 col-lg-4 mb-2">
                     <div class="card h-100 tp-cursor-pointer border border-light-subtle shadow-sm hover-shadow transition-all" onclick="window.location.href='/ContentEdit?contentTypeId=@type.Id'">
                       <div class="card-body text-center p-4">
-                        <div class="avatar-placeholder rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 60px; height: 60px; font-size: 24px;">
+                        <div class="avatar-placeholder rounded-circle tp-content-type-icon d-flex align-items-center justify-content-center mx-auto mb-3">
                           <i class="@(type.IconValue ?? "bi bi-journal-text")"></i>
                         </div>
                         <h6 class="fw-bold mb-1">
@@ -498,26 +500,20 @@
 </form>
 
 @section Scripts {
-  <!-- jQuery and DataTables Bundle CDN -->
-  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
-  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-  <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
-  <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
-  <script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
-
-  <!-- DataTables Buttons & Export Plugins -->
-  <script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
-  <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.bootstrap5.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-  <script src="~/js/arabic-reshaper.js"></script>
-  <script src="~/js/Amiri-normal.js"></script>
-  <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
-  <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"></script>
-  
-  <!-- SweetAlert2 CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <!-- DataTables bundle (local; jQuery loaded in _Layout) -->
+  <script src="~/lib/datatables/js/jquery.dataTables.min.js" asp-append-version="true"></script>
+  <script src="~/lib/datatables/js/dataTables.bootstrap5.min.js" asp-append-version="true"></script>
+  <script src="~/lib/datatables/js/dataTables.responsive.min.js" asp-append-version="true"></script>
+  <script src="~/lib/datatables/js/responsive.bootstrap5.min.js" asp-append-version="true"></script>
+  <script src="~/lib/datatables/js/dataTables.buttons.min.js" asp-append-version="true"></script>
+  <script src="~/lib/datatables/js/buttons.bootstrap5.min.js" asp-append-version="true"></script>
+  <script src="~/lib/jszip/jszip.min.js" asp-append-version="true"></script>
+  <script src="~/lib/jspdf/jspdf.umd.min.js" asp-append-version="true"></script>
+  <script src="~/lib/jspdf/jspdf.plugin.autotable.min.js" asp-append-version="true"></script>
+  <script src="~/js/arabic-reshaper.js" asp-append-version="true"></script>
+  <script src="~/js/Amiri-normal.js" asp-append-version="true"></script>
+  <script src="~/lib/datatables/js/buttons.html5.min.js" asp-append-version="true"></script>
+  <script src="~/lib/datatables/js/buttons.print.min.js" asp-append-version="true"></script>
   
   <script>
     let contentTable = null;
@@ -1426,6 +1422,26 @@
       `).join('');
     }
 
+    function renderCardListIconMarkup(icon) {
+      if (!icon) return '<i class="fas fa-circle"></i>';
+      const val = String(icon).trim();
+      if (/^bi[\s-]/i.test(val)) {
+        let cls = val.startsWith('bi ') ? val.slice(3).trim() : val;
+        if (!cls.startsWith('bi-')) cls = 'bi-' + cls.replace(/^-/, '');
+        return `<i class="bi ${escapeHtml(cls)}"></i>`;
+      }
+      if (/^(fa-solid|fa-regular|fa-brands|fa-light|fa-thin|fa-duotone)\s+fa-/i.test(val)) {
+        const parts = val.split(/\s+/);
+        const map = { 'fa-solid': 'fas', 'fa-regular': 'far', 'fa-brands': 'fab', 'fa-light': 'fal', 'fa-thin': 'fat', 'fa-duotone': 'fad' };
+        return `<i class="${map[parts[0].toLowerCase()] || 'fas'} ${escapeHtml(parts[1].toLowerCase())}"></i>`;
+      }
+      if (/^(fas|far|fab|fal|fat|fad)\s+fa-/i.test(val)) {
+        return `<i class="${escapeHtml(val.toLowerCase())}"></i>`;
+      }
+      if (/^fa-/.test(val)) return `<i class="fas ${escapeHtml(val.toLowerCase())}"></i>`;
+      return `<i class="fas fa-${escapeHtml(val.replace(/^-/, '').toLowerCase())}"></i>`;
+    }
+
     function renderPreviewValue(value) {
       if (value && typeof value === 'object' && !Array.isArray(value) && value.results) {
         const count = Array.isArray(value.results) ? value.results.length : 0;
@@ -1434,6 +1450,51 @@
       if (value && typeof value === 'object' && !Array.isArray(value) && Object.prototype.hasOwnProperty.call(value, 'value')) {
         const label = currentLang === 'ar' ? (value.label || value.labelEn || value.value) : (value.labelEn || value.label || value.value);
         return `<span class="badge bg-primary-subtle text-primary-emphasis border px-2 py-1">${escapeHtml(label)}</span><small class="d-block text-muted mt-1" dir="ltr">${escapeHtml(value.value)}</small>`;
+      }
+      if (value && typeof value === 'object' && Array.isArray(value.items)) {
+        const sectionTitle = currentLang === 'ar'
+          ? (value.sectionTitle || value.sectionTitleEn || '')
+          : (value.sectionTitleEn || value.sectionTitle || '');
+        const sectionSubtitle = currentLang === 'ar'
+          ? (value.sectionSubtitle || value.sectionSubtitleEn || '')
+          : (value.sectionSubtitleEn || value.sectionSubtitle || '');
+        const sectionSummary = currentLang === 'ar'
+          ? (value.sectionSummary || value.sectionSummaryEn || '')
+          : (value.sectionSummaryEn || value.sectionSummary || '');
+        let cardsHtml = '';
+        value.items.forEach((item, idx) => {
+          const title = currentLang === 'ar'
+            ? (item.title || item.titleEn || `Card ${idx + 1}`)
+            : (item.titleEn || item.title || `Card ${idx + 1}`);
+          const subtitle = currentLang === 'ar'
+            ? (item.subtitle || item.subtitleEn || '')
+            : (item.subtitleEn || item.subtitle || '');
+          const desc = currentLang === 'ar'
+            ? (item.description || item.descriptionEn || '')
+            : (item.descriptionEn || item.description || '');
+          const useImage = item.mediaType === 'image' || (!!item.image && item.mediaType !== 'icon');
+          const iconHtml = renderCardListIconMarkup(item.icon);
+          const mediaHtml = useImage && item.image
+            ? `<img src="${escapeAttribute(item.image)}" alt="" class="rounded border mt-1" style="max-height:48px;object-fit:contain;">`
+            : `<span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-primary-subtle text-primary border mt-1" style="width:36px;height:36px;">${iconHtml}</span>`;
+          cardsHtml += `
+            <div class="border rounded-3 p-2 mb-2 bg-body-tertiary ${item.featured ? 'border-warning' : ''}">
+              <div class="d-flex align-items-start gap-2">
+                ${mediaHtml}
+                <div class="flex-grow-1">
+                  <div class="fw-bold fs-8">${escapeHtml(title)}${item.featured ? ' <span class="badge bg-warning text-dark fs-9">Featured</span>' : ''}</div>
+                  ${subtitle ? `<div class="text-primary fs-9">${escapeHtml(subtitle)}</div>` : ''}
+                  ${desc ? `<div class="text-muted fs-9">${escapeHtml(desc)}</div>` : ''}
+                  ${item.link ? `<div class="fs-9 text-primary" dir="ltr">${escapeHtml(item.link)}</div>` : ''}
+                </div>
+              </div>
+            </div>`;
+        });
+        return `
+          ${sectionTitle ? `<div class="fw-bold mb-1">${escapeHtml(sectionTitle)}</div>` : ''}
+          ${sectionSubtitle ? `<div class="text-primary fs-9 mb-1">${escapeHtml(sectionSubtitle)}</div>` : ''}
+          ${sectionSummary ? `<div class="text-muted fs-9 mb-2">${escapeHtml(sectionSummary)}</div>` : ''}
+          ${cardsHtml || `<span class="text-muted fs-8">${currentLang === 'ar' ? 'لا توجد بطاقات' : 'No cards'}</span>`}`;
       }
       if (Array.isArray(value)) {
         return value.map(v => renderPreviewValue(v)).join('');

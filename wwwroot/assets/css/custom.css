@@ -83,18 +83,24 @@
   --tp-text-muted: #9ca3af;
   --tp-border-color: #e5e7eb;
   --tp-form-border-color: #94a3b8;
-  --tp-form-border-focus: #0284c7;
-  --tp-primary: #0284c7;
-  --tp-primary-rgb: 2, 132, 199;
-  --tp-secondary: #0ea5e9;
-  --tp-accent: #6366f1;
+  --tp-form-border-focus: #cfdd28;
+  --tp-primary: #cfdd28;
+  --tp-primary-rgb: 207, 221, 40;
+  --tp-primary-contrast: #4d4f5f;
+  --tp-secondary: #b8c424;
+  --tp-accent: #4d4f5f;
   --tp-card-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
   --tp-top-nav-bg: #f1f1f1de;
   --tp-top-nav-text: #334155;
   --tp-top-nav-hover: #e2e8f0;
-  --tp-top-nav-active: #0284c7;
-  --tp-sub-nav-bg: #0284c7;
+  --tp-top-nav-active: #cfdd28;
+  --tp-sub-nav-bg: #484d6a;
+  --tp-sub-nav-bg-end: #525253;
   --tp-sub-nav-text: #ffffff;
+  --bs-primary: #cfdd28;
+  --bs-primary-rgb: 207, 221, 40;
+  --bs-link-color: #4d4f5f;
+  --bs-link-hover-color: #3a3c3e;
 }
 
 [data-bs-theme="dark"] {
@@ -106,18 +112,24 @@
   --tp-text-muted: #6b7280;
   --tp-border-color: #374151;
   --tp-form-border-color: #64748b;
-  --tp-form-border-focus: #38bdf8;
-  --tp-primary: #38bdf8;
-  --tp-primary-rgb: 56, 189, 248;
-  --tp-secondary: #0ea5e9;
-  --tp-accent: #818cf8;
+  --tp-form-border-focus: #cfdd28;
+  --tp-primary: #cfdd28;
+  --tp-primary-rgb: 207, 221, 40;
+  --tp-primary-contrast: #4d4f5f;
+  --tp-secondary: #b8c424;
+  --tp-accent: #4d4f5f;
   --tp-card-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.3);
   --tp-top-nav-bg: #f1f1f1de;
   --tp-top-nav-text: #1e293b;
   --tp-top-nav-hover: #e2e8f0;
-  --tp-top-nav-active: #0284c7;
-  --tp-sub-nav-bg: #0f172a;
+  --tp-top-nav-active: #cfdd28;
+  --tp-sub-nav-bg: #484d6a;
+  --tp-sub-nav-bg-end: #525253;
   --tp-sub-nav-text: #ffffff;
+  --bs-primary: #cfdd28;
+  --bs-primary-rgb: 207, 221, 40;
+  --bs-link-color: #cfdd28;
+  --bs-link-hover-color: #e5ef6a;
 }
 
 /* Global Styles */
@@ -154,6 +166,33 @@ body {
   color: #94a3b8;
 }
 
+.btn-primary {
+  --bs-btn-color: #4d4f5f;
+  --bs-btn-bg: #cfdd28;
+  --bs-btn-border-color: #cfdd28;
+  --bs-btn-hover-color: #4d4f5f;
+  --bs-btn-hover-bg: #b8c424;
+  --bs-btn-hover-border-color: #b8c424;
+  --bs-btn-focus-shadow-rgb: 207, 221, 40;
+  --bs-btn-active-color: #4d4f5f;
+  --bs-btn-active-bg: #a8b420;
+  --bs-btn-active-border-color: #a8b420;
+  --bs-btn-disabled-color: #4d4f5f;
+  --bs-btn-disabled-bg: #cfdd28;
+  --bs-btn-disabled-border-color: #cfdd28;
+}
+
+.nav-pills .nav-link.active,
+.nav-pills .show > .nav-link {
+  background-color: var(--tp-primary);
+  color: var(--tp-primary-contrast);
+}
+
+.form-check-input:checked {
+  background-color: var(--tp-primary);
+  border-color: var(--tp-primary);
+}
+
 /* Top Navigation Bar */
 .tp-top-nav {
   background-color: var(--tp-top-nav-bg);
@@ -163,7 +202,7 @@ body {
 }
 
 .tp-brand-logo {
-  color: #0284c7 !important; /* Blue brand color */
+  color: #4d4f5f !important;
   font-weight: 800 !important;
   transition: color 0.2s ease;
 }
@@ -212,22 +251,23 @@ body {
 
 .tp-nav-item:hover {
   background-color: var(--tp-top-nav-hover);
-  color: var(--tp-top-nav-active);
+  color: #4d4f5f;
 }
 
 .tp-nav-item:hover i {
   transform: translateY(-2px);
+  color: #cfdd28;
 }
 
 .tp-nav-item.active {
-  border-bottom-color: var(--tp-top-nav-active);
-  color: var(--tp-top-nav-active);
+  border-bottom-color: #cfdd28;
+  color: #4d4f5f;
   background-color: rgba(var(--tp-primary-rgb), 0.05);
 }
 
-/* Secondary header (Blue Bar) */
+/* Secondary header */
 .tp-sub-header {
-  background: linear-gradient(135deg, var(--tp-sub-nav-bg), #0369a1);
+  background: linear-gradient(135deg, #484d6a, #525253);
   color: var(--tp-sub-nav-text);
   padding: 18px 0;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
@@ -247,6 +287,26 @@ body {
   opacity: 0.8;
 }
 
+/* Add content modal — dark header & icons */
+#addContentModal .modal-header {
+  background: linear-gradient(135deg, #484d6a, #525253);
+  color: #ffffff;
+  border-bottom: none;
+}
+
+#addContentModal .tp-content-type-icon {
+  width: 60px;
+  height: 60px;
+  font-size: 24px;
+  background-color: rgba(72, 77, 106, 0.12);
+  color: #484d6a;
+}
+
+#addContentModal .card:hover .tp-content-type-icon {
+  background-color: rgba(72, 77, 106, 0.2);
+  color: #3a3d52;
+}
+
 .tp-btn-outline-light {
   border: 1px solid rgba(255, 255, 255, 0.4);
   color: #ffffff;
@@ -256,7 +316,7 @@ body {
 
 .tp-btn-outline-light:hover {
   background-color: #ffffff;
-  color: var(--tp-primary);
+  color: var(--tp-primary-contrast);
   border-color: #ffffff;
 }
 
@@ -320,14 +380,14 @@ body {
 
 .tp-shortcut-btn:hover {
   background-color: var(--tp-primary);
-  color: #ffffff;
+  color: var(--tp-primary-contrast);
   border-color: var(--tp-primary);
   transform: translateY(-3px);
   box-shadow: 0 4px 12px rgba(var(--tp-primary-rgb), 0.25);
 }
 
 .tp-shortcut-btn:hover i {
-  color: #ffffff;
+  color: var(--tp-primary-contrast);
 }
 
 /* Lists and list items */
@@ -489,8 +549,8 @@ body {
 }
 
 .tp-mobile-nav-item:hover, .tp-mobile-nav-item.active {
-  background-color: var(--tp-top-nav-hover);
-  color: #ffffff;
+  background-color: rgba(var(--tp-primary-rgb), 0.08);
+  color: #4d4f5f;
 }
 
 .tp-mobile-nav-item.active {
@@ -618,8 +678,8 @@ body {
 }
 
 .tp-toolbar-btn:hover {
-  background-color: var(--tp-top-nav-hover);
-  color: #ffffff !important;
+  background-color: rgba(var(--tp-primary-rgb), 0.12);
+  color: #4d4f5f !important;
 }
 
 .tp-toolbar-btn .badge {
@@ -774,8 +834,15 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, rgba(2, 132, 199, 0.85) 0%, rgba(79, 70, 229, 0.85) 100%);
+  background: linear-gradient(135deg, #484d6a, #525253);
+  opacity: 0.92;
   z-index: 1;
+}
+
+.tp-login-brand-logo {
+  max-height: 56px;
+  width: auto;
+  display: block;
 }
 
 .tp-login-left > * {
@@ -1130,10 +1197,10 @@ body {
 }
 
 .tp-tree-btn:hover {
-    background-color: var(--tp-primary);
-    color: #ffffff;
-    border-color: var(--tp-primary);
-    transform: scale(1.08);
+  background-color: var(--tp-primary);
+  color: var(--tp-primary-contrast);
+  border-color: var(--tp-primary);
+  transform: scale(1.08);
 }
 
 .tp-tree-btn.btn-delete:hover {
@@ -1214,7 +1281,7 @@ body {
 .tp-icon-select-box.selected {
     border-color: var(--tp-primary);
     background-color: var(--tp-primary);
-    color: #ffffff;
+    color: var(--tp-primary-contrast);
     box-shadow: 0 0 10px rgba(var(--tp-primary-rgb), 0.3);
 }
 

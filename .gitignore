@@ -26,9 +26,11 @@ secrets.json
 ## IIS publish output
 publish/talapress.online/
 publish/talapress.online.zip
+publish/app_offline.htm
+*.zip
 
 ## Node (if used for assets)
 node_modules/
 
-## Uploads (optional — uncomment if uploads should not be in git)
-# wwwroot/uploads/
+## Uploads (user media — keep out of git)
+wwwroot/uploads/

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Data.SqlClient;
 using System.Text.Json;
+using TalaPress.Infrastructure;
 
 namespace TalaPress.Pages
 {
@@ -51,6 +52,7 @@ namespace TalaPress.Pages
             string? connectionString = _configuration.GetConnectionString("DefaultConnection");
             if (string.IsNullOrEmpty(connectionString)) return Page();
 
+            await FormsSchemaHelper.EnsureAsync(connectionString);
             await LoadFormsAsync(connectionString);
 
             if (SelectedFormId.HasValue && SelectedFormId.Value > 0)

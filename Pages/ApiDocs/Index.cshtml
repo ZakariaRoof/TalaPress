@@ -46,15 +46,20 @@
         <span class="tp-only-en">Send the key with every request (see Authentication page).</span>
     </li>
     <li>
-        <span class="tp-only-ar">جرّب جلب المحتوى:</span>
-        <span class="tp-only-en">Try fetching content:</span>
+        <span class="tp-only-ar">جرّب جلب المحتوى (أحدث 5 عناصر):</span>
+        <span class="tp-only-en">Try fetching content (latest 5 items):</span>
     </li>
 </ol>
 
 @{
-    var quickStart = $@"curl -H ""Authorization: Pearl YOUR_KEY"" ""{Model.ApiV1BaseUrl}/content?status=Published&page=1&pageSize=5""";
+    var quickStart = $@"curl -H ""Authorization: Pearl YOUR_KEY"" ""{Model.ApiV1BaseUrl}/content?status=Published&top=5&orderBy=publishDate&orderDir=desc""";
 }
 @await Html.PartialAsync("_ApiCodeBlock", ("quick-start", quickStart))
+
+<div class="alert alert-secondary border-0 small mt-3">
+    <span class="tp-only-ar"><strong>top</strong> = حد أقصى للنتائج. بدون <code>top</code> وبدون <code>page</code>/<code>pageSize</code> → يرجع كل المحتوى المطابق. راجع صفحة المحتوى.</span>
+    <span class="tp-only-en"><strong>top</strong> = max rows. Without <code>top</code> and without <code>page</code>/<code>pageSize</code> → returns all matching content. See Content page.</span>
+</div>
 
 <h2 class="h5 mt-4">
     <span class="tp-only-ar">Endpoints المتاحة</span>
@@ -78,6 +83,9 @@
             <tr><td><span class="badge text-bg-success">GET</span></td><td><code>/categories</code></td><td class="tp-only-ar">التصنيفات</td><td class="tp-only-en">Categories</td></tr>
             <tr><td><span class="badge text-bg-success">GET</span></td><td><code>/menus</code></td><td class="tp-only-ar">فهرس القوائم</td><td class="tp-only-en">Menus index</td></tr>
             <tr><td><span class="badge text-bg-success">GET</span></td><td><code>/menus/{code}</code></td><td class="tp-only-ar">شجرة قائمة</td><td class="tp-only-en">Menu tree</td></tr>
+            <tr><td><span class="badge text-bg-success">GET</span></td><td><code>/forms</code></td><td class="tp-only-ar">قائمة النماذج</td><td class="tp-only-en">Forms list</td></tr>
+            <tr><td><span class="badge text-bg-success">GET</span></td><td><code>/forms/{id}</code></td><td class="tp-only-ar">مخطط نموذج</td><td class="tp-only-en">Form schema</td></tr>
+            <tr><td><span class="badge text-bg-primary">POST</span></td><td><code>/forms/{id}/submit</code></td><td class="tp-only-ar">إرسال رد نموذج</td><td class="tp-only-en">Submit form</td></tr>
             <tr><td><span class="badge text-bg-success">GET</span></td><td><code>/settings</code></td><td class="tp-only-ar">إعدادات الموقع</td><td class="tp-only-en">Site settings</td></tr>
         </tbody>
     </table>

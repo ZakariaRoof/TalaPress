@@ -1,0 +1,133 @@
+@using System.Text.Json
+@using TalaPress.Models
+@model (TalaPress.Pages.CustomFieldDto Field, TalaPress.Pages.ContentEditModel PageModel, bool IsNested)
+@{
+    var cardListField = Model.Field;
+    var editModel = Model.PageModel;
+    var isNested = Model.IsNested;
+
+    var clFieldName = cardListField.FieldName;
+    var clLabelAr = cardListField.Label;
+    var clLabelEn = cardListField.Label_En ?? cardListField.Label;
+    var clHelpAr = cardListField.HelpText ?? string.Empty;
+    var clHelpEn = cardListField.HelpText_En ?? cardListField.HelpText ?? string.Empty;
+    var clRequired = cardListField.IsRequired;
+    var clInputName = $"custom_{clFieldName}";
+    var cardListValue = editModel.GetCustomFieldCardList(clFieldName);
+    var cardListJson = JsonSerializer.Serialize(cardListValue);
+    var cardListItemCount = CardListFieldParser.CountMeaningfulItems(cardListValue);
+    var hasItems = cardListItemCount > 0;
+    var clCollapseId = $"cardListCollapse-{clFieldName}";
+    var clHeadingId = $"cardListHeading-{clFieldName}";
+}
+
+<div class="cardlist-field-wrapper @(isNested ? "mb-2" : "")" data-fieldname="@clFieldName" id="cardlist-wrapper-@clFieldName">
+  <div class="cardlist-empty-state border border-info-subtle rounded-4 p-3 bg-info-subtle bg-opacity-10 @(hasItems ? "d-none" : "")"
+       id="cardlist-empty-@clFieldName">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+      <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-collection text-info-emphasis"></i>
+        <span class="fw-bold tp-only-ar">@clLabelAr</span>
+        <span class="fw-bold tp-only-en">@clLabelEn</span>
+        @if (clRequired)
+        {
+          <span class="text-danger">*</span>
+        }
+      </div>
+      <button type="button" class="btn btn-outline-info btn-sm rounded-pill px-3"
+              onclick="cardListStartAdding('@clFieldName')">
+        <i class="bi bi-plus-circle me-1"></i>
+        <span class="tp-only-ar">إضافة بطاقة</span>
+        <span class="tp-only-en">Add Card</span>
+      </button>
+    </div>
+    @if (!string.IsNullOrWhiteSpace(clHelpAr) || !string.IsNullOrWhiteSpace(clHelpEn))
+    {
+      <div class="form-text fs-8 text-muted mt-2 mb-0">
+        <i class="bi bi-info-circle me-1"></i>
+        <span class="tp-only-ar">@clHelpAr</span>
+        <span class="tp-only-en">@clHelpEn</span>
+      </div>
+    }
+  </div>
+
+  <div class="cardlist-panel @(hasItems ? "" : "d-none")" id="cardlist-panel-@clFieldName">
+    <div class="accordion-item border border-info-subtle rounded-4 overflow-hidden shadow-sm @(isNested ? "" : "mb-0")">
+      <h2 class="accordion-header" id="@clHeadingId">
+        <button class="accordion-button collapsed fw-bold bg-info-subtle text-info-emphasis" type="button"
+                data-bs-toggle="collapse" data-bs-target="#@clCollapseId"
+                aria-expanded="false" aria-controls="@clCollapseId">
+          <i class="bi bi-collection me-2"></i>
+          <span class="tp-only-ar">@clLabelAr</span>
+          <span class="tp-only-en">@clLabelEn</span>
+          @if (clRequired)
+          {
+            <span class="text-danger ms-1">*</span>
+          }
+          <span class="badge bg-info text-light ms-2 cardlist-count-badge" id="cardlist-count-@clFieldName">@cardListItemCount</span>
+        </button>
+      </h2>
+      <div id="@clCollapseId" class="accordion-collapse collapse" aria-labelledby="@clHeadingId">
+        <div class="accordion-body bg-body p-4">
+          @if (!string.IsNullOrWhiteSpace(clHelpAr) || !string.IsNullOrWhiteSpace(clHelpEn))
+          {
+            <div class="form-text fs-8 text-muted mb-3">
+              <i class="bi bi-info-circle me-1"></i>
+              <span class="tp-only-ar">@clHelpAr</span>
+              <span class="tp-only-en">@clHelpEn</span>
+            </div>
+          }
+
+          <div class="tp-cardlist-editor" data-fieldname="@clFieldName" id="cardlist-editor-@clFieldName">
+            <input type="hidden" name="@clInputName" id="cardlist-json-@clFieldName" value="@cardListJson" />
+
+            <div class="border rounded-3 p-3 bg-body-tertiary mb-3 cardlist-lang-scope">
+              <div class="fw-bold mb-2">
+                <span class="tp-only-ar">إعدادات القسم</span>
+                <span class="tp-only-en">Section Settings</span>
+              </div>
+              <ul class="nav nav-tabs cardlist-lang-tabs mb-2">
+                <li class="nav-item">
+                  <button type="button" class="nav-link active" data-lang="ar">العربية</button>
+                </li>
+                <li class="nav-item">
+                  <button type="button" class="nav-link" data-lang="en">English</button>
+                </li>
+              </ul>
+              <div class="cardlist-lang-panel" data-lang="ar">
+                <label class="form-label fs-8 mb-1">عنوان القسم</label>
+                <input type="text" class="form-control form-control-sm cardlist-section-title mb-2" value="@cardListValue.SectionTitle" />
+                <label class="form-label fs-8 mb-1">العنوان الفرعي للقسم</label>
+                <input type="text" class="form-control form-control-sm cardlist-section-subtitle mb-2" value="@cardListValue.SectionSubtitle" />
+                <label class="form-label fs-8 mb-1">ملخص القسم</label>
+                <textarea class="form-control form-control-sm cardlist-section-summary" rows="2">@cardListValue.SectionSummary</textarea>
+              </div>
+              <div class="cardlist-lang-panel d-none" data-lang="en">
+                <label class="form-label fs-8 mb-1">Section Title</label>
+                <input type="text" class="form-control form-control-sm cardlist-section-title-en mb-2" value="@cardListValue.SectionTitleEn" dir="ltr" />
+                <label class="form-label fs-8 mb-1">Section Subtitle</label>
+                <input type="text" class="form-control form-control-sm cardlist-section-subtitle-en mb-2" value="@cardListValue.SectionSubtitleEn" dir="ltr" />
+                <label class="form-label fs-8 mb-1">Section Summary</label>
+                <textarea class="form-control form-control-sm cardlist-section-summary-en" rows="2" dir="ltr">@cardListValue.SectionSummaryEn</textarea>
+              </div>
+            </div>
+
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <div class="fw-bold">
+                <span class="tp-only-ar">عناصر البطاقات</span>
+                <span class="tp-only-en">Card Items</span>
+              </div>
+              <button type="button" class="btn btn-sm btn-outline-primary" onclick="cardListAddItem('@clFieldName', true)">
+                <i class="bi bi-plus-lg"></i>
+                <span class="tp-only-ar">إضافة بطاقة</span>
+                <span class="tp-only-en">Add Card</span>
+              </button>
+            </div>
+
+            <div class="cardlist-items-container d-flex flex-column gap-2" id="cardlist-items-@clFieldName"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -6,48 +6,124 @@
     "/api/v1/content",
     "قائمة المحتوى",
     "List Content",
-    "جلب محتوى منشور أو مفلتر مع pagination وترتيب وحقول مخصصة.",
-    "Fetch filtered content with pagination, sorting, and custom fields."
+    "جلب محتوى منشور أو مفلتر مع ترتيب (orderBy) وحد أقصى (top) أو pagination.",
+    "Fetch filtered content with orderBy, top limit, pagination, and custom fields."
 ))
+
+<div class="alert alert-warning border-0 mb-4">
+    <i class="bi bi-exclamation-triangle me-1"></i>
+    <span class="tp-only-ar">استخدم <code>/api/v1/content</code> — وليس <code>/Content</code>. صفحة لوحة التحكم تتطلب Cookie login وترجع HTML.</span>
+    <span class="tp-only-en">Use <code>/api/v1/content</code> — not <code>/Content</code>. The admin page requires cookie login and returns HTML.</span>
+</div>
+
+<h3 class="h6 text-uppercase text-secondary">
+    <span class="tp-only-ar">أنماط جلب النتائج</span>
+    <span class="tp-only-en">Result Fetch Modes</span>
+</h3>
+<div class="table-responsive mb-4">
+    <table class="table table-bordered table-sm align-middle">
+        <thead>
+            <tr>
+                <th class="tp-only-ar">الطلب</th>
+                <th class="tp-only-en">Request</th>
+                <th class="tp-only-ar">السلوك</th>
+                <th class="tp-only-en">Behavior</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>?top=10&orderBy=publishDate</code></td>
+                <td class="tp-only-ar">أول 10 عناصر مرتبة</td>
+                <td class="tp-only-en">First 10 items, sorted</td>
+            </tr>
+            <tr>
+                <td><code>?contentTypeId=2</code> (no top, no page)</td>
+                <td class="tp-only-ar">كل المحتوى المطابق</td>
+                <td class="tp-only-en">All matching rows</td>
+            </tr>
+            <tr>
+                <td><code>?page=1&pageSize=20</code></td>
+                <td class="tp-only-ar">Pagination كلاسيكي (20/صفحة)</td>
+                <td class="tp-only-en">Classic pagination (20/page)</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
 
 <h3 class="h6 text-uppercase text-secondary">Query Parameters</h3>
 <div class="table-responsive mb-4">
     <table class="table table-striped table-bordered table-sm align-middle">
         <thead><tr><th>Name</th><th>Type</th><th>Default</th><th class="tp-only-ar">الوصف</th><th class="tp-only-en">Description</th></tr></thead>
         <tbody>
-            <tr><td><code>page</code></td><td>int</td><td>1</td><td class="tp-only-ar">رقم الصفحة</td><td class="tp-only-en">Page number</td></tr>
-            <tr><td><code>pageSize</code></td><td>int</td><td>20</td><td class="tp-only-ar">1–100 عنصر</td><td class="tp-only-en">1–100 items</td></tr>
+            <tr><td><code>top</code></td><td>int</td><td>—</td><td class="tp-only-ar">حد أقصى 1–10000؛ يتجاهل page</td><td class="tp-only-en">Max rows 1–10000; ignores page</td></tr>
+            <tr><td><code>orderBy</code></td><td>string</td><td>publishDate</td><td class="tp-only-ar">عمود الترتيب (يفضّل على sortBy)</td><td class="tp-only-en">Sort column (preferred over sortBy)</td></tr>
+            <tr><td><code>orderDir</code></td><td>string</td><td>desc</td><td class="tp-only-ar">asc / desc</td><td class="tp-only-en">asc / desc</td></tr>
+            <tr><td><code>sortBy</code></td><td>string</td><td>publishDate</td><td class="tp-only-ar">alias لـ orderBy</td><td class="tp-only-en">Alias for orderBy</td></tr>
+            <tr><td><code>sortDir</code></td><td>string</td><td>desc</td><td class="tp-only-ar">alias لـ orderDir</td><td class="tp-only-en">Alias for orderDir</td></tr>
+            <tr><td><code>page</code></td><td>int</td><td>1</td><td class="tp-only-ar">رقم الصفحة (مع pageSize)</td><td class="tp-only-en">Page number (with pageSize)</td></tr>
+            <tr><td><code>pageSize</code></td><td>int</td><td>20</td><td class="tp-only-ar">1–100 عنصر/صفحة</td><td class="tp-only-en">1–100 items per page</td></tr>
             <tr><td><code>q</code> / <code>search</code></td><td>string</td><td>—</td><td class="tp-only-ar">بحث نصي</td><td class="tp-only-en">Free-text search</td></tr>
             <tr><td><code>contentTypeId</code></td><td>long</td><td>—</td><td class="tp-only-ar">فلترة بنوع المحتوى</td><td class="tp-only-en">Filter by content type ID</td></tr>
             <tr><td><code>contentType</code></td><td>string</td><td>—</td><td class="tp-only-ar">اسم النوع (عربي/EN)</td><td class="tp-only-en">Type name (AR/EN)</td></tr>
             <tr><td><code>categoryId</code></td><td>long</td><td>—</td><td class="tp-only-ar">تصنيف رئيسي</td><td class="tp-only-en">Main category</td></tr>
             <tr><td><code>subCategoryId</code></td><td>long</td><td>—</td><td class="tp-only-ar">تصنيف فرعي</td><td class="tp-only-en">Sub-category</td></tr>
-            <tr><td><code>status</code></td><td>string</td><td>Published</td><td class="tp-only-ar">Published / All / …</td><td class="tp-only-en">Published / All / …</td></tr>
+            <tr><td><code>status</code></td><td>string</td><td>Published</td><td class="tp-only-ar">Published / Draft / All</td><td class="tp-only-en">Published / Draft / All</td></tr>
             <tr><td><code>slug</code></td><td>string</td><td>—</td><td class="tp-only-ar">Slug محدد</td><td class="tp-only-en">Exact slug</td></tr>
             <tr><td><code>authorId</code></td><td>long</td><td>—</td><td class="tp-only-ar">معرّف الكاتب</td><td class="tp-only-en">Author user ID</td></tr>
             <tr><td><code>publishDateFrom</code> / <code>To</code></td><td>datetime</td><td>—</td><td class="tp-only-ar">نطاق تاريخ النشر</td><td class="tp-only-en">Publish date range</td></tr>
             <tr><td><code>createdFrom</code> / <code>To</code></td><td>datetime</td><td>—</td><td class="tp-only-ar">نطاق تاريخ الإنشاء</td><td class="tp-only-en">Created date range</td></tr>
             <tr><td><code>hasFeaturedImage</code></td><td>bool</td><td>—</td><td class="tp-only-ar">وجود صورة بارزة</td><td class="tp-only-en">Has featured image</td></tr>
-            <tr><td><code>sortBy</code></td><td>string</td><td>publishDate</td><td class="tp-only-ar">publishDate, createdAt, title, hits</td><td class="tp-only-en">publishDate, createdAt, title, hits</td></tr>
-            <tr><td><code>sortDir</code></td><td>string</td><td>desc</td><td class="tp-only-ar">asc / desc</td><td class="tp-only-en">asc / desc</td></tr>
+            <tr><td><code>field.{Name}</code></td><td>string</td><td>—</td><td class="tp-only-ar">فلتر حقل مخصص</td><td class="tp-only-en">Custom field filter</td></tr>
         </tbody>
     </table>
 </div>
 
+<h3 class="h6 text-uppercase text-secondary">
+    <span class="tp-only-ar">قيم orderBy المسموحة</span>
+    <span class="tp-only-en">Allowed orderBy Values</span>
+</h3>
+<p class="text-secondary small">
+    <code>id</code>, <code>title</code>, <code>slug</code>, <code>status</code>, <code>contentType</code>,
+    <code>category</code>, <code>subCategory</code>, <code>createdAt</code>, <code>updatedAt</code>,
+    <code>publishDate</code>, <code>hits</code>
+</p>
+
+<h3 class="h6 text-uppercase text-secondary mt-4">cURL Examples</h3>
 @{
-    var listExample = $@"curl -H ""Authorization: Pearl YOUR_KEY"" ""{Model.ApiV1BaseUrl}/content?contentType=News&status=Published&page=1&pageSize=10""";
+    var topExample = $@"curl -H ""Authorization: Pearl YOUR_KEY"" ""{Model.ApiV1BaseUrl}/content?contentTypeId=2&top=5&orderBy=publishDate&orderDir=desc""";
+    var allExample = $@"curl -H ""Authorization: Pearl YOUR_KEY"" ""{Model.ApiV1BaseUrl}/content?contentTypeId=2&orderBy=publishDate&orderDir=desc""";
+    var pageExample = $@"curl -H ""Authorization: Pearl YOUR_KEY"" ""{Model.ApiV1BaseUrl}/content?contentType=News&status=Published&page=1&pageSize=10&orderBy=publishDate""";
 }
-@await Html.PartialAsync("_ApiCodeBlock", ("content-list-curl", listExample))
+<p class="small text-secondary tp-only-ar">أحدث 5 أحداث:</p>
+<p class="small text-secondary tp-only-en">Latest 5 events:</p>
+@await Html.PartialAsync("_ApiCodeBlock", ("content-top-curl", topExample))
+
+<p class="small text-secondary tp-only-ar">كل الأحداث (نوع 2):</p>
+<p class="small text-secondary tp-only-en">All events (type 2):</p>
+@await Html.PartialAsync("_ApiCodeBlock", ("content-all-curl", allExample))
+
+<p class="small text-secondary tp-only-ar">Pagination:</p>
+<p class="small text-secondary tp-only-en">Pagination:</p>
+@await Html.PartialAsync("_ApiCodeBlock", ("content-page-curl", pageExample))
 
 <h3 class="h6 text-uppercase text-secondary mt-4">
     <span class="tp-only-ar">مثال استجابة</span>
     <span class="tp-only-en">Sample Response</span>
 </h3>
 @await Html.PartialAsync("_ApiCodeBlock", ("content-list-res", @"{
-  ""data"": [ { ""id"": 1, ""title"": ""..."", ""fields"": {} } ],
+  ""data"": [ { ""id"": 20074, ""contentTypeId"": 2, ""title"": ""..."", ""fields"": {}, ""fieldsDisplay"": {} } ],
   ""meta"": {
-    ""pagination"": { ""page"": 1, ""pageSize"": 10, ""total"": 42, ""hasNext"": true },
-    ""filters"": { ""status"": ""Published"", ""contentType"": ""News"" }
+    ""pagination"": { ""page"": 1, ""pageSize"": 5, ""total"": 1, ""totalPages"": 1, ""hasNext"": false },
+    ""filters"": {
+      ""contentTypeId"": 2,
+      ""status"": ""Published"",
+      ""sortBy"": ""publishDate"",
+      ""sortDir"": ""desc"",
+      ""orderBy"": null,
+      ""orderDir"": null,
+      ""top"": 5,
+      ""fetchAll"": false
+    }
   }
 }"))
 
@@ -63,11 +139,17 @@
 ))
 
 @{
-    var detailExample = $@"curl -H ""Authorization: Pearl YOUR_KEY"" ""{Model.ApiV1BaseUrl}/content/1""";
+    var detailExample = $@"curl -H ""Authorization: Pearl YOUR_KEY"" ""{Model.ApiV1BaseUrl}/content/20074""";
 }
 @await Html.PartialAsync("_ApiCodeBlock", ("content-detail-curl", detailExample))
 
 <p class="text-secondary small">
-    <span class="tp-only-ar">الحقول المخصصة في <code>fields</code> و<code>fieldsDisplay</code> — الحقول الحساسة تُزال تلقائياً.</span>
-    <span class="tp-only-en">Custom fields in <code>fields</code> and <code>fieldsDisplay</code> — sensitive fields are stripped automatically.</span>
+    <span class="tp-only-ar">الحقول المخصصة في <code>fields</code> (قيم خام) و <code>fieldsDisplay</code> (تسميات Select). الحقول الحساسة تُزال تلقائياً.</span>
+    <span class="tp-only-en">Custom fields in <code>fields</code> (raw) and <code>fieldsDisplay</code> (Select labels). Sensitive fields are stripped automatically.</span>
+</p>
+
+<p class="text-secondary small mb-0">
+    <span class="tp-only-ar">مرجع Markdown كامل للـ Frontend:</span>
+    <span class="tp-only-en">Full frontend Markdown reference:</span>
+    <code>Docs/api_content_endpoint.md</code>
 </p>

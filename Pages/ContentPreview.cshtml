@@ -4,6 +4,26 @@
     ViewData["Title"] = $"معاينة: {Model.Title ?? Model.Title_En}";
 }
 
+@section Styles {
+  <link rel="stylesheet" href="~/assets/css/fontawesome-all.min.css" asp-append-version="true">
+  <link rel="stylesheet" href="~/assets/css/fontawesome-pro-local.css" asp-append-version="true">
+  <style>
+    .preview-api-json-header {
+      cursor: pointer;
+      user-select: none;
+    }
+    .preview-api-json-header:hover {
+      background: rgba(var(--bs-success-rgb), 0.06);
+    }
+    .preview-api-json-chevron {
+      transition: transform 0.25s ease;
+    }
+    .preview-api-json-header[aria-expanded="true"] .preview-api-json-chevron {
+      transform: rotate(180deg);
+    }
+  </style>
+}
+
 <!-- SECONDARY HEADER -->
 <section class="tp-sub-header">
   <div class="container-fluid px-4">
@@ -192,16 +212,23 @@
 
       <!-- Headless API Response Card -->
       <div class="tp-card">
-        <div class="tp-card-header d-flex justify-content-between align-items-center">
+        <div class="tp-card-header preview-api-json-header d-flex justify-content-between align-items-center"
+             role="button" data-bs-toggle="collapse" data-bs-target="#preview-api-json-collapse"
+             aria-expanded="false" aria-controls="preview-api-json-collapse">
           <h5 class="mb-0">
             <i class="bi bi-code-slash text-success me-2"></i>
             <span class="tp-only-ar">الاستجابة لـ Headless API</span>
             <span class="tp-only-en">Headless API Response</span>
           </h5>
-          <button class="btn btn-sm btn-outline-secondary btn-icon" onclick="copyAPIJson()" title="Copy API payload"><i class="bi bi-clipboard"></i></button>
+          <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary btn-icon" onclick="event.stopPropagation(); copyAPIJson();" title="Copy API payload"><i class="bi bi-clipboard"></i></button>
+            <i class="bi bi-chevron-down preview-api-json-chevron text-secondary"></i>
+          </div>
         </div>
-        <div class="tp-card-body bg-dark text-white p-3 rounded-bottom border-0">
-          <pre class="mb-0 fs-8"><code id="preview-json-api-box" style="color: #A3E635; font-family: 'Consolas', 'Courier New', monospace;">Loading API parameters...</code></pre>
+        <div id="preview-api-json-collapse" class="collapse">
+          <div class="tp-card-body bg-dark text-white p-3 rounded-bottom border-0">
+            <pre class="mb-0 fs-8"><code id="preview-json-api-box" style="color: #A3E635; font-family: 'Consolas', 'Courier New', monospace;">Loading API parameters...</code></pre>
+          </div>
         </div>
       </div>
 
@@ -210,9 +237,6 @@
 </main>
 
 @section Scripts {
-  <!-- SweetAlert2 CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  
   <script>
     let currentLang = localStorage.getItem('tp-lang') || 'ar';
     const customFieldsValues = @Html.Raw(Model.CustomFieldsJson);
@@ -238,10 +262,37 @@
       loadCustomFieldsValues(customFieldsValues);
       fetchHeadlessJSON();
 
+      const jsonCollapse = document.getElementById('preview-api-json-collapse');
+      const jsonHeader = document.querySelector('.preview-api-json-header');
+      if (jsonCollapse && jsonHeader) {
+        jsonCollapse.addEventListener('show.bs.collapse', () => jsonHeader.setAttribute('aria-expanded', 'true'));
+        jsonCollapse.addEventListener('hide.bs.collapse', () => jsonHeader.setAttribute('aria-expanded', 'false'));
+      }
+
       window.addEventListener('tp-lang-changed', (e) => {
         applyPageTranslations(e.detail.lang);
       });
     });
+
+    function renderCardListIcon(icon) {
+      if (!icon) return '<i class="fas fa-circle"></i>';
+      const val = String(icon).trim();
+      if (/^bi[\s-]/i.test(val)) {
+        let cls = val.startsWith('bi ') ? val.slice(3).trim() : val;
+        if (!cls.startsWith('bi-')) cls = 'bi-' + cls.replace(/^-/, '');
+        return `<i class="bi ${cls}"></i>`;
+      }
+      if (/^(fa-solid|fa-regular|fa-brands|fa-light|fa-thin|fa-duotone)\s+fa-/i.test(val)) {
+        const parts = val.split(/\s+/);
+        const map = { 'fa-solid': 'fas', 'fa-regular': 'far', 'fa-brands': 'fab', 'fa-light': 'fal', 'fa-thin': 'fat', 'fa-duotone': 'fad' };
+        return `<i class="${map[parts[0].toLowerCase()] || 'fas'} ${parts[1].toLowerCase()}"></i>`;
+      }
+      if (/^(fas|far|fab|fal|fat|fad)\s+fa-/i.test(val)) {
+        return `<i class="${val.toLowerCase()}"></i>`;
+      }
+      if (/^fa-/.test(val)) return `<i class="fas ${val.toLowerCase()}"></i>`;
+      return `<i class="fas fa-${val.replace(/^-/, '').toLowerCase()}"></i>`;
+    }
 
     function applyPageTranslations(lang) {
       currentLang = lang;
@@ -290,6 +341,53 @@
         else if (typeof val === 'object' && val.results) {
           const count = Array.isArray(val.results) ? val.results.length : 0;
           holder.innerHTML = `<span class="badge bg-info-subtle text-info-emphasis border fs-8"><i class="bi bi-diagram-3 me-1"></i>Query: ${count} result(s)</span>`;
+        }
+        else if (typeof val === 'object' && Array.isArray(val.items)) {
+          const sectionTitle = currentLang === 'ar'
+            ? (val.sectionTitle || val.sectionTitleEn || '')
+            : (val.sectionTitleEn || val.sectionTitle || '');
+          const sectionSubtitle = currentLang === 'ar'
+            ? (val.sectionSubtitle || val.sectionSubtitleEn || '')
+            : (val.sectionSubtitleEn || val.sectionSubtitle || '');
+          const sectionSummary = currentLang === 'ar'
+            ? (val.sectionSummary || val.sectionSummaryEn || '')
+            : (val.sectionSummaryEn || val.sectionSummary || '');
+
+          let cardsHtml = '';
+          val.items.forEach((item, idx) => {
+            const title = currentLang === 'ar'
+              ? (item.title || item.titleEn || `Card ${idx + 1}`)
+              : (item.titleEn || item.title || `Card ${idx + 1}`);
+            const subtitle = currentLang === 'ar'
+              ? (item.subtitle || item.subtitleEn || '')
+              : (item.subtitleEn || item.subtitle || '');
+            const desc = currentLang === 'ar'
+              ? (item.description || item.descriptionEn || '')
+              : (item.descriptionEn || item.description || '');
+            const useImage = item.mediaType === 'image' || (!!item.image && item.mediaType !== 'icon');
+            const iconHtml = renderCardListIcon(item.icon);
+            const mediaHtml = useImage && item.image
+              ? `<img src="${item.image}" alt="" class="rounded border mt-1" style="max-height:48px;object-fit:contain;">`
+              : `<span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-primary-subtle text-primary border mt-1" style="width:36px;height:36px;">${iconHtml}</span>`;
+            cardsHtml += `
+              <div class="border rounded-3 p-2 mb-2 bg-body-tertiary ${item.featured ? 'border-warning' : ''}">
+                <div class="d-flex align-items-start gap-2">
+                  ${mediaHtml}
+                  <div class="flex-grow-1">
+                    <div class="fw-bold fs-8">${title}${item.featured ? ' <span class="badge bg-warning text-dark fs-9">Featured</span>' : ''}</div>
+                    ${subtitle ? `<div class="text-primary fs-9">${subtitle}</div>` : ''}
+                    ${desc ? `<div class="text-muted fs-9">${desc}</div>` : ''}
+                    ${item.link ? `<div class="fs-9 text-primary" dir="ltr">${item.link}</div>` : ''}
+                  </div>
+                </div>
+              </div>`;
+          });
+
+          holder.innerHTML = `
+            ${sectionTitle ? `<div class="fw-bold mb-1">${sectionTitle}</div>` : ''}
+            ${sectionSubtitle ? `<div class="text-primary fs-9 mb-1">${sectionSubtitle}</div>` : ''}
+            ${sectionSummary ? `<div class="text-muted fs-9 mb-2">${sectionSummary}</div>` : ''}
+            ${cardsHtml}`;
         }
         else if (typeof val === 'string' && val.match(/\.(jpeg|jpg|gif|png|webp)$/i)) {
           // Image upload path

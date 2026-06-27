@@ -10,38 +10,41 @@ public static class BrandingHelper
     public static string GetBrandingDirectory(string webRootPath)
         => Path.Combine(webRootPath, "uploads", "img");
 
-    public static (string? LogoPath, string? FaviconPath) ResolveFromDisk(string webRootPath)
+    public static (string? LogoPath, string? LogoLightPath, string? FaviconPath) ResolveFromDisk(string webRootPath)
     {
         var imgDir = GetBrandingDirectory(webRootPath);
         if (!Directory.Exists(imgDir))
         {
-            return (null, null);
+            return (null, null, null);
         }
 
         string? logo = FindFirstFile(imgDir, "CMSLogo.*");
+        string? logoLight = FindFirstFile(imgDir, "CMSLogoLight.*");
         string? favicon = FindFirstFile(imgDir, "CMSFavicon.*");
-        return (logo, favicon);
+        return (logo, logoLight, favicon);
     }
 
-    public static async Task<(string? LogoPath, string? FaviconPath)> ResolveAsync(
+    public static async Task<(string? LogoPath, string? LogoLightPath, string? FaviconPath)> ResolveAsync(
         string connectionString,
         string webRootPath)
     {
-        var (diskLogo, diskFavicon) = ResolveFromDisk(webRootPath);
+        var (diskLogo, diskLogoLight, diskFavicon) = ResolveFromDisk(webRootPath);
         string? dbLogo = null;
+        string? dbLogoLight = null;
         string? dbFavicon = null;
 
         try
         {
             await using var connection = new SqlConnection(connectionString);
             await connection.OpenAsync();
-            const string query = "SELECT Logo, Favicon FROM dbo.Settings WHERE Id = 1";
+            const string query = "SELECT Logo, LogoLight, Favicon FROM dbo.Settings WHERE Id = 1";
             await using var command = new SqlCommand(query, connection);
             await using var reader = await command.ExecuteReaderAsync();
             if (await reader.ReadAsync())
             {
                 dbLogo = reader.IsDBNull(0) ? null : reader.GetString(0);
-                dbFavicon = reader.IsDBNull(1) ? null : reader.GetString(1);
+                dbLogoLight = reader.IsDBNull(1) ? null : reader.GetString(1);
+                dbFavicon = reader.IsDBNull(2) ? null : reader.GetString(2);
             }
         }
         catch (SqlException)
@@ -51,6 +54,7 @@ public static class BrandingHelper
 
         return (
             PickExistingPath(webRootPath, dbLogo, diskLogo),
+            PickExistingPath(webRootPath, dbLogoLight, diskLogoLight),
             PickExistingPath(webRootPath, dbFavicon, diskFavicon));
     }
 

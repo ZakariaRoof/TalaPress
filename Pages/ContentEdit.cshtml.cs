@@ -5,6 +5,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using System.IO;
 using TalaPress.Infrastructure;
+using TalaPress.Models;
 
 namespace TalaPress.Pages
 {
@@ -122,6 +123,16 @@ namespace TalaPress.Pages
             return false;
         }
 
+        public CardListFieldValue GetCustomFieldCardList(string fieldName)
+        {
+            if (_parsedCustomFields.TryGetValue(fieldName, out var element))
+            {
+                return CardListFieldParser.Parse(element);
+            }
+
+            return new CardListFieldValue();
+        }
+
         private void ParseCustomFieldValues()
         {
             try
@@ -142,7 +153,7 @@ namespace TalaPress.Pages
         public List<CategoryFilterDto> CategoriesList { get; set; } = new();
         public List<CustomFieldDto> ContentFieldsList { get; set; } = new();
 
-        public async Task<IActionResult> OnGetAsync(long? id, long? contentTypeId)
+        public async Task<IActionResult> OnGetAsync(long? id, long? contentTypeId, long? categoryId, long? subCategoryId)
         {
             if (User.Identity?.IsAuthenticated != true)
             {
@@ -186,6 +197,8 @@ namespace TalaPress.Pages
                 }
 
                 Id = 0;
+                PublishDate = DateTime.Now;
+                Hits = 0;
                 if (contentTypeId.HasValue && contentTypeId.Value > 0)
                 {
                     ContentTypeId = contentTypeId.Value;
@@ -203,6 +216,16 @@ namespace TalaPress.Pages
                         TempData["ErrorMessage"] = "يرجى إنشاء وتهيئة أنواع المحتوى أولاً.";
                         return RedirectToPage("/ContentTypes");
                     }
+                }
+
+                if (categoryId.HasValue && categoryId.Value > 0)
+                {
+                    CategoryId = categoryId.Value;
+                }
+
+                if (subCategoryId.HasValue && subCategoryId.Value > 0)
+                {
+                    SubCategoryId = subCategoryId.Value;
                 }
             }
 
@@ -310,6 +333,25 @@ namespace TalaPress.Pages
                     if (field.FieldType == "Boolean")
                     {
                         customFieldsValues[field.FieldName] = Request.Form.ContainsKey(formKey);
+                        continue;
+                    }
+
+                    if (field.FieldType == "CardList")
+                    {
+                        if (!Request.Form.ContainsKey(formKey))
+                        {
+                            continue;
+                        }
+
+                        string? cardListJson = Request.Form[formKey];
+                        var parsedCardList = CardListFieldParser.Parse(cardListJson);
+                        if (!CardListFieldParser.TryValidate(parsedCardList, field.IsRequired, out var cardListError))
+                        {
+                            string fieldNameText = CultureInfoCurrent() == "ar" ? field.Label : (field.Label_En ?? field.Label);
+                            return new JsonResult(new { success = false, message = $"{fieldNameText}: {cardListError}" });
+                        }
+
+                        customFieldsValues[field.FieldName] = CardListFieldParser.ToStorageObject(parsedCardList);
                         continue;
                     }
 

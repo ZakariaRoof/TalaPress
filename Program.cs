@@ -3,11 +3,16 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication;
 using TalaPress.Api.Security;
 using TalaPress.Infrastructure;
+using TalaPress.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorPages();
+builder.Services.AddDataProtection();
+builder.Services.AddSingleton<ISecretProtector, DataProtectionSecretProtector>();
+builder.Services.AddScoped<ISmtpEmailService, SmtpEmailService>();
+builder.Services.AddScoped<IFormSubmissionService, FormSubmissionService>();
 
 // Configure Cookie Authentication
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -15,6 +20,10 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     {
         options.LoginPath = "/Login";
         options.ExpireTimeSpan = TimeSpan.FromHours(2);
+        options.SlidingExpiration = true;
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        options.Cookie.SameSite = SameSiteMode.Lax;
     })
     .AddScheme<AuthenticationSchemeOptions, PearlAuthenticationHandler>(PearlAuthenticationDefaults.AuthenticationScheme, null);
 
@@ -40,6 +49,8 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseMiddleware<SecurityHeadersMiddleware>();
 
 // Enable Response Compression middleware
 app.UseResponseCompression();

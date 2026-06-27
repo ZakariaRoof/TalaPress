@@ -1,5 +1,6 @@
 @page
 @using System.Text.Json
+@using TalaPress.Models
 @model TalaPress.Pages.ContentEditModel
 @{
     var isNew = Model.Id == 0;
@@ -12,11 +13,18 @@
         .Where(f => f.IsActive && seoFieldNames.Contains(f.FieldName))
         .OrderBy(f => f.SortOrder)
         .ToList();
+    var activeCardListFields = Model.ContentFieldsList
+        .Where(f => f.IsActive && !f.IsSystemField && string.Equals(f.FieldType, "CardList", StringComparison.OrdinalIgnoreCase))
+        .OrderBy(f => f.SortOrder)
+        .ToList();
 }
 
 @section Styles {
   <!-- Quill Rich Text Editor CSS -->
   <link rel="stylesheet" href="~/assets/css/quill.snow.css" asp-append-version="true">
+  <link rel="stylesheet" href="~/lib/summernote/summernote-bs5.min.css" asp-append-version="true">
+  <link rel="stylesheet" href="~/assets/css/fontawesome-all.min.css" asp-append-version="true">
+  <link rel="stylesheet" href="~/assets/css/fontawesome-pro-local.css" asp-append-version="true">
   <style>
     .ql-editor {
       min-height: 200px;
@@ -28,6 +36,122 @@
     .tp-uploader-dropzone.dragover {
       border-color: var(--tp-success) !important;
       background-color: rgba(var(--tp-success-rgb), 0.1) !important;
+    }
+    .tp-cardlist-editor .cardlist-item {
+      background: var(--bs-body-bg);
+      overflow: hidden;
+      transition: box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+    .tp-cardlist-editor .cardlist-item.is-expanded {
+      border-color: rgba(var(--bs-info-rgb), 0.55) !important;
+      box-shadow: 0 0.25rem 0.75rem rgba(var(--bs-info-rgb), 0.12);
+    }
+    .tp-cardlist-editor .cardlist-item-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.65rem 0.85rem;
+      cursor: pointer;
+      user-select: none;
+      background: var(--bs-body-tertiary);
+      border-bottom: 1px solid transparent;
+      transition: background-color 0.2s ease, border-color 0.2s ease;
+    }
+    .tp-cardlist-editor .cardlist-item.is-expanded .cardlist-item-header {
+      border-bottom-color: var(--bs-border-color);
+      background: rgba(var(--bs-info-rgb), 0.08);
+    }
+    .tp-cardlist-editor .cardlist-item-header:hover {
+      background: rgba(var(--bs-info-rgb), 0.12);
+    }
+    .tp-cardlist-editor .cardlist-item-header-main {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      min-width: 0;
+      flex: 1;
+    }
+    .tp-cardlist-editor .cardlist-item-toggle {
+      width: 1.75rem;
+      height: 1.75rem;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      border: 1px solid var(--bs-border-color);
+      background: var(--bs-body-bg);
+      color: var(--bs-secondary);
+      flex-shrink: 0;
+      transition: transform 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+    }
+    .tp-cardlist-editor .cardlist-item.is-expanded .cardlist-item-toggle {
+      color: var(--bs-info);
+      border-color: rgba(var(--bs-info-rgb), 0.45);
+      background: rgba(var(--bs-info-rgb), 0.1);
+    }
+    .tp-cardlist-editor .cardlist-item-summary-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--bs-body-color);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
+    .tp-cardlist-editor .cardlist-item-summary-title.is-placeholder {
+      color: var(--bs-secondary);
+      font-weight: 500;
+    }
+    .tp-cardlist-editor .cardlist-item-drag-handle {
+      cursor: grab;
+      color: var(--bs-secondary);
+      opacity: 0.65;
+      flex-shrink: 0;
+    }
+    .tp-cardlist-editor .cardlist-item-drag-handle:active {
+      cursor: grabbing;
+    }
+    .tp-cardlist-editor .cardlist-item-body {
+      overflow: hidden;
+      max-height: 2400px;
+      opacity: 1;
+      padding: 1rem;
+      transition: max-height 0.35s ease, opacity 0.25s ease, padding 0.25s ease;
+    }
+    .tp-cardlist-editor .cardlist-item.is-collapsed .cardlist-item-body {
+      max-height: 0;
+      opacity: 0;
+      padding-top: 0;
+      padding-bottom: 0;
+      pointer-events: none;
+    }
+    .tp-cardlist-editor .cardlist-item-actions .btn {
+      pointer-events: auto;
+    }
+    .tp-cardlist-editor .cardlist-icon-grid {
+      max-height: 220px;
+      overflow-y: auto;
+    }
+    .tp-cardlist-editor .cardlist-icon-picker-panel {
+      background: var(--bs-body-bg);
+    }
+    .cardlist-empty-state {
+      transition: opacity 0.2s ease;
+    }
+    .tp-cardlist-editor .cardlist-lang-tabs .nav-link {
+      font-size: 0.8rem;
+      padding: 0.35rem 0.75rem;
+    }
+    .tp-cardlist-editor .cardlist-item-featured-wrap {
+      border-top: 1px dashed var(--bs-border-color);
+      padding-top: 0.5rem;
+      margin-top: 0.25rem;
+    }
+    .tp-cardlist-editor .cardlist-item.is-featured {
+      border-color: var(--bs-warning) !important;
+      box-shadow: 0 0 0 1px rgba(var(--bs-warning-rgb), 0.35);
     }
   </style>
 }
@@ -69,7 +193,8 @@
 
 <!-- MAIN CONTAINER -->
 <main class="container-fluid px-4 pb-5">
-  <form id="contentForm" method="post" onsubmit="saveContentForm(event)">
+  <form id="contentForm" method="post" onsubmit="saveContentForm(event, 'save')">
+    <input type="hidden" name="saveMode" id="saveMode" value="save" />
     <input type="hidden" asp-for="Id" id="form-Id" />
     <input type="hidden" asp-for="ContentTypeId" id="form-ContentTypeId" />
 
@@ -99,6 +224,7 @@
                       fieldName.Equals("Status", StringComparison.OrdinalIgnoreCase) ||
                       fieldName.Equals("PublishDate", StringComparison.OrdinalIgnoreCase) ||
                       fieldName.Equals("FeaturedImage", StringComparison.OrdinalIgnoreCase) ||
+                      string.Equals(field.FieldType, "CardList", StringComparison.OrdinalIgnoreCase) ||
                       seoFieldNames.Contains(fieldName))
                   {
                       continue;
@@ -697,6 +823,51 @@
           </div>
         </div>
 
+        @if (activeCardListFields.Any())
+        {
+          var hasMultipleCardLists = activeCardListFields.Count > 1;
+          var cardListFieldCount = activeCardListFields.Count;
+
+          <div class="mt-4" id="cardListFieldsRoot">
+            @if (hasMultipleCardLists)
+            {
+              <div class="accordion" id="cardListGroupAccordion">
+                <div class="accordion-item border border-info-subtle rounded-4 overflow-hidden shadow-sm">
+                  <h2 class="accordion-header" id="cardListGroupHeading">
+                    <button class="accordion-button collapsed fw-bold bg-info-subtle text-info-emphasis" type="button"
+                            data-bs-toggle="collapse" data-bs-target="#cardListGroupCollapse"
+                            aria-expanded="false" aria-controls="cardListGroupCollapse">
+                      <i class="bi bi-layers me-2"></i>
+                      <span class="tp-only-ar">قوائم البطاقات</span>
+                      <span class="tp-only-en">Card Lists</span>
+                      <span class="badge bg-info text-light ms-2" id="cardlist-group-count">@cardListFieldCount</span>
+                    </button>
+                  </h2>
+                  <div id="cardListGroupCollapse" class="accordion-collapse collapse" aria-labelledby="cardListGroupHeading">
+                    <div class="accordion-body bg-body p-3">
+                      <div class="accordion" id="cardListFieldsAccordion">
+                        @foreach (var cardListField in activeCardListFields)
+                        {
+                            @await Html.PartialAsync("_CardListFieldBlock", (cardListField, Model, true))
+                        }
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            }
+            else
+            {
+              <div class="accordion" id="cardListFieldsAccordion">
+                @foreach (var cardListField in activeCardListFields)
+                {
+                    @await Html.PartialAsync("_CardListFieldBlock", (cardListField, Model, false))
+                }
+              </div>
+            }
+          </div>
+        }
+
         <!-- SEO Fields Accordion (Moved inside Main Column) -->
         @if (activeSeoFields.Any())
         {
@@ -932,6 +1103,11 @@
                 <i class="bi bi-save-fill me-1"></i>
                 <span data-page-i18n="btnSaveContent">حفظ ونشر المحتوى</span>
               </button>
+
+              <button type="button" class="btn btn-outline-primary py-2 rounded-3 fw-bold" id="btn-save-add-new" onclick="saveContentForm(event, 'addNew')">
+                <i class="bi bi-plus-circle me-1"></i>
+                <span data-page-i18n="btnSaveAddNew">حفظ وإضافة جديد</span>
+              </button>
               
               <a asp-page="/Content" class="btn btn-outline-secondary py-2">
                 <span data-page-i18n="btnCancel">إلغاء</span>
@@ -949,12 +1125,9 @@
 </main>
 
 @section Scripts {
-  <!-- Summernote Rich Text Editor JS/CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote-bs5.min.css" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote-bs5.min.js"></script>
-  
-  <!-- SweetAlert2 CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="~/lib/summernote/summernote-bs5.min.js" asp-append-version="true"></script>
+  <script src="~/assets/js/sortable.min.js" asp-append-version="true"></script>
+  <script src="~/assets/js/fontawesome-icon-picker.js" asp-append-version="true"></script>
   
   <script>
     let currentLang = localStorage.getItem('tp-lang') || 'ar';
@@ -972,9 +1145,11 @@
         statusDate: "التاريخ:",
         statusMode: "الوضعية:",
         btnSaveContent: "حفظ ونشر المحتوى",
+        btnSaveAddNew: "حفظ وإضافة جديد",
         btnCancel: "إلغاء",
         saveSuccess: "تمت عملية التخزين بنجاح",
         saveSuccessText: "تمت مزامنة البيانات وتخزينها في قاعدة البيانات بنجاح.",
+        saveAddNewSuccessText: "تم الحفظ. يمكنك إضافة محتوى جديد بنفس النوع والفئة.",
         okText: "موافق"
       },
       en: {
@@ -988,9 +1163,11 @@
         statusDate: "Date:",
         statusMode: "Mode:",
         btnSaveContent: "Save and Publish Content",
+        btnSaveAddNew: "Save & Add New",
         btnCancel: "Cancel",
         saveSuccess: "Content has been saved successfully.",
         saveSuccessText: "All parameters synchronized and stored in the database.",
+        saveAddNewSuccessText: "Saved. You can add another item with the same type and category.",
         okText: "OK"
       }
     };
@@ -1000,6 +1177,8 @@
       initQuillEditors();
       initCategoriesCascade();
       populateFormValues();
+      initCardListEditors();
+      ensureDefaultPublishDate();
 
       // Setup Content Type Switcher Change
       document.getElementById('contentTypeSwitcher').addEventListener('change', function() {
@@ -1197,6 +1376,15 @@
             $(richEditor).summernote('code', val || '');
           }
         }
+
+        const cardListEditor = document.getElementById('cardlist-editor-' + key);
+        if (cardListEditor && val && typeof val === 'object' && Array.isArray(val.items)) {
+          const hidden = document.getElementById('cardlist-json-' + key);
+          if (hidden) {
+            hidden.value = JSON.stringify(val);
+            renderCardListItems(key);
+          }
+        }
       }
     }
 
@@ -1340,9 +1528,715 @@
       }, false);
     }
 
+    // --- CardList repeater field ---
+    function initCardListEditors() {
+      document.querySelectorAll('.tp-cardlist-editor').forEach(editor => {
+        const fieldName = editor.dataset.fieldname;
+        initCardListLangTabs(editor);
+        renderCardListItems(fieldName);
+        bindCardListSectionInputs(fieldName);
+        initCardListSortable(fieldName);
+        updateCardListEmptyState(fieldName);
+      });
+      updateCardListGroupCount();
+    }
+
+    function isMeaningfulCardListItem(item) {
+      if (!item || typeof item !== 'object') return false;
+      return !!(
+        (item.title && item.title.trim()) ||
+        (item.titleEn && item.titleEn.trim()) ||
+        (item.subtitle && item.subtitle.trim()) ||
+        (item.subtitleEn && item.subtitleEn.trim()) ||
+        (item.description && item.description.trim()) ||
+        (item.descriptionEn && item.descriptionEn.trim()) ||
+        (item.icon && item.icon.trim()) ||
+        (item.image && item.image.trim()) ||
+        (item.link && item.link.trim())
+      );
+    }
+
+    function resolveCardListMediaType(item) {
+      if (item && item.mediaType === 'image') return 'image';
+      if (item && item.mediaType === 'icon') return 'icon';
+      if (item && item.image && item.image.trim()) return 'image';
+      return 'icon';
+    }
+
+    function initCardListLangTabs(root) {
+      if (!root) return;
+      root.querySelectorAll('.cardlist-lang-tabs').forEach(tabList => {
+        const scope = tabList.closest('.cardlist-lang-scope') || tabList.parentElement;
+        tabList.querySelectorAll('[data-lang]').forEach(btn => {
+          if (btn._cardListLangBound) return;
+          btn._cardListLangBound = true;
+          btn.addEventListener('click', () => {
+            const lang = btn.getAttribute('data-lang');
+            tabList.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+            btn.classList.add('active');
+            scope.querySelectorAll('.cardlist-lang-panel').forEach(panel => {
+              panel.classList.toggle('d-none', panel.getAttribute('data-lang') !== lang);
+            });
+          });
+        });
+      });
+    }
+
+    function applyCardListMediaTypeUI(itemEl) {
+      const isImage = itemEl.querySelector('.cardlist-media-type-input[value="image"]')?.checked === true;
+      itemEl.querySelector('.cardlist-media-icon-wrap')?.classList.toggle('d-none', isImage);
+      itemEl.querySelector('.cardlist-media-image-wrap')?.classList.toggle('d-none', !isImage);
+    }
+
+    function getCardListItemDisplayTitle(itemEl) {
+      const ar = itemEl.querySelector('.cardlist-item-title')?.value.trim() || '';
+      const en = itemEl.querySelector('.cardlist-item-title-en')?.value.trim() || '';
+      return ar || en || '';
+    }
+
+    function updateCardListItemSummary(itemEl) {
+      const summaryEl = itemEl.querySelector('.cardlist-item-summary-title');
+      if (!summaryEl) return;
+      const title = getCardListItemDisplayTitle(itemEl);
+      if (title) {
+        summaryEl.textContent = title;
+        summaryEl.classList.remove('is-placeholder');
+      } else {
+        summaryEl.textContent = 'بطاقة جديدة / New Card';
+        summaryEl.classList.add('is-placeholder');
+      }
+    }
+
+    function setCardListItemExpanded(itemEl, expanded) {
+      if (!itemEl) return;
+      itemEl.classList.toggle('is-expanded', expanded);
+      itemEl.classList.toggle('is-collapsed', !expanded);
+      const toggleBtn = itemEl.querySelector('.cardlist-item-toggle');
+      if (toggleBtn) {
+        toggleBtn.innerHTML = expanded
+          ? '<i class="bi bi-dash-lg"></i>'
+          : '<i class="bi bi-plus-lg"></i>';
+        toggleBtn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        toggleBtn.title = expanded ? 'طي / Collapse' : 'فتح / Expand';
+      }
+    }
+
+    function collapseAllCardListItems(fieldName, exceptItemEl) {
+      const container = document.getElementById('cardlist-items-' + fieldName);
+      if (!container) return;
+      container.querySelectorAll('.cardlist-item').forEach(itemEl => {
+        if (exceptItemEl && itemEl === exceptItemEl) return;
+        setCardListItemExpanded(itemEl, false);
+      });
+    }
+
+    function expandCardListItem(itemEl, fieldName) {
+      if (!itemEl) return;
+      collapseAllCardListItems(fieldName, itemEl);
+      setCardListItemExpanded(itemEl, true);
+    }
+
+    function toggleCardListItem(itemEl, fieldName) {
+      if (!itemEl) return;
+      const isExpanded = itemEl.classList.contains('is-expanded');
+      if (isExpanded) {
+        setCardListItemExpanded(itemEl, false);
+        return;
+      }
+      expandCardListItem(itemEl, fieldName);
+    }
+
+    function enforceSingleFeaturedCard(fieldName, activeItemEl) {
+      const container = document.getElementById('cardlist-items-' + fieldName);
+      if (!container) return;
+      container.querySelectorAll('.cardlist-item').forEach(itemEl => {
+        const featuredInput = itemEl.querySelector('.cardlist-item-featured');
+        if (activeItemEl && itemEl !== activeItemEl && featuredInput) {
+          featuredInput.checked = false;
+        }
+        const isFeatured = featuredInput?.checked === true;
+        itemEl.classList.toggle('is-featured', isFeatured);
+        let badge = itemEl.querySelector('.cardlist-featured-badge');
+        if (isFeatured && !badge) {
+          const header = itemEl.querySelector('.cardlist-item-header-main');
+          if (header) {
+            badge = document.createElement('span');
+            badge.className = 'badge bg-warning text-dark cardlist-featured-badge';
+            badge.innerHTML = '<i class="bi bi-star-fill me-1"></i>مميز';
+            header.appendChild(badge);
+          }
+        } else if (!isFeatured && badge) {
+          badge.remove();
+        }
+      });
+    }
+
+    function countMeaningfulCardListItems(items) {
+      if (!Array.isArray(items)) return 0;
+      return items.filter(isMeaningfulCardListItem).length;
+    }
+
+    function showCardListPanel(fieldName, expand) {
+      const empty = document.getElementById('cardlist-empty-' + fieldName);
+      const panel = document.getElementById('cardlist-panel-' + fieldName);
+      if (empty) empty.classList.add('d-none');
+      if (panel) panel.classList.remove('d-none');
+      if (expand) {
+        expandCardListPanels(fieldName);
+      }
+    }
+
+    function expandCardListPanels(fieldName) {
+      const groupCollapse = document.getElementById('cardListGroupCollapse');
+      if (groupCollapse) {
+        bootstrap.Collapse.getOrCreateInstance(groupCollapse, { toggle: false }).show();
+      }
+
+      const fieldCollapse = document.getElementById('cardListCollapse-' + fieldName);
+      if (fieldCollapse) {
+        bootstrap.Collapse.getOrCreateInstance(fieldCollapse, { toggle: false }).show();
+      }
+    }
+
+    function cardListStartAdding(fieldName) {
+      showCardListPanel(fieldName, true);
+      const container = document.getElementById('cardlist-items-' + fieldName);
+      if (!container) return;
+      if (container.children.length === 0) {
+        cardListAddItem(fieldName, false);
+      }
+      initCardListSortable(fieldName);
+    }
+
+    function updateCardListEmptyState(fieldName) {
+      const data = collectCardListData(fieldName);
+      const count = countMeaningfulCardListItems(data?.items || []);
+      const empty = document.getElementById('cardlist-empty-' + fieldName);
+      const panel = document.getElementById('cardlist-panel-' + fieldName);
+      const container = document.getElementById('cardlist-items-' + fieldName);
+      const hasDraftRows = container && container.children.length > 0;
+
+      if (count === 0 && !hasDraftRows) {
+        if (container) container.innerHTML = '';
+        if (empty) empty.classList.remove('d-none');
+        if (panel) panel.classList.add('d-none');
+
+        const fieldCollapse = document.getElementById('cardListCollapse-' + fieldName);
+        if (fieldCollapse) {
+          bootstrap.Collapse.getOrCreateInstance(fieldCollapse, { toggle: false }).hide();
+        }
+
+        const hidden = document.getElementById('cardlist-json-' + fieldName);
+        if (hidden && data) {
+          data.items = [];
+          hidden.value = JSON.stringify(data);
+        }
+      } else {
+        if (empty) empty.classList.add('d-none');
+        if (panel) panel.classList.remove('d-none');
+      }
+
+      updateCardListAccordionBadge(fieldName, count);
+      updateCardListGroupCount();
+    }
+
+    function updateCardListGroupCount() {
+      const groupBadge = document.getElementById('cardlist-group-count');
+      if (!groupBadge) return;
+      const fieldCount = document.querySelectorAll('.tp-cardlist-editor').length;
+      groupBadge.textContent = String(fieldCount);
+    }
+
+    function parseCardListHidden(fieldName) {
+      const hidden = document.getElementById('cardlist-json-' + fieldName);
+      if (!hidden || !hidden.value) {
+        return { sectionTitle: '', sectionTitleEn: '', sectionSubtitle: '', sectionSubtitleEn: '', sectionSummary: '', sectionSummaryEn: '', items: [] };
+      }
+      try {
+        return JSON.parse(hidden.value);
+      } catch (e) {
+        return { sectionTitle: '', sectionTitleEn: '', sectionSubtitle: '', sectionSubtitleEn: '', sectionSummary: '', sectionSummaryEn: '', items: [] };
+      }
+    }
+
+    function bindCardListSectionInputs(fieldName) {
+      const editor = document.getElementById('cardlist-editor-' + fieldName);
+      if (!editor) return;
+
+      editor.querySelector('.cardlist-section-title')?.addEventListener('input', () => syncCardListToHidden(fieldName));
+      editor.querySelector('.cardlist-section-title-en')?.addEventListener('input', () => syncCardListToHidden(fieldName));
+      editor.querySelector('.cardlist-section-subtitle')?.addEventListener('input', () => syncCardListToHidden(fieldName));
+      editor.querySelector('.cardlist-section-subtitle-en')?.addEventListener('input', () => syncCardListToHidden(fieldName));
+      editor.querySelector('.cardlist-section-summary')?.addEventListener('input', () => syncCardListToHidden(fieldName));
+      editor.querySelector('.cardlist-section-summary-en')?.addEventListener('input', () => syncCardListToHidden(fieldName));
+    }
+
+    function renderCardListItems(fieldName) {
+      const container = document.getElementById('cardlist-items-' + fieldName);
+      const editor = document.getElementById('cardlist-editor-' + fieldName);
+      if (!container || !editor) return;
+
+      const data = parseCardListHidden(fieldName);
+      container.innerHTML = '';
+
+      editor.querySelector('.cardlist-section-title').value = data.sectionTitle || '';
+      editor.querySelector('.cardlist-section-title-en').value = data.sectionTitleEn || '';
+      editor.querySelector('.cardlist-section-subtitle').value = data.sectionSubtitle || '';
+      editor.querySelector('.cardlist-section-subtitle-en').value = data.sectionSubtitleEn || '';
+      editor.querySelector('.cardlist-section-summary').value = data.sectionSummary || '';
+      editor.querySelector('.cardlist-section-summary-en').value = data.sectionSummaryEn || '';
+
+      const items = Array.isArray(data.items) ? data.items.filter(isMeaningfulCardListItem) : [];
+
+      items.forEach((item, index) => {
+        const expandOnLoad = items.length === 1 && index === 0;
+        container.appendChild(createCardListItemElement(fieldName, item, index, expandOnLoad));
+      });
+
+      initCardListLangTabs(editor);
+      enforceSingleFeaturedCard(fieldName, null);
+      syncCardListToHidden(fieldName);
+      updateCardListEmptyState(fieldName);
+    }
+
+    function createCardListItemElement(fieldName, item, index, expanded) {
+      const mediaType = resolveCardListMediaType(item);
+      const isFeatured = item.featured === true || item.featured === 'true';
+      const imageVal = item.image || '';
+      const displayTitle = (item.title || item.titleEn || '').trim();
+      const isExpanded = expanded === true;
+      const itemEl = document.createElement('div');
+      itemEl.className = 'cardlist-item border rounded-3 cardlist-lang-scope' +
+        (isFeatured ? ' is-featured' : '') +
+        (isExpanded ? ' is-expanded' : ' is-collapsed');
+      itemEl.dataset.index = String(index);
+
+      const imageInputId = `cardlist-image-${fieldName}-${index}`;
+
+      itemEl.innerHTML = `
+        <div class="cardlist-item-header">
+          <div class="cardlist-item-header-main">
+            <i class="bi bi-grip-vertical cardlist-item-drag-handle" title="سحب / Drag"></i>
+            <button type="button" class="cardlist-item-toggle" aria-expanded="${isExpanded ? 'true' : 'false'}" title="${isExpanded ? 'طي / Collapse' : 'فتح / Expand'}">
+              ${isExpanded ? '<i class="bi bi-dash-lg"></i>' : '<i class="bi bi-plus-lg"></i>'}
+            </button>
+            <span class="badge bg-secondary-subtle text-secondary-emphasis cardlist-item-badge">#${index + 1}</span>
+            <span class="cardlist-item-summary-title ${displayTitle ? '' : 'is-placeholder'}">${displayTitle ? escapeHtmlText(displayTitle) : 'بطاقة جديدة / New Card'}</span>
+            ${isFeatured ? '<span class="badge bg-warning text-dark cardlist-featured-badge"><i class="bi bi-star-fill me-1"></i>مميز</span>' : ''}
+          </div>
+          <div class="btn-group btn-group-sm cardlist-item-actions">
+            <button type="button" class="btn btn-outline-secondary cardlist-move-up" title="Up"><i class="bi bi-arrow-up"></i></button>
+            <button type="button" class="btn btn-outline-secondary cardlist-move-down" title="Down"><i class="bi bi-arrow-down"></i></button>
+            <button type="button" class="btn btn-outline-danger cardlist-remove" title="Remove"><i class="bi bi-trash"></i></button>
+          </div>
+        </div>
+
+        <div class="cardlist-item-body">
+        <ul class="nav nav-tabs cardlist-lang-tabs mb-2">
+          <li class="nav-item"><button type="button" class="nav-link active" data-lang="ar">العربية</button></li>
+          <li class="nav-item"><button type="button" class="nav-link" data-lang="en">English</button></li>
+        </ul>
+
+        <div class="cardlist-lang-panel" data-lang="ar">
+          <label class="form-label fs-8 mb-1">عنوان البطاقة</label>
+          <input type="text" class="form-control form-control-sm cardlist-item-title mb-2" value="${escapeHtmlAttr(item.title || '')}" />
+          <label class="form-label fs-8 mb-1">العنوان الفرعي</label>
+          <input type="text" class="form-control form-control-sm cardlist-item-subtitle mb-2" value="${escapeHtmlAttr(item.subtitle || '')}" />
+          <label class="form-label fs-8 mb-1">الوصف</label>
+          <textarea class="form-control form-control-sm cardlist-item-description" rows="2">${escapeHtmlText(item.description || '')}</textarea>
+        </div>
+
+        <div class="cardlist-lang-panel d-none" data-lang="en">
+          <label class="form-label fs-8 mb-1">Card Title</label>
+          <input type="text" class="form-control form-control-sm cardlist-item-title-en mb-2" value="${escapeHtmlAttr(item.titleEn || '')}" dir="ltr" />
+          <label class="form-label fs-8 mb-1">Subtitle</label>
+          <input type="text" class="form-control form-control-sm cardlist-item-subtitle-en mb-2" value="${escapeHtmlAttr(item.subtitleEn || '')}" dir="ltr" />
+          <label class="form-label fs-8 mb-1">Description</label>
+          <textarea class="form-control form-control-sm cardlist-item-description-en" rows="2" dir="ltr">${escapeHtmlText(item.descriptionEn || '')}</textarea>
+        </div>
+
+        <div class="mt-3">
+          <label class="form-label fs-8 mb-1">الرابط / Link</label>
+          <input type="text" class="form-control form-control-sm cardlist-item-link" value="${escapeHtmlAttr(item.link || '')}" dir="ltr" placeholder="/path-or-url" />
+        </div>
+
+        <div class="mt-3">
+          <label class="form-label fs-8 mb-1 d-block">نوع الوسائط / Media Type</label>
+          <div class="btn-group btn-group-sm" role="group">
+            <input type="radio" class="btn-check cardlist-media-type-input" name="cardlist-media-${fieldName}-${index}" id="cardlist-media-icon-${fieldName}-${index}" value="icon" ${mediaType === 'icon' ? 'checked' : ''} autocomplete="off">
+            <label class="btn btn-outline-secondary" for="cardlist-media-icon-${fieldName}-${index}"><i class="bi bi-app me-1"></i>أيقونة</label>
+            <input type="radio" class="btn-check cardlist-media-type-input" name="cardlist-media-${fieldName}-${index}" id="cardlist-media-image-${fieldName}-${index}" value="image" ${mediaType === 'image' ? 'checked' : ''} autocomplete="off">
+            <label class="btn btn-outline-secondary" for="cardlist-media-image-${fieldName}-${index}"><i class="bi bi-image me-1"></i>صورة</label>
+          </div>
+        </div>
+
+        <div class="cardlist-media-icon-wrap mt-2 ${mediaType === 'image' ? 'd-none' : ''}">
+          <label class="form-label fs-8 mb-1">الأيقونة</label>
+          <div class="input-group input-group-sm">
+            <span class="input-group-text cardlist-icon-preview">${typeof TpFaIconPicker !== 'undefined' ? TpFaIconPicker.iconHtml(item.icon || 'fas fa-circle') : `<i class="fas fa-circle"></i>`}</span>
+            <input type="text" class="form-control cardlist-item-icon" value="${escapeHtmlAttr(item.icon || '')}" placeholder="fas fa-heart" dir="ltr" />
+            <button type="button" class="btn btn-outline-secondary cardlist-toggle-icons" title="اختيار أيقونة"><i class="fas fa-icons"></i></button>
+          </div>
+          <div class="collapse cardlist-icon-grid-wrap mt-1">
+            <div class="cardlist-icon-picker-panel border rounded-3 p-2 mt-1">
+              <input type="search" class="form-control form-control-sm cardlist-icon-search mb-2" placeholder="Search: heart, file, fas fa-hand-holding-heart" autocomplete="off" />
+              <div class="tp-icon-selector-grid cardlist-icon-grid"></div>
+              <div class="form-text fs-9 text-muted cardlist-icon-search-meta"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="cardlist-media-image-wrap mt-2 ${mediaType === 'image' ? '' : 'd-none'}">
+          <label class="form-label fs-8 mb-1">صورة البطاقة</label>
+          <div class="tp-uploader-container">
+            <input type="hidden" class="cardlist-item-image" id="${imageInputId}" value="${escapeHtmlAttr(imageVal)}" />
+            <input type="file" class="d-none cardlist-item-file" accept="image/*" />
+            <div class="tp-uploader-dropzone p-2 border rounded border-2 border-dashed text-center bg-body-tertiary" style="cursor:pointer;">
+              <div class="dropzone-placeholder ${imageVal ? 'd-none' : ''}">
+                <i class="bi bi-image text-secondary"></i>
+                <span class="fs-8 text-secondary ms-1">رفع صورة</span>
+              </div>
+              <div class="dropzone-preview ${imageVal ? '' : 'd-none'} position-relative">
+                <img src="${escapeHtmlAttr(imageVal)}" class="img-fluid rounded border" style="max-height:80px;object-fit:contain;" />
+                <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 rounded-circle border-0 cardlist-clear-image"><i class="bi bi-x-lg"></i></button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="cardlist-item-featured-wrap">
+          <div class="form-check form-switch">
+            <input class="form-check-input cardlist-item-featured" type="checkbox" id="cardlist-featured-${fieldName}-${index}" ${isFeatured ? 'checked' : ''} />
+            <label class="form-check-label fs-8 fw-semibold" for="cardlist-featured-${fieldName}-${index}">
+              <i class="bi bi-star-fill text-warning me-1"></i>بطاقة مميزة (Featured)
+            </label>
+          </div>
+          <div class="form-text fs-9 text-muted">بطاقة واحدة فقط يمكن أن تكون مميزة في هذه القائمة.</div>
+        </div>
+        </div>`;
+
+      bindCardListItemEvents(itemEl, fieldName);
+      initCardListIconPicker(itemEl, fieldName);
+      initCardListLangTabs(itemEl);
+      applyCardListMediaTypeUI(itemEl);
+      updateCardListItemSummary(itemEl);
+      return itemEl;
+    }
+
+    function bindCardListItemEvents(itemEl, fieldName) {
+      const header = itemEl.querySelector('.cardlist-item-header');
+      const toggleBtn = itemEl.querySelector('.cardlist-item-toggle');
+
+      header?.addEventListener('click', (e) => {
+        if (e.target.closest('.cardlist-item-actions') ||
+            e.target.closest('.cardlist-item-drag-handle') ||
+            e.target.closest('.cardlist-item-toggle')) {
+          return;
+        }
+        toggleCardListItem(itemEl, fieldName);
+      });
+
+      toggleBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleCardListItem(itemEl, fieldName);
+      });
+
+      itemEl.querySelectorAll('.cardlist-item-title, .cardlist-item-title-en').forEach(input => {
+        input.addEventListener('input', () => {
+          updateCardListItemSummary(itemEl);
+          syncCardListToHidden(fieldName);
+        });
+      });
+
+      itemEl.querySelectorAll('input:not(.cardlist-item-featured):not(.cardlist-item-title):not(.cardlist-item-title-en), textarea').forEach(input => {
+        input.addEventListener('input', () => syncCardListToHidden(fieldName));
+      });
+
+      itemEl.querySelectorAll('.cardlist-media-type-input').forEach(radio => {
+        radio.addEventListener('change', () => {
+          applyCardListMediaTypeUI(itemEl);
+          syncCardListToHidden(fieldName);
+        });
+      });
+
+      itemEl.querySelector('.cardlist-item-featured')?.addEventListener('change', (e) => {
+        if (e.target.checked) {
+          enforceSingleFeaturedCard(fieldName, itemEl);
+        } else {
+          itemEl.classList.remove('is-featured');
+          itemEl.querySelector('.cardlist-featured-badge')?.remove();
+        }
+        syncCardListToHidden(fieldName);
+      });
+
+      itemEl.querySelector('.cardlist-item-icon')?.addEventListener('input', (e) => {
+        const preview = itemEl.querySelector('.cardlist-icon-preview i');
+        if (preview && window.TpFaIconPicker) {
+          TpFaIconPicker.updateIconPreviewElement(preview, e.target.value);
+        }
+        syncCardListToHidden(fieldName);
+        const panel = itemEl.querySelector('.cardlist-icon-picker-panel');
+        const searchInput = itemEl.querySelector('.cardlist-icon-search');
+        if (searchInput) searchInput.value = e.target.value;
+        if (panel && panel._faRefresh) panel._faRefresh(e.target.value);
+      });
+
+      itemEl.querySelector('.cardlist-toggle-icons')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const wrap = itemEl.querySelector('.cardlist-icon-grid-wrap');
+        if (!wrap) return;
+        const collapse = bootstrap.Collapse.getOrCreateInstance(wrap, { toggle: false });
+        const panel = itemEl.querySelector('.cardlist-icon-picker-panel');
+        const iconInput = itemEl.querySelector('.cardlist-item-icon');
+
+        if (wrap.classList.contains('show')) {
+          collapse.hide();
+          return;
+        }
+
+        const refreshNow = () => {
+          if (panel && panel._faRefresh) panel._faRefresh(iconInput?.value || '');
+          setTimeout(() => itemEl.querySelector('.cardlist-icon-search')?.focus(), 150);
+        };
+
+        wrap.addEventListener('shown.bs.collapse', refreshNow, { once: true });
+        collapse.show();
+      });
+
+      itemEl.querySelector('.cardlist-remove')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const container = document.getElementById('cardlist-items-' + fieldName);
+        if (!container) return;
+        itemEl.remove();
+        reindexCardListItems(fieldName);
+        syncCardListToHidden(fieldName);
+        if (container.children.length === 0) {
+          updateCardListEmptyState(fieldName);
+        }
+      });
+
+      itemEl.querySelector('.cardlist-move-up')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const prev = itemEl.previousElementSibling;
+        if (prev) {
+          itemEl.parentNode.insertBefore(itemEl, prev);
+          reindexCardListItems(fieldName);
+          syncCardListToHidden(fieldName);
+        }
+      });
+
+      itemEl.querySelector('.cardlist-move-down')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const next = itemEl.nextElementSibling;
+        if (next) {
+          itemEl.parentNode.insertBefore(next, itemEl);
+          reindexCardListItems(fieldName);
+          syncCardListToHidden(fieldName);
+        }
+      });
+
+      const dropzone = itemEl.querySelector('.tp-uploader-dropzone');
+      const fileInput = itemEl.querySelector('.cardlist-item-file');
+      const imageHidden = itemEl.querySelector('.cardlist-item-image');
+
+      dropzone?.addEventListener('click', (e) => {
+        if (e.target.closest('.cardlist-clear-image')) return;
+        fileInput?.click();
+      });
+
+      fileInput?.addEventListener('change', () => {
+        if (!fileInput.files || !fileInput.files[0] || !imageHidden) return;
+        uploadCardListImage(fileInput.files[0], itemEl, fieldName);
+      });
+
+      itemEl.querySelector('.cardlist-clear-image')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (imageHidden) imageHidden.value = '';
+        const placeholder = itemEl.querySelector('.dropzone-placeholder');
+        const preview = itemEl.querySelector('.dropzone-preview');
+        const img = preview?.querySelector('img');
+        if (img) img.src = '';
+        placeholder?.classList.remove('d-none');
+        preview?.classList.add('d-none');
+        syncCardListToHidden(fieldName);
+      });
+    }
+
+    function initCardListIconPicker(itemEl, fieldName) {
+      const panel = itemEl.querySelector('.cardlist-icon-picker-panel');
+      const iconInput = itemEl.querySelector('.cardlist-item-icon');
+      const preview = itemEl.querySelector('.cardlist-icon-preview i');
+      if (!panel || !window.TpFaIconPicker) return;
+
+      TpFaIconPicker.initPickerPanel(panel, {
+        iconInput,
+        previewEl: preview,
+        onChange: () => syncCardListToHidden(fieldName)
+      });
+    }
+
+    function uploadCardListImage(file, itemEl, fieldName) {
+      const imageHidden = itemEl.querySelector('.cardlist-item-image');
+      const placeholder = itemEl.querySelector('.dropzone-placeholder');
+      const preview = itemEl.querySelector('.dropzone-preview');
+      const img = preview?.querySelector('img');
+      const formData = new FormData();
+      formData.append('file', file);
+
+      $.ajax({
+        url: '?handler=UploadFile',
+        type: 'POST',
+        data: formData,
+        contentType: false,
+        processData: false,
+        headers: { "RequestVerificationToken": $('input[name="__RequestVerificationToken"]').val() },
+        success: function(response) {
+          if (response.success && imageHidden) {
+            imageHidden.value = response.filePath;
+            if (img) img.src = response.filePath;
+            placeholder?.classList.add('d-none');
+            preview?.classList.remove('d-none');
+            syncCardListToHidden(fieldName);
+          } else {
+            Swal.fire('Error / خطأ', response.message || 'Upload failed', 'error');
+          }
+        },
+        error: function(xhr, status, error) {
+          Swal.fire('Error / خطأ', 'فشل الرفع: ' + error, 'error');
+        }
+      });
+    }
+
+    function reindexCardListItems(fieldName) {
+      const container = document.getElementById('cardlist-items-' + fieldName);
+      if (!container) return;
+      Array.from(container.children).forEach((child, idx) => {
+        child.dataset.index = String(idx);
+        const badge = child.querySelector('.cardlist-item-badge');
+        if (badge) badge.textContent = '#' + (idx + 1);
+      });
+    }
+
+    function initCardListSortable(fieldName) {
+      const container = document.getElementById('cardlist-items-' + fieldName);
+      if (!container || typeof Sortable === 'undefined') return;
+      if (container._cardListSortable) {
+        container._cardListSortable.destroy();
+      }
+      container._cardListSortable = new Sortable(container, {
+        animation: 150,
+        handle: '.cardlist-item-drag-handle',
+        onEnd: () => {
+          reindexCardListItems(fieldName);
+          syncCardListToHidden(fieldName);
+        }
+      });
+    }
+
+    function cardListAddItem(fieldName, showPanel) {
+      const container = document.getElementById('cardlist-items-' + fieldName);
+      if (!container) return;
+      if (showPanel !== false) {
+        showCardListPanel(fieldName, true);
+      }
+      const index = container.children.length;
+      const itemEl = createCardListItemElement(fieldName, {}, index, true);
+      container.appendChild(itemEl);
+      expandCardListItem(itemEl, fieldName);
+      reindexCardListItems(fieldName);
+      syncCardListToHidden(fieldName);
+      initCardListSortable(fieldName);
+    }
+
+    function collectCardListData(fieldName) {
+      const editor = document.getElementById('cardlist-editor-' + fieldName);
+      const container = document.getElementById('cardlist-items-' + fieldName);
+      if (!editor || !container) return null;
+
+      const items = Array.from(container.querySelectorAll('.cardlist-item')).map(itemEl => {
+        const mediaType = itemEl.querySelector('.cardlist-media-type-input[value="image"]')?.checked ? 'image' : 'icon';
+        return {
+          title: itemEl.querySelector('.cardlist-item-title')?.value.trim() || '',
+          titleEn: itemEl.querySelector('.cardlist-item-title-en')?.value.trim() || '',
+          subtitle: itemEl.querySelector('.cardlist-item-subtitle')?.value.trim() || '',
+          subtitleEn: itemEl.querySelector('.cardlist-item-subtitle-en')?.value.trim() || '',
+          description: itemEl.querySelector('.cardlist-item-description')?.value.trim() || '',
+          descriptionEn: itemEl.querySelector('.cardlist-item-description-en')?.value.trim() || '',
+          mediaType,
+          icon: mediaType === 'icon' ? (itemEl.querySelector('.cardlist-item-icon')?.value.trim() || '') : '',
+          image: mediaType === 'image' ? (itemEl.querySelector('.cardlist-item-image')?.value.trim() || '') : '',
+          link: itemEl.querySelector('.cardlist-item-link')?.value.trim() || '',
+          featured: itemEl.querySelector('.cardlist-item-featured')?.checked === true
+        };
+      });
+
+      return {
+        sectionTitle: editor.querySelector('.cardlist-section-title')?.value.trim() || '',
+        sectionTitleEn: editor.querySelector('.cardlist-section-title-en')?.value.trim() || '',
+        sectionSubtitle: editor.querySelector('.cardlist-section-subtitle')?.value.trim() || '',
+        sectionSubtitleEn: editor.querySelector('.cardlist-section-subtitle-en')?.value.trim() || '',
+        sectionSummary: editor.querySelector('.cardlist-section-summary')?.value.trim() || '',
+        sectionSummaryEn: editor.querySelector('.cardlist-section-summary-en')?.value.trim() || '',
+        items
+      };
+    }
+
+    function syncCardListToHidden(fieldName) {
+      const hidden = document.getElementById('cardlist-json-' + fieldName);
+      const data = collectCardListData(fieldName);
+      if (hidden && data) {
+        hidden.value = JSON.stringify(data);
+      }
+      const count = countMeaningfulCardListItems(data?.items || []);
+      updateCardListAccordionBadge(fieldName, count);
+      updateCardListGroupCount();
+    }
+
+    function updateCardListAccordionBadge(fieldName, count) {
+      const badge = document.getElementById('cardlist-count-' + fieldName);
+      if (badge) {
+        badge.textContent = String(count);
+      }
+    }
+
+    function syncAllCardLists() {
+      document.querySelectorAll('.tp-cardlist-editor').forEach(editor => {
+        syncCardListToHidden(editor.dataset.fieldname);
+      });
+    }
+
+    function normalizeIconClass(icon) {
+      if (window.TpFaIconPicker) {
+        return TpFaIconPicker.normalizeIconClass(icon);
+      }
+      let clean = (icon || '').trim();
+      if (!clean) return 'fas fa-circle';
+      return clean;
+    }
+
+    function escapeHtmlAttr(value) {
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+
+    function escapeHtmlText(value) {
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+
     // Dynamic Save AJAX Submit Action
-    function saveContentForm(e) {
-      e.preventDefault();
+    function saveContentForm(e, mode) {
+      if (e) e.preventDefault();
+      mode = mode || 'save';
+      document.getElementById('saveMode').value = mode;
+
+      syncAllCardLists();
 
       // Summernote automatically updates the underlying textarea, no manual sync needed here
 
@@ -1372,6 +2266,19 @@
         },
         success: function(response) {
           if (response.success) {
+            if (mode === 'addNew') {
+              Swal.fire({
+                title: trans.saveSuccess,
+                text: trans.saveAddNewSuccessText,
+                icon: 'success',
+                showConfirmButton: false,
+                timer: 1400
+              }).then(() => {
+                reloadForNewEntry();
+              });
+              return;
+            }
+
             Swal.fire({
               title: trans.saveSuccess,
               text: trans.saveSuccessText,
@@ -1389,6 +2296,26 @@
           Swal.fire('Error / خطأ', 'فشلت معالجة الطلب على الخادم: ' + error, 'error');
         }
       });
+    }
+
+    function reloadForNewEntry() {
+      const contentTypeId = document.getElementById('form-ContentTypeId')?.value
+        || document.getElementById('contentTypeSwitcher')?.value;
+      const categoryId = document.getElementById('sys-category')?.value;
+      const subCategoryId = document.getElementById('sys-subcategory')?.value;
+      let url = `/ContentEdit?contentTypeId=${encodeURIComponent(contentTypeId || '')}`;
+      if (categoryId) url += `&categoryId=${encodeURIComponent(categoryId)}`;
+      if (subCategoryId) url += `&subCategoryId=${encodeURIComponent(subCategoryId)}`;
+      window.location.href = url;
+    }
+
+    function ensureDefaultPublishDate() {
+      const publishInput = document.getElementById('sys-publishdate');
+      if (publishInput && !publishInput.value) {
+        const now = new Date();
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        publishInput.value = now.toISOString().slice(0, 16);
+      }
     }
   </script>
 }

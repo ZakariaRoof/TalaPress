@@ -5,6 +5,7 @@
 }
 
 @section Styles {
+  <link rel="stylesheet" href="~/assets/css/apexcharts.css" asp-append-version="true">
   <style>
     /* Shimmer / Skeleton Loader Styling */
     .tp-chart-loader-overlay {
@@ -419,7 +420,7 @@
 </main>
 
 @section Scripts {
-    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script src="~/assets/js/apexcharts.min.js" asp-append-version="true"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // Delay chart initialization slightly to ensure CSS layout and card widths are fully calculated

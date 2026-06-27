@@ -35,7 +35,7 @@
   * `Id` (BIGINT, IDENTITY, PK): معرف الحقل الفريد.
   * `ContentTypeId` (BIGINT, FK -> dbo.ContentTypes): معرف قالب المحتوى المرتبط بالحقل.
   * `FieldName` (NVARCHAR(100)): الاسم البرمجي الفريد للحقل (مثال: `news_source` أو `price`).
-  * `FieldType` (NVARCHAR(50)): نوع الحقل (مثل: Text, RichText, Number, Select, Image, Gallery).
+  * `FieldType` (NVARCHAR(50)): نوع الحقل (مثل: Text, RichText, Number, Select, Image, Gallery, CardList).
   * `Label` / `Label_En` (NVARCHAR(250)): التسمية التوضيحية الظاهرة باللغتين.
   * `Placeholder` / `Placeholder_En` (NVARCHAR(500), Nullable): نص التلميح التوجيهي للمحرر باللغتين.
   * `HelpText` / `HelpText_En` (NVARCHAR(1000), Nullable): النص الإرشادي والمساعد الظاهر تحت الحقل باللغتين.
@@ -205,6 +205,60 @@
 ```
 
 > ملاحظة: `Query` ليس نوع حقل مستقل. هو نمط لتوليد خيارات `Select` و `MultiSelect` فقط.
+
+---
+
+## 4.4 CardList / قائمة بطاقات
+
+نوع حقل `CardList` يُستخدم لبناء أقسام ببطاقات متكررة (مثل: أنواع الكفالات، خطوات العملية، ميزات الخدمة).
+
+### بنية التخزين داخل `CustomFieldsJson`
+
+```json
+{
+  "sponsorship_types": {
+    "sectionTitle": "أنواع الكفالات",
+    "sectionTitleEn": "Sponsorship Types",
+    "sectionSubtitle": "ما الذي يميزنا؟",
+    "sectionSubtitleEn": "What makes us special?",
+    "sectionSummary": "اختر نوع الكفالة المناسب",
+    "sectionSummaryEn": "Choose the right sponsorship type",
+    "items": [
+      {
+        "title": "كفالة يتيم",
+        "titleEn": "Orphan Sponsorship",
+        "subtitle": "أساس تعاملنا مع المجتمع",
+        "subtitleEn": "How we engage society",
+        "description": "دعم شامل لليتيم",
+        "descriptionEn": "Full support for an orphan",
+        "mediaType": "icon",
+        "icon": "bi-heart-fill",
+        "image": "",
+        "link": "/sponsorship/orphan",
+        "featured": false
+      }
+    ]
+  }
+}
+```
+
+### حقول كل عنصر
+
+| الحقل | الوصف |
+|-------|--------|
+| `sectionTitle` / `sectionTitleEn` | عنوان القسم |
+| `sectionSubtitle` / `sectionSubtitleEn` | العنوان الفرعي للقسم |
+| `sectionSummary` / `sectionSummaryEn` | ملخص اختياري للقسم |
+| `items[].title` / `titleEn` | عنوان البطاقة |
+| `items[].subtitle` / `subtitleEn` | العنوان الفرعي (مفيد للبطاقة المميزة) |
+| `items[].description` / `descriptionEn` | وصف اختياري |
+| `items[].mediaType` | `icon` أو `image` — يُخزَّن أحدهما فقط |
+| `items[].icon` | أيقونة Bootstrap عند `mediaType=icon` |
+| `items[].image` | صورة مرفوعة عند `mediaType=image` |
+| `items[].link` | رابط اختياري |
+| `items[].featured` | بطاقة مميزة واحدة فقط لكل قائمة |
+
+> في المحرر: حقول العربية/الإنجليزية في تبويبات منفصلة؛ اختيار أيقونة **أو** صورة؛ مفتاح «مميز» يلغي تمييز البطاقات الأخرى تلقائياً.
 
 ---
 

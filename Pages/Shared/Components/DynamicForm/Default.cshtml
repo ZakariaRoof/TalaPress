@@ -148,8 +148,8 @@
             spinner.classList.remove('d-none');
             alertBox.classList.add('d-none');
             
-            // Submit
-            fetch('/api/forms/submit', {
+            // Admin preview: authenticated handler (production frontends use /api/v1/forms/{id}/submit + Pearl key)
+            fetch('/Forms?handler=SubmitPreview', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

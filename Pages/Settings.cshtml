@@ -3,10 +3,14 @@
 @inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment HostEnvironment
 @{
     ViewData["Title"] = "إعدادات النظام - System Settings";
-    var (resolvedLogo, resolvedFavicon) = TalaPress.Infrastructure.BrandingHelper.ResolveFromDisk(HostEnvironment.WebRootPath);
+    var (resolvedLogo, resolvedLogoLight, resolvedFavicon) = TalaPress.Infrastructure.BrandingHelper.ResolveFromDisk(HostEnvironment.WebRootPath);
     if (string.IsNullOrEmpty(resolvedLogo) && !string.IsNullOrEmpty(Model.Logo))
     {
         resolvedLogo = Model.Logo;
+    }
+    if (string.IsNullOrEmpty(resolvedLogoLight) && !string.IsNullOrEmpty(Model.LogoLight))
+    {
+        resolvedLogoLight = Model.LogoLight;
     }
     if (string.IsNullOrEmpty(resolvedFavicon) && !string.IsNullOrEmpty(Model.Favicon))
     {
@@ -94,6 +98,15 @@
                                     </div>
                                 </button>
                             </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link w-100 text-start d-flex align-items-center gap-2" id="smtp-tab" data-bs-toggle="tab" data-bs-target="#smtp" type="button" role="tab" aria-controls="smtp" aria-selected="false">
+                                    <i class="bi bi-envelope-at fs-5"></i>
+                                    <div>
+                                        <span class="d-block fw-bold tp-only-ar">البريد (SMTP)</span>
+                                        <span class="d-block fw-bold tp-only-en">Email (SMTP)</span>
+                                    </div>
+                                </button>
+                            </li>
                         </ul>
                     </div>
                 </div>
@@ -112,35 +125,30 @@
                             
                             <div class="row g-3">
                                 <div class="col-md-6">
-                                    <label class="form-label fw-bold">اسم الموقع بالعربية <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" asp-for="SiteName" required />
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Site Name (English)</label>
-                                    <input type="text" class="form-control text-start" dir="ltr" asp-for="SiteName_En" />
-                                </div>
-
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">وصف الموقع بالعربية</label>
-                                    <textarea class="form-control" rows="3" asp-for="SiteDescription"></textarea>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Site Description (English)</label>
-                                    <textarea class="form-control text-start" dir="ltr" rows="3" asp-for="SiteDescription_En"></textarea>
-                                </div>
-
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">شعار الموقع (Logo URL)</label>
+                                    <label class="form-label fw-bold">شعار الموقع (داكن / Dark Logo)</label>
                                     <input type="file" class="form-control text-start" dir="ltr" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml" asp-for="LogoFile" />
                                     <input type="hidden" asp-for="Logo" />
                                     @if (!string.IsNullOrEmpty(resolvedLogo))
                                     {
-                                        <div class="mt-2">
+                                        <div class="mt-2 p-2 rounded bg-dark d-inline-block">
                                             <img src="@($"{resolvedLogo}?v={brandingVersion}")" alt="Current Logo" style="max-height: 50px;" />
-                                            <small class="text-muted d-block mt-1">الشعار الحالي</small>
+                                            <small class="text-light d-block mt-1">الشعار الداكن الحالي</small>
                                         </div>
                                     }
                                 </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">شعار الموقع (فاتح / Light Logo)</label>
+                                    <input type="file" class="form-control text-start" dir="ltr" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml" asp-for="LogoLightFile" />
+                                    <input type="hidden" asp-for="LogoLight" />
+                                    @if (!string.IsNullOrEmpty(resolvedLogoLight))
+                                    {
+                                        <div class="mt-2 p-2 rounded bg-secondary d-inline-block">
+                                            <img src="@($"{resolvedLogoLight}?v={brandingVersion}")" alt="Current Light Logo" style="max-height: 50px;" />
+                                            <small class="text-light d-block mt-1">الشعار الفاتح الحالي</small>
+                                        </div>
+                                    }
+                                </div>
+
                                 <div class="col-md-6">
                                     <label class="form-label fw-bold">أيقونة الموقع (Favicon URL)</label>
                                     <input type="file" class="form-control text-start" dir="ltr" accept="image/png,image/jpeg,image/gif,image/webp,image/x-icon,.ico" asp-for="FaviconFile" />
@@ -334,6 +342,29 @@
 
                             <div class="row g-3">
                                 <div class="col-md-6">
+                                    <label class="form-label fw-bold">اسم الموقع بالعربية <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" asp-for="SiteName" required />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Site Name (English)</label>
+                                    <input type="text" class="form-control text-start" dir="ltr" asp-for="SiteName_En" />
+                                </div>
+
+                                <div class="col-md-12">
+                                    <label class="form-label fw-bold">رابط الموقع (Site URL)</label>
+                                    <input type="url" class="form-control text-start" dir="ltr" placeholder="https://talapress.online" asp-for="SiteUrl" />
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">نص تعريفي بالعربية (250 حرف)</label>
+                                    <textarea class="form-control" rows="3" maxlength="250" asp-for="SiteDescription"></textarea>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Site Description (English, 250 chars)</label>
+                                    <textarea class="form-control text-start" dir="ltr" rows="3" maxlength="250" asp-for="SiteDescription_En"></textarea>
+                                </div>
+
+                                <div class="col-md-6">
                                     <label class="form-label fw-bold">اسم الشركة/المؤسسة بالعربية</label>
                                     <input type="text" class="form-control" asp-for="CompanyName" />
                                 </div>
@@ -358,6 +389,12 @@
                                 <div class="col-md-6">
                                     <label class="form-label fw-bold">Company Address (English)</label>
                                     <input type="text" class="form-control text-start" dir="ltr" asp-for="CompanyAddress_En" />
+                                </div>
+
+                                <div class="col-md-12">
+                                    <label class="form-label fw-bold">رابط الخريطة (Google Maps)</label>
+                                    <input type="url" class="form-control text-start" dir="ltr" placeholder="https://maps.google.com/..." asp-for="CompanyMapUrl" />
+                                    <div class="form-text">يُستخدم في الواجهة الأمامية كرابط «عرض على الخريطة» تحت العنوان.</div>
                                 </div>
 
                                 <h5 class="fw-bold mt-4 mb-2 text-primary-emphasis">حسابات التواصل الاجتماعي (Social URLs)</h5>
@@ -397,6 +434,65 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- SMTP TAB -->
+                    <div class="tab-pane fade" id="smtp" role="tabpanel" aria-labelledby="smtp-tab">
+                        <div class="card border-0 shadow-sm p-4">
+                            <h4 class="fw-bold mb-4 border-bottom pb-3">
+                                <span class="tp-only-ar">إعدادات البريد (SMTP)</span>
+                                <span class="tp-only-en">SMTP Email Settings</span>
+                            </h4>
+                            <p class="text-muted small">
+                                <span class="tp-only-ar">تُستخدم لإرسال إشعارات ردود النماذج. كلمة المرور تُخزَّن مشفّرة ولا تُعرض بعد الحفظ.</span>
+                                <span class="tp-only-en">Used for form submission notifications. Password is stored encrypted and never shown after save.</span>
+                            </p>
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" asp-for="SmtpEnabled" id="smtp-enabled" />
+                                        <label class="form-check-label fw-bold" for="smtp-enabled">
+                                            <span class="tp-only-ar">تفعيل SMTP</span>
+                                            <span class="tp-only-en">Enable SMTP</span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-8">
+                                    <label class="form-label fw-bold">SMTP Host</label>
+                                    <input type="text" class="form-control text-start" dir="ltr" asp-for="SmtpHost" placeholder="smtp.example.com" />
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">Port</label>
+                                    <input type="number" class="form-control text-start" dir="ltr" asp-for="SmtpPort" min="1" max="65535" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Username</label>
+                                    <input type="text" class="form-control text-start" dir="ltr" asp-for="SmtpUsername" autocomplete="off" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">
+                                        <span class="tp-only-ar">كلمة المرور</span>
+                                        <span class="tp-only-en">Password</span>
+                                    </label>
+                                    <input type="password" class="form-control text-start" dir="ltr" asp-for="SmtpPassword" autocomplete="new-password"
+                                           placeholder="@(Model.SmtpPasswordIsSet ? "•••••••• (محفوظة — اترك فارغاً للإبقاء)" : "")" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">From Email</label>
+                                    <input type="email" class="form-control text-start" dir="ltr" asp-for="SmtpFromEmail" placeholder="noreply@example.com" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">From Name</label>
+                                    <input type="text" class="form-control" asp-for="SmtpFromName" placeholder="TalaPress" />
+                                </div>
+                                <div class="col-12">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" asp-for="SmtpUseSsl" id="smtp-usessl" />
+                                        <label class="form-check-label" for="smtp-usessl">TLS/SSL (موصى به — المنفذ 587 أو 465)</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- SAVE BUTTON ROW (Sticky Footer-like actions block) -->
@@ -420,6 +516,28 @@
             </div>
         </div>
     </form>
+
+    @if (User.HasClaim("Permission", "Settings.Edit"))
+    {
+        <form method="post" asp-page-handler="TestSmtp" class="card border-0 shadow-sm mt-3 p-3">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-8">
+                    <label class="form-label fw-bold mb-1">
+                        <span class="tp-only-ar">اختبار SMTP (بعد حفظ الإعدادات أعلاه)</span>
+                        <span class="tp-only-en">Test SMTP (save settings above first)</span>
+                    </label>
+                    <input type="email" class="form-control text-start" dir="ltr" name="SmtpTestEmail" placeholder="test@example.com" />
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-outline-primary w-100">
+                        <i class="bi bi-send me-1"></i>
+                        <span class="tp-only-ar">إرسال رسالة اختبار</span>
+                        <span class="tp-only-en">Send test email</span>
+                    </button>
+                </div>
+            </div>
+        </form>
+    }
 </div>
 
 @section Scripts {

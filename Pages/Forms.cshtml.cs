@@ -3,6 +3,9 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Data.SqlClient;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using TalaPress.Infrastructure;
+using TalaPress.Models;
+using TalaPress.Services;
 
 namespace TalaPress.Pages
 {
@@ -19,6 +22,7 @@ namespace TalaPress.Pages
         public string? SuccessMessage_En { get; set; }
         public bool SendEmailNotification { get; set; }
         public string? NotificationEmail { get; set; }
+        public string ResponseStorageType { get; set; } = TalaPress.Models.FormResponseStorageType.Database;
         public bool IsActive { get; set; }
     }
 
@@ -40,13 +44,16 @@ namespace TalaPress.Pages
         public bool IsActive { get; set; } = true;
     }
 
+    [IgnoreAntiforgeryToken]
     public class FormsModel : PageModel
     {
         private readonly IConfiguration _configuration;
+        private readonly IFormSubmissionService _formSubmissionService;
 
-        public FormsModel(IConfiguration configuration)
+        public FormsModel(IConfiguration configuration, IFormSubmissionService formSubmissionService)
         {
             _configuration = configuration;
+            _formSubmissionService = formSubmissionService;
         }
 
         public List<FormViewModel> FormsList { get; set; } = new();
@@ -89,6 +96,9 @@ namespace TalaPress.Pages
         public string? NotificationEmail { get; set; }
 
         [BindProperty]
+        public string ResponseStorageType { get; set; } = FormResponseStorageType.Database;
+
+        [BindProperty]
         public bool IsActive { get; set; } = true;
 
         [BindProperty]
@@ -112,6 +122,16 @@ namespace TalaPress.Pages
             string? connectionString = _configuration.GetConnectionString("DefaultConnection");
             if (string.IsNullOrEmpty(connectionString)) return Page();
 
+            try
+            {
+                await FormsSchemaHelper.EnsureAsync(connectionString);
+            }
+            catch (Exception ex)
+            {
+                ErrorMessageAlert = $"فشل تهيئة جداول النماذج: {ex.Message}";
+                return Page();
+            }
+
             await LoadFormsListAsync(connectionString);
             await LoadDatabaseSchemaOptionsAsync(connectionString);
 
@@ -132,6 +152,7 @@ namespace TalaPress.Pages
                     SuccessMessage_En = currentForm.SuccessMessage_En;
                     SendEmailNotification = currentForm.SendEmailNotification;
                     NotificationEmail = currentForm.NotificationEmail;
+                    ResponseStorageType = currentForm.ResponseStorageType;
                     IsActive = currentForm.IsActive;
 
                     var fields = await GetFormFieldsAsync(connectionString, Id);
@@ -165,6 +186,13 @@ namespace TalaPress.Pages
                 ErrorMessageAlert = "الاسم بالعربية مطلوب.";
                 return await OnGetReloadAsync();
             }
+
+            if (!FormResponseStorageType.IsValid(ResponseStorageType))
+            {
+                ResponseStorageType = FormResponseStorageType.Database;
+            }
+
+            SendEmailNotification = FormResponseStorageType.SendsEmail(ResponseStorageType);
 
             List<FormFieldDto> formFields;
             try
@@ -214,6 +242,16 @@ namespace TalaPress.Pages
             using var connection = new SqlConnection(connectionString);
             await connection.OpenAsync();
 
+            try
+            {
+                await FormsSchemaHelper.EnsureAsync(connectionString);
+            }
+            catch (Exception ex)
+            {
+                ErrorMessageAlert = $"فشل تهيئة جداول النماذج: {ex.Message}";
+                return await OnGetReloadAsync();
+            }
+
             SqlTransaction? transaction = null;
             try
             {
@@ -222,8 +260,8 @@ namespace TalaPress.Pages
                 if (formId == 0)
                 {
                     string insertQuery = @"
-                        INSERT INTO dbo.Forms (Name, Name_En, Description, Description_En, SubmitButtonText, SubmitButtonText_En, SuccessMessage, SuccessMessage_En, SendEmailNotification, NotificationEmail, IsActive, CreatedAt)
-                        VALUES (@Name, @Name_En, @Description, @Description_En, @SubmitButtonText, @SubmitButtonText_En, @SuccessMessage, @SuccessMessage_En, @SendEmailNotification, @NotificationEmail, @IsActive, GETUTCDATE());
+                        INSERT INTO dbo.Forms (Name, Name_En, Description, Description_En, SubmitButtonText, SubmitButtonText_En, SuccessMessage, SuccessMessage_En, SendEmailNotification, NotificationEmail, ResponseStorageType, IsActive, CreatedAt)
+                        VALUES (@Name, @Name_En, @Description, @Description_En, @SubmitButtonText, @SubmitButtonText_En, @SuccessMessage, @SuccessMessage_En, @SendEmailNotification, @NotificationEmail, @ResponseStorageType, @IsActive, GETUTCDATE());
                         SELECT SCOPE_IDENTITY();";
                     using var cmd = new SqlCommand(insertQuery, connection, transaction);
                     cmd.Parameters.AddWithValue("@Name", Name);
@@ -236,6 +274,7 @@ namespace TalaPress.Pages
                     cmd.Parameters.AddWithValue("@SuccessMessage_En", (object?)SuccessMessage_En ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@SendEmailNotification", SendEmailNotification);
                     cmd.Parameters.AddWithValue("@NotificationEmail", (object?)NotificationEmail ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@ResponseStorageType", ResponseStorageType);
                     cmd.Parameters.AddWithValue("@IsActive", IsActive);
                     formId = Convert.ToInt64(await cmd.ExecuteScalarAsync());
                     SuccessMessageAlert = "تم إضافة النموذج بنجاح.";
@@ -245,7 +284,7 @@ namespace TalaPress.Pages
                     string updateQuery = @"
                         UPDATE dbo.Forms SET Name=@Name, Name_En=@Name_En, Description=@Description, Description_En=@Description_En, 
                         SubmitButtonText=@SubmitButtonText, SubmitButtonText_En=@SubmitButtonText_En, SuccessMessage=@SuccessMessage, SuccessMessage_En=@SuccessMessage_En, 
-                        SendEmailNotification=@SendEmailNotification, NotificationEmail=@NotificationEmail, IsActive=@IsActive, UpdatedAt=GETUTCDATE()
+                        SendEmailNotification=@SendEmailNotification, NotificationEmail=@NotificationEmail, ResponseStorageType=@ResponseStorageType, IsActive=@IsActive, UpdatedAt=GETUTCDATE()
                         WHERE Id=@Id";
                     using var cmd = new SqlCommand(updateQuery, connection, transaction);
                     cmd.Parameters.AddWithValue("@Id", formId);
@@ -259,6 +298,7 @@ namespace TalaPress.Pages
                     cmd.Parameters.AddWithValue("@SuccessMessage_En", (object?)SuccessMessage_En ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@SendEmailNotification", SendEmailNotification);
                     cmd.Parameters.AddWithValue("@NotificationEmail", (object?)NotificationEmail ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@ResponseStorageType", ResponseStorageType);
                     cmd.Parameters.AddWithValue("@IsActive", IsActive);
                     await cmd.ExecuteNonQueryAsync();
                     SuccessMessageAlert = "تم تحديث النموذج بنجاح.";
@@ -341,16 +381,21 @@ namespace TalaPress.Pages
             }
 
             using var connection = new SqlConnection(connectionString);
-            using var transaction = connection.BeginTransaction();
+            await connection.OpenAsync();
+            await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync();
             try
             {
-                await connection.OpenAsync();
-                using (var cmd = new SqlCommand("DELETE FROM dbo.FormFields WHERE FormId=@Id", connection, transaction))
+                await using (var cmd = new SqlCommand("DELETE FROM dbo.FormSubmissions WHERE FormId=@Id", connection, transaction))
                 {
                     cmd.Parameters.AddWithValue("@Id", id);
                     await cmd.ExecuteNonQueryAsync();
                 }
-                using (var cmd = new SqlCommand("DELETE FROM dbo.Forms WHERE Id=@Id", connection, transaction))
+                await using (var cmd = new SqlCommand("DELETE FROM dbo.FormFields WHERE FormId=@Id", connection, transaction))
+                {
+                    cmd.Parameters.AddWithValue("@Id", id);
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                await using (var cmd = new SqlCommand("DELETE FROM dbo.Forms WHERE Id=@Id", connection, transaction))
                 {
                     cmd.Parameters.AddWithValue("@Id", id);
                     var result = await cmd.ExecuteNonQueryAsync();
@@ -378,7 +423,7 @@ namespace TalaPress.Pages
             FormsList.Clear();
             using var connection = new SqlConnection(connectionString);
             await connection.OpenAsync();
-            using var command = new SqlCommand("SELECT Id, Name, Name_En, Description, Description_En, SubmitButtonText, SubmitButtonText_En, SuccessMessage, SuccessMessage_En, SendEmailNotification, NotificationEmail, IsActive FROM dbo.Forms ORDER BY CreatedAt DESC", connection);
+            using var command = new SqlCommand("SELECT Id, Name, Name_En, Description, Description_En, SubmitButtonText, SubmitButtonText_En, SuccessMessage, SuccessMessage_En, SendEmailNotification, NotificationEmail, ISNULL(ResponseStorageType, 'Database'), IsActive FROM dbo.Forms ORDER BY CreatedAt DESC", connection);
             using var reader = await command.ExecuteReaderAsync();
             while (await reader.ReadAsync())
             {
@@ -395,7 +440,8 @@ namespace TalaPress.Pages
                     SuccessMessage_En = reader.IsDBNull(8) ? null : reader.GetString(8),
                     SendEmailNotification = reader.GetBoolean(9),
                     NotificationEmail = reader.IsDBNull(10) ? null : reader.GetString(10),
-                    IsActive = reader.GetBoolean(11)
+                    ResponseStorageType = reader.IsDBNull(11) ? FormResponseStorageType.Database : reader.GetString(11),
+                    IsActive = reader.GetBoolean(12)
                 });
             }
         }
@@ -492,7 +538,47 @@ namespace TalaPress.Pages
 
         public IActionResult OnGetPreview(long id)
         {
+            if (User.Identity?.IsAuthenticated != true || !User.HasClaim("Permission", "Forms.View"))
+            {
+                return Unauthorized();
+            }
             return ViewComponent("DynamicForm", new { formId = id });
+        }
+
+        public class FormPreviewSubmitRequest
+        {
+            public long FormId { get; set; }
+            public string SubmittedDataJson { get; set; } = "{}";
+        }
+
+        public async Task<IActionResult> OnPostSubmitPreviewAsync([FromBody] FormPreviewSubmitRequest request)
+        {
+            if (User.Identity?.IsAuthenticated != true || !User.HasClaim("Permission", "Forms.View"))
+            {
+                return new JsonResult(new { success = false, message = "غير مصرح." }) { StatusCode = 401 };
+            }
+
+            Dictionary<string, JsonElement> fields;
+            try
+            {
+                fields = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(request.SubmittedDataJson)
+                    ?? new Dictionary<string, JsonElement>();
+            }
+            catch
+            {
+                return BadRequest(new { success = false, message = "بيانات غير صالحة." });
+            }
+
+            string ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+            string ua = Request.Headers.UserAgent.ToString();
+            var result = await _formSubmissionService.SubmitAsync(request.FormId, fields, ip, ua);
+
+            if (!result.Success)
+            {
+                return StatusCode(result.StatusCode, new { success = false, message = result.Message });
+            }
+
+            return new JsonResult(new { success = true, message = result.Message, submissionId = result.SubmissionId });
         }
     }
 }

@@ -1,7 +1,10 @@
 @page
 @model LoginModel
+@inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment HostEnvironment
 @{
     Layout = null;
+    var (_, resolvedLogoLight, _) = TalaPress.Infrastructure.BrandingHelper.ResolveFromDisk(HostEnvironment.WebRootPath);
+    var brandingVersion = DateTimeOffset.UtcNow.ToString("yyyyMMdd");
 }
 <!DOCTYPE html>
 <html lang="ar" dir="rtl" data-bs-theme="dark">
@@ -37,7 +40,14 @@
     <!-- LEFT PANEL: Image + Quote -->
     <div class="tp-login-left">
       <div>
-        <h3 class="fw-bold mb-0">TalaPress</h3>
+        @if (!string.IsNullOrEmpty(resolvedLogoLight))
+        {
+            <img src="@($"{resolvedLogoLight}?v={brandingVersion}")" alt="TalaPress" class="tp-login-brand-logo mb-2" />
+        }
+        else
+        {
+            <h3 class="fw-bold mb-0">TalaPress</h3>
+        }
         <p class="fs-7 opacity-75">نظام النشر الذكي والمحتوى الرقمي</p>
       </div>
       

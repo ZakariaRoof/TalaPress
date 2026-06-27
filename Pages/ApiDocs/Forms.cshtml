@@ -1,0 +1,100 @@
+@page "/api/docs/forms"
+@model TalaPress.Pages.ApiDocs.FormsModel
+
+@await Html.PartialAsync("_ApiEndpointHeader", (
+    "GET",
+    "/api/v1/forms",
+    "قائمة النماذج",
+    "Forms List",
+    "جميع النماذج النشطة مع نوع معالجة الردود.",
+    "All active forms with response storage type."
+))
+
+@{
+    var listExample = $@"curl -H ""Authorization: Pearl YOUR_KEY"" ""{Model.ApiV1BaseUrl}/forms""";
+}
+@await Html.PartialAsync("_ApiCodeBlock", ("forms-list-curl", listExample))
+
+@await Html.PartialAsync("_ApiCodeBlock", ("forms-list-res", @"{
+  ""items"": [
+    {
+      ""id"": 1,
+      ""name"": ""اتصل بنا"",
+      ""nameEn"": ""Contact Us"",
+      ""responseStorageType"": ""Both"",
+      ""isActive"": true
+    }
+  ]
+}"))
+
+<hr class="my-5" />
+
+@await Html.PartialAsync("_ApiEndpointHeader", (
+    "GET",
+    "/api/v1/forms/{id}",
+    "مخطط النموذج",
+    "Form Schema",
+    "تفاصيل النموذج مع الحقول لبناء واجهة الإرسال في الفرونت.",
+    "Form definition with fields for building the frontend submit UI."
+))
+
+@{
+    var schemaExample = $@"curl -H ""Authorization: Pearl YOUR_KEY"" ""{Model.ApiV1BaseUrl}/forms/1""";
+}
+@await Html.PartialAsync("_ApiCodeBlock", ("forms-get-curl", schemaExample))
+
+@await Html.PartialAsync("_ApiCodeBlock", ("forms-get-res", @"{
+  ""id"": 1,
+  ""name"": ""اتصل بنا"",
+  ""responseStorageType"": ""Database"",
+  ""fields"": [
+    {
+      ""fieldName"": ""fullName"",
+      ""label"": ""الاسم"",
+      ""fieldType"": ""Text"",
+      ""isRequired"": true
+    }
+  ]
+}"))
+
+<hr class="my-5" />
+
+@await Html.PartialAsync("_ApiEndpointHeader", (
+    "POST",
+    "/api/v1/forms/{id}/submit",
+    "إرسال رد النموذج",
+    "Submit Form",
+    "يستقبل بيانات الحقول من الفرونت. يتطلب Pearl Key في الهيدر. يُفضّل الاستدعاء من BFF/API Route وليس من المتصفح مباشرة.",
+    "Accepts field data from frontend. Requires Pearl key header. Prefer server-side BFF/API route, not exposed in browser."
+))
+
+<h3 class="h6 text-uppercase text-secondary">Headers</h3>
+<div class="table-responsive mb-3">
+    <table class="table table-striped table-bordered table-sm">
+        <thead><tr><th>Header</th><th class="tp-only-ar">الوصف</th><th class="tp-only-en">Description</th></tr></thead>
+        <tbody>
+            <tr><td><code>Authorization: Pearl YOUR_KEY</code></td><td class="tp-only-ar">مفتاح Pearl (موصى به)</td><td class="tp-only-en">Pearl key (recommended)</td></tr>
+            <tr><td><code>X-Pearl-Key: YOUR_KEY</code></td><td class="tp-only-ar">بديل</td><td class="tp-only-en">Alternative</td></tr>
+            <tr><td><code>Content-Type: application/json</code></td><td class="tp-only-ar">JSON</td><td class="tp-only-en">JSON body</td></tr>
+        </tbody>
+    </table>
+</div>
+
+@{
+    var submitExample = $@"curl -X POST ""{Model.ApiV1BaseUrl}/forms/1/submit"" \
+  -H ""Authorization: Pearl YOUR_KEY"" \
+  -H ""Content-Type: application/json"" \
+  -d '{{""fullName"":""أحمد"",""email"":""a@example.com"",""message"":""مرحباً""}}'";
+}
+@await Html.PartialAsync("_ApiCodeBlock", ("forms-submit-curl", submitExample))
+
+@await Html.PartialAsync("_ApiCodeBlock", ("forms-submit-res", @"{
+  ""success"": true,
+  ""message"": ""تم إرسال رسالتك بنجاح."",
+  ""submissionId"": 42
+}"))
+
+<div class="alert alert-warning border-0 small mt-3">
+    <span class="tp-only-ar"><strong>responseStorageType:</strong> <code>Database</code> = تخزين فقط، <code>Email</code> = بريد فقط (يتطلب SMTP في الإعدادات)، <code>Both</code> = الاثنان.</span>
+    <span class="tp-only-en"><strong>responseStorageType:</strong> <code>Database</code>, <code>Email</code> (needs SMTP), or <code>Both</code>.</span>
+</div>

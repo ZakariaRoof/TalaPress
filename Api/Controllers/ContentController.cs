@@ -38,11 +38,33 @@ public class ContentController : ControllerBase
         [FromQuery] DateTime? createdTo = null,
         [FromQuery] bool? hasFeaturedImage = null,
         [FromQuery] string? sortBy = "publishDate",
-        [FromQuery] string? sortDir = "desc")
+        [FromQuery] string? sortDir = "desc",
+        [FromQuery] string? orderBy = null,
+        [FromQuery] string? orderDir = null,
+        [FromQuery] int? top = null)
     {
+        string? effectiveSortBy = string.IsNullOrWhiteSpace(orderBy) ? sortBy : orderBy;
+        string? effectiveSortDir = string.IsNullOrWhiteSpace(orderDir) ? sortDir : orderDir;
+
         page = Math.Max(1, page);
         pageSize = Math.Clamp(pageSize, 1, 100);
         string? freeText = string.IsNullOrWhiteSpace(q) ? search : q;
+
+        bool topRequested = top.HasValue && top.Value > 0;
+        bool paginate = !topRequested && (Request.Query.ContainsKey("page") || Request.Query.ContainsKey("pageSize"));
+        // When top is omitted and page/pageSize were not sent, return all matching rows.
+        bool fetchAll = !topRequested && !paginate;
+
+        int fetchLimit = topRequested ? Math.Clamp(top!.Value, 1, 10000) : pageSize;
+        if (topRequested)
+        {
+            page = 1;
+            pageSize = fetchLimit;
+        }
+        else if (fetchAll)
+        {
+            page = 1;
+        }
 
         string? connectionString = _configuration.GetConnectionString("DefaultConnection");
         if (string.IsNullOrWhiteSpace(connectionString))
@@ -144,10 +166,10 @@ public class ContentController : ControllerBase
         AddCustomFieldFilters(where, parameters);
 
         string whereSql = string.Join(" AND ", where);
-        int offset = (page - 1) * pageSize;
+        int offset = fetchAll ? 0 : (page - 1) * pageSize;
         var items = new List<object>();
         int total;
-        string orderSql = BuildOrderSql(sortBy, sortDir);
+        string orderSql = BuildOrderSql(effectiveSortBy, effectiveSortDir);
 
         await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync();
@@ -189,7 +211,7 @@ public class ContentController : ControllerBase
             LEFT JOIN dbo.Users u ON c.CreatedBy = u.Id
             WHERE {whereSql}
             ORDER BY {orderSql}
-            OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
+            {(fetchAll ? string.Empty : "OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY")}";
 
         await using (var command = new SqlCommand(query, connection))
         {
@@ -198,8 +220,11 @@ public class ContentController : ControllerBase
                 command.Parameters.Add(new SqlParameter(parameter.ParameterName, parameter.Value));
             }
 
-            command.Parameters.AddWithValue("@Offset", offset);
-            command.Parameters.AddWithValue("@PageSize", pageSize);
+            if (!fetchAll)
+            {
+                command.Parameters.AddWithValue("@Offset", offset);
+                command.Parameters.AddWithValue("@PageSize", pageSize);
+            }
 
             await using var reader = await command.ExecuteReaderAsync();
             while (await reader.ReadAsync())
@@ -275,6 +300,11 @@ public class ContentController : ControllerBase
             }
         }
 
+        if (fetchAll)
+        {
+            pageSize = total;
+        }
+
         return Ok(new
         {
             data = items,
@@ -285,9 +315,9 @@ public class ContentController : ControllerBase
                     page,
                     pageSize,
                     total,
-                    totalPages = (int)Math.Ceiling(total / (double)pageSize),
-                    hasNext = page * pageSize < total,
-                    hasPrevious = page > 1
+                    totalPages = fetchAll || pageSize <= 0 ? 1 : (int)Math.Ceiling(total / (double)pageSize),
+                    hasNext = !fetchAll && page * pageSize < total,
+                    hasPrevious = !fetchAll && page > 1
                 },
                 filters = new
                 {
@@ -304,8 +334,12 @@ public class ContentController : ControllerBase
                     createdFrom,
                     createdTo,
                     hasFeaturedImage,
-                    sortBy,
-                    sortDir
+                    sortBy = effectiveSortBy,
+                    sortDir = effectiveSortDir,
+                    orderBy = string.IsNullOrWhiteSpace(orderBy) ? null : orderBy,
+                    orderDir = string.IsNullOrWhiteSpace(orderDir) ? null : orderDir,
+                    top = topRequested ? fetchLimit : (int?)null,
+                    fetchAll
                 }
             }
         });
@@ -447,6 +481,7 @@ public class ContentController : ControllerBase
             "createdat" => "c.CreatedAt",
             "updatedat" => "c.UpdatedAt",
             "publishdate" => "c.PublishDate",
+            "hits" => "c.Hits",
             _ => "COALESCE(c.PublishDate, c.CreatedAt)"
         };
 

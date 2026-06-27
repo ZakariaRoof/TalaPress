@@ -181,12 +181,18 @@
                     <input type="text" asp-for="SubmitButtonText_En" class="form-control" placeholder="Submit" />
                   </div>
                   <div class="col-md-6">
-                    <label class="form-label">إيميل استلام الإشعارات (اختياري)</label>
-                    <input type="email" asp-for="NotificationEmail" class="form-control" placeholder="admin@example.com" />
-                    <div class="form-check mt-2">
-                      <input class="form-check-input" type="checkbox" asp-for="SendEmailNotification" id="form-sendemail" />
-                      <label class="form-check-label ms-2" for="form-sendemail">تفعيل الإشعارات البريدية للردود</label>
-                    </div>
+                    <label class="form-label">نوع معالجة الردود <span class="text-danger">*</span></label>
+                    <select asp-for="ResponseStorageType" class="form-select" id="form-storage-type">
+                      <option value="Database">تخزين في الموقع (قاعدة البيانات)</option>
+                      <option value="Email">إرسال بريد إلكتروني فقط</option>
+                      <option value="Both">تخزين + إرسال بريد</option>
+                    </select>
+                    <div class="form-text">يحدد ما يحدث عند إرسال الزائر للنموذج من الفرونت أو API.</div>
+                  </div>
+                  <div class="col-md-6" id="form-notification-email-wrap">
+                    <label class="form-label">إيميل استلام الإشعارات</label>
+                    <input type="email" asp-for="NotificationEmail" class="form-control" placeholder="admin@example.com" id="form-notification-email" />
+                    <div class="form-text">مطلوب عند اختيار البريد. إن تُرك فارغاً يُستخدم بريد الشركة من الإعدادات.</div>
                   </div>
                   <div class="col-md-6">
                     <label class="form-label">حالة التنشيط</label>
@@ -471,7 +477,7 @@
 </div>
 
 @section Scripts {
-  <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+  <script src="~/assets/js/sortable.min.js" asp-append-version="true"></script>
   <script>
     // Form fields data
     let customFields = @Html.Raw(Model.CustomFieldsJson);
@@ -603,6 +609,19 @@
     document.addEventListener("DOMContentLoaded", function() {
         // Clean up any existing backdrops
         cleanupBackdrop();
+
+        function syncStorageTypeUi() {
+            var sel = document.getElementById('form-storage-type');
+            var wrap = document.getElementById('form-notification-email-wrap');
+            if (!sel || !wrap) return;
+            var needsEmail = sel.value === 'Email' || sel.value === 'Both';
+            wrap.style.display = needsEmail ? '' : 'none';
+        }
+        var storageSel = document.getElementById('form-storage-type');
+        if (storageSel) {
+            storageSel.addEventListener('change', syncStorageTypeUi);
+            syncStorageTypeUi();
+        }
         
         renderCustomFields();
         
