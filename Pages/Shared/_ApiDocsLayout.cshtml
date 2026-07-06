@@ -1,12 +1,15 @@
+@inject Microsoft.AspNetCore.Http.IHttpContextAccessor HttpContextAccessor
 @{
     string basePath = System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), "wwwroot", "uploads", "img");
+    var pathBase = HttpContextAccessor?.HttpContext?.Request.PathBase.ToString() ?? "";
+    var appBasePath = Url.Content("~/").TrimEnd('/');
     string? logoWebPath = null;
     if (System.IO.Directory.Exists(basePath))
     {
         var logoFiles = System.IO.Directory.GetFiles(basePath, "CMSLogo.*");
         if (logoFiles.Length > 0)
         {
-            logoWebPath = "/uploads/img/" + System.IO.Path.GetFileName(logoFiles[0]);
+            logoWebPath = pathBase + "/uploads/img/" + System.IO.Path.GetFileName(logoFiles[0]);
         }
     }
 }
@@ -18,11 +21,12 @@
     <title>@ViewData["Title"] - Pearl API</title>
     <link id="bootstrap-style" rel="stylesheet"
           href="~/assets/css/bootstrap.rtl.min.css"
-          data-bootstrap-rtl="/assets/css/bootstrap.rtl.min.css"
-          data-bootstrap-ltr="/assets/css/bootstrap.min.css"
+            data-bootstrap-rtl="@Url.Content("~/assets/css/bootstrap.rtl.min.css")"
+            data-bootstrap-ltr="@Url.Content("~/assets/css/bootstrap.min.css")"
           asp-append-version="true">
     <link rel="stylesheet" href="~/assets/css/bootstrap-icons.min.css" asp-append-version="true">
     <link rel="stylesheet" href="~/assets/css/custom.css" asp-append-version="true">
+    <link rel="icon" href="~/favicon.ico" asp-append-version="true">
     <script>
         (function () {
             var lang = localStorage.getItem('tp-lang') || 'ar';
@@ -33,11 +37,60 @@
             document.body.classList.add(lang === 'ar' ? 'lang-ar' : 'lang-en');
             var bootstrapCss = document.getElementById('bootstrap-style');
             if (bootstrapCss) {
-                var rtlHref = bootstrapCss.getAttribute('data-bootstrap-rtl') || '/assets/css/bootstrap.rtl.min.css';
-                var ltrHref = bootstrapCss.getAttribute('data-bootstrap-ltr') || '/assets/css/bootstrap.min.css';
+                var basePath = window.TP_BASE || '';
+                var rtlHref = bootstrapCss.getAttribute('data-bootstrap-rtl') || (basePath + '/assets/css/bootstrap.rtl.min.css');
+                var ltrHref = bootstrapCss.getAttribute('data-bootstrap-ltr') || (basePath + '/assets/css/bootstrap.min.css');
                 bootstrapCss.href = lang === 'ar' ? rtlHref : ltrHref;
             }
         })();
+    </script>
+
+    <!-- Application base path (supports hosting under a sub-path e.g. /cms) -->
+        <script data-tp-base="@appBasePath">
+            window.TP_BASE = document.currentScript.getAttribute('data-tp-base') || '';
+
+      // Fix CSS background-image URLs and other hardcoded paths
+      if (window.TP_BASE) {
+        const fixUrl = (url) => {
+          if (url.startsWith('/assets') || url.startsWith('/uploads') || url.startsWith('/favicon')) {
+            return window.TP_BASE + url;
+          }
+          return url;
+        };
+
+        // Override fetch to prepend pathBase
+        const originalFetch = window.fetch;
+        window.fetch = function(...args) {
+          if (typeof args[0] === 'string' && args[0].startsWith('/')) {
+            args[0] = fixUrl(args[0]);
+          }
+          return originalFetch.apply(this, args);
+        };
+
+                const startPathObserver = () => {
+                    if (!document.body) return;
+
+                    const observer = new MutationObserver(() => {
+                        document.querySelectorAll('[style*="background-image"]').forEach(el => {
+                            const style = el.getAttribute('style');
+                            if (style && style.includes('url(')) {
+                                const fixed = style.replace(/url\('([^']+)'\)/g, (match, url) => {
+                                    return `url('${fixUrl(url)}')`;
+                                });
+                                el.setAttribute('style', fixed);
+                            }
+                        });
+                    });
+
+                    observer.observe(document.body, { subtree: true, attributes: true });
+                };
+
+                if (document.body) {
+                    startPathObserver();
+                } else {
+                    document.addEventListener('DOMContentLoaded', startPathObserver);
+                }
+      }
     </script>
     @await RenderSectionAsync("Styles", required: false)
 </head>

@@ -1,9 +1,11 @@
 @page
 @model LoginModel
 @inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment HostEnvironment
+@inject Microsoft.AspNetCore.Http.IHttpContextAccessor HttpContextAccessor
 @{
     Layout = null;
-    var (_, resolvedLogoLight, _) = TalaPress.Infrastructure.BrandingHelper.ResolveFromDisk(HostEnvironment.WebRootPath);
+    var appBasePath = Url.Content("~/").TrimEnd('/');
+    var (_, resolvedLogoLight, _) = TalaPress.Infrastructure.BrandingHelper.ResolveFromDisk(HostEnvironment.WebRootPath, appBasePath);
     var brandingVersion = DateTimeOffset.UtcNow.ToString("yyyyMMdd");
 }
 <!DOCTYPE html>
@@ -12,15 +14,67 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TalaPress - تسجيل الدخول</title>
-  
+
   <!-- Bootstrap 5 CSS -->
-  <link id="bootstrap-style" rel="stylesheet" href="~/assets/css/bootstrap.rtl.min.css" asp-append-version="true">
-  
+    <link id="bootstrap-style" rel="stylesheet" href="~/assets/css/bootstrap.rtl.min.css"
+      data-bootstrap-rtl="@Url.Content("~/assets/css/bootstrap.rtl.min.css")"
+      data-bootstrap-ltr="@Url.Content("~/assets/css/bootstrap.min.css")"
+      asp-append-version="true">
+
   <!-- Bootstrap Icons CSS -->
   <link rel="stylesheet" href="~/assets/css/bootstrap-icons.min.css" asp-append-version="true">
-  
+
   <!-- Custom CSS -->
   <link rel="stylesheet" href="~/assets/css/custom.css" asp-append-version="true">
+  <link rel="icon" href="~/favicon.ico" asp-append-version="true">
+
+  <!-- Application base path (supports hosting under a sub-path e.g. /cms) -->
+  <script data-tp-base="@appBasePath">
+    window.TP_BASE = document.currentScript.getAttribute('data-tp-base') || '';
+
+    // Fix CSS background-image URLs and other hardcoded paths
+    if (window.TP_BASE) {
+      const fixUrl = (url) => {
+        if (url.startsWith('/assets') || url.startsWith('/uploads') || url.startsWith('/favicon')) {
+          return window.TP_BASE + url;
+        }
+        return url;
+      };
+
+      // Override fetch to prepend pathBase
+      const originalFetch = window.fetch;
+      window.fetch = function(...args) {
+        if (typeof args[0] === 'string' && args[0].startsWith('/')) {
+          args[0] = fixUrl(args[0]);
+        }
+        return originalFetch.apply(this, args);
+      };
+
+      const startPathObserver = () => {
+        if (!document.body) return;
+
+        const observer = new MutationObserver(() => {
+          document.querySelectorAll('[style*="background-image"]').forEach(el => {
+            const style = el.getAttribute('style');
+            if (style && style.includes('url(')) {
+              const fixed = style.replace(/url\('([^']+)'\)/g, (match, url) => {
+                return `url('${fixUrl(url)}')`;
+              });
+              el.setAttribute('style', fixed);
+            }
+          });
+        });
+
+        observer.observe(document.body, { subtree: true, attributes: true });
+      };
+
+      if (document.body) {
+        startPathObserver();
+      } else {
+        document.addEventListener('DOMContentLoaded', startPathObserver);
+      }
+    }
+  </script>
 </head>
 <body class="tp-login-body">
 

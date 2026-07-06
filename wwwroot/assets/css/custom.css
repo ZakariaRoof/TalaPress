@@ -816,7 +816,7 @@ body {
 /* Left pane (Illustration/Teamwork bg) */
 .tp-login-left {
   flex: 1;
-  background-image: url('/assets/images/login_bg.png');
+  background-image: url('../images/login_bg.png');
   background-size: cover;
   background-position: center;
   position: relative;

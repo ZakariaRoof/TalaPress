@@ -10,7 +10,7 @@ public static class BrandingHelper
     public static string GetBrandingDirectory(string webRootPath)
         => Path.Combine(webRootPath, "uploads", "img");
 
-    public static (string? LogoPath, string? LogoLightPath, string? FaviconPath) ResolveFromDisk(string webRootPath)
+    public static (string? LogoPath, string? LogoLightPath, string? FaviconPath) ResolveFromDisk(string webRootPath, string pathBase = "")
     {
         var imgDir = GetBrandingDirectory(webRootPath);
         if (!Directory.Exists(imgDir))
@@ -18,17 +18,18 @@ public static class BrandingHelper
             return (null, null, null);
         }
 
-        string? logo = FindFirstFile(imgDir, "CMSLogo.*");
-        string? logoLight = FindFirstFile(imgDir, "CMSLogoLight.*");
-        string? favicon = FindFirstFile(imgDir, "CMSFavicon.*");
+        string? logo = FindFirstFile(imgDir, "CMSLogo.*", pathBase);
+        string? logoLight = FindFirstFile(imgDir, "CMSLogoLight.*", pathBase);
+        string? favicon = FindFirstFile(imgDir, "CMSFavicon.*", pathBase);
         return (logo, logoLight, favicon);
     }
 
     public static async Task<(string? LogoPath, string? LogoLightPath, string? FaviconPath)> ResolveAsync(
         string connectionString,
-        string webRootPath)
+        string webRootPath,
+        string pathBase = "")
     {
-        var (diskLogo, diskLogoLight, diskFavicon) = ResolveFromDisk(webRootPath);
+        var (diskLogo, diskLogoLight, diskFavicon) = ResolveFromDisk(webRootPath, pathBase);
         string? dbLogo = null;
         string? dbLogoLight = null;
         string? dbFavicon = null;
@@ -63,7 +64,8 @@ public static class BrandingHelper
         string webRootPath,
         string filePrefix,
         string[] allowedExtensions,
-        int maxUploadSizeMb)
+        int maxUploadSizeMb,
+        string pathBase = "")
     {
         if (file.Length == 0)
         {
@@ -114,7 +116,7 @@ public static class BrandingHelper
             return (null, $"تعذّر حفظ الملف: {ex.Message}");
         }
 
-        return ("/uploads/img/" + fileName, null);
+        return (pathBase + "/uploads/img/" + fileName, null);
     }
 
     private static string? PickExistingPath(string webRootPath, string? dbPath, string? diskPath)
@@ -146,7 +148,7 @@ public static class BrandingHelper
         return true;
     }
 
-    private static string? FindFirstFile(string directory, string pattern)
+    private static string? FindFirstFile(string directory, string pattern, string pathBase = "")
     {
         var files = Directory.GetFiles(directory, pattern);
         if (files.Length == 0)
@@ -154,6 +156,6 @@ public static class BrandingHelper
             return null;
         }
 
-        return "/uploads/img/" + Path.GetFileName(files[0]);
+        return pathBase + "/uploads/img/" + Path.GetFileName(files[0]);
     }
 }

@@ -392,7 +392,7 @@
               foreach (var type in Model.ContentTypesList)
               {
                   <div class="col-md-6 col-lg-4 mb-2">
-                    <div class="card h-100 tp-cursor-pointer border border-light-subtle shadow-sm hover-shadow transition-all" onclick="window.location.href='/ContentEdit?contentTypeId=@type.Id'">
+                    <div class="card h-100 tp-cursor-pointer border border-light-subtle shadow-sm hover-shadow transition-all" data-create-url="@Url.Page("/ContentEdit", new { contentTypeId = type.Id })" onclick="window.location.href=this.dataset.createUrl">
                       <div class="card-body text-center p-4">
                         <div class="avatar-placeholder rounded-circle tp-content-type-icon d-flex align-items-center justify-content-center mx-auto mb-3">
                           <i class="@(type.IconValue ?? "bi bi-journal-text")"></i>
@@ -519,6 +519,17 @@
     let contentTable = null;
     let currentLang = localStorage.getItem('tp-lang') || 'ar';
     let previewModalInstance = null;
+
+    function appUrl(path) {
+      const basePath = window.TP_BASE || '';
+      if (!path || path.startsWith('?') || path.startsWith('#')) return path;
+      return path.startsWith('/') ? `${basePath}${path}` : `${basePath}/${path}`;
+    }
+
+    function appAssetUrl(path) {
+      if (!path || /^(?:[a-z][a-z0-9+.-]*:|data:|blob:)/i.test(path)) return path;
+      return appUrl(path);
+    }
 
     const pageTranslations = {
       ar: {
@@ -848,7 +859,8 @@
             });
             html += "</tr>";
         });
-        html += "</tbody></table></body></html>";
+        html += "</tbody></table>";
+        html += "</bo" + "dy></ht" + "ml>";
         
         var blob = new Blob(['\ufeff', html], { type: 'application/msword' });
         var url = URL.createObjectURL(blob);
@@ -1170,7 +1182,7 @@
             data: 'featuredImage',
             render: function(data, type, row) {
               if (data) {
-                return `<img src="${data}" alt="Thumbnail" class="rounded border shadow-sm" style="width: 45px; height: 45px; object-fit: cover;">`;
+                return `<img src="${appAssetUrl(data)}" alt="Thumbnail" class="rounded border shadow-sm" style="width: 45px; height: 45px; object-fit: cover;">`;
               }
               // Icon fallback based on content type
               let iconClass = 'bi bi-file-earmark-richtext';
@@ -1189,7 +1201,7 @@
             data: 'title',
             render: function(data, type, row) {
               const text = currentLang === 'ar' ? (row.title || 'بدون عنوان') : (row.title_En || row.title || 'Untitled');
-              return `<div class="fw-bold text-start px-2"><a href="/ContentEdit?id=${row.id}" class="text-decoration-none text-primary-emphasis">${text}</a></div>`;
+              return `<div class="fw-bold text-start px-2"><a href="${appUrl(`/ContentEdit?id=${row.id}`)}" class="text-decoration-none text-primary-emphasis">${text}</a></div>`;
             }
           },
           // Content Type
@@ -1267,7 +1279,7 @@
 
               return `
                 <div class="d-flex align-items-center justify-content-center gap-1">
-                  <a href="/ContentEdit?id=${data}" class="btn btn-sm btn-outline-primary btn-icon" title="${editTitle}"><i class="bi bi-pencil-fill"></i></a>
+                  <a href="${appUrl(`/ContentEdit?id=${data}`)}" class="btn btn-sm btn-outline-primary btn-icon" title="${editTitle}"><i class="bi bi-pencil-fill"></i></a>
                   <button type="button" class="btn btn-sm btn-outline-secondary btn-icon" onclick="triggerDuplicate(${data})" title="${duplicateTitle}"><i class="bi bi-files"></i></button>
                   <button type="button" class="btn btn-sm btn-outline-info btn-icon" onclick="showHeadlessPreview(${data})" title="${previewTitle}"><i class="bi bi-eye-fill"></i></button>
                   <button type="button" class="btn btn-sm btn-outline-danger btn-icon" onclick="triggerDelete(${data})" title="${deleteTitle}"><i class="bi bi-trash-fill"></i></button>
@@ -1340,11 +1352,11 @@
     function showHeadlessPreview(id) {
       document.getElementById('preview-loading').classList.remove('d-none');
       document.getElementById('content-preview-article').classList.add('d-none');
-      document.getElementById('preview-full-page-link').href = '/ContentPreview?id=' + id;
+      document.getElementById('preview-full-page-link').href = appUrl('/ContentPreview?id=' + id);
       previewModalInstance.show();
 
       $.ajax({
-        url: '/ContentPreview?id=' + id + '&handler=JSON',
+        url: appUrl('/ContentPreview?id=' + id + '&handler=JSON'),
         type: 'GET',
         success: function(response) {
           renderFormattedPreview(response);
@@ -1377,7 +1389,7 @@
       const hero = document.getElementById('preview-hero-image');
       if (item.featuredImage) {
         hero.classList.remove('d-none');
-        hero.innerHTML = `<img src="${escapeAttribute(item.featuredImage)}" alt="${escapeAttribute(title)}" class="w-100 h-100 object-fit-cover">`;
+        hero.innerHTML = `<img src="${escapeAttribute(appAssetUrl(item.featuredImage))}" alt="${escapeAttribute(title)}" class="w-100 h-100 object-fit-cover">`;
       } else {
         hero.classList.add('d-none');
         hero.innerHTML = '';

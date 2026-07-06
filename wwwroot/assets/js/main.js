@@ -419,8 +419,9 @@ function applyLanguage(lang) {
   const bootstrapCssLink = document.getElementById('bootstrap-style');
 
   if (bootstrapCssLink) {
-    const rtlHref = bootstrapCssLink.getAttribute('data-bootstrap-rtl') || '/assets/css/bootstrap.rtl.min.css';
-    const ltrHref = bootstrapCssLink.getAttribute('data-bootstrap-ltr') || '/assets/css/bootstrap.min.css';
+    const basePath = window.TP_BASE || '';
+    const rtlHref = bootstrapCssLink.getAttribute('data-bootstrap-rtl') || `${basePath}/assets/css/bootstrap.rtl.min.css`;
+    const ltrHref = bootstrapCssLink.getAttribute('data-bootstrap-ltr') || `${basePath}/assets/css/bootstrap.min.css`;
     bootstrapCssLink.href = lang === 'ar' ? rtlHref : ltrHref;
   }
 
