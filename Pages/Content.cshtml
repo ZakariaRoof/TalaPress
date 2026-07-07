@@ -708,12 +708,12 @@
       // Selection Checkbox Event Handlers & State Sync
       $('#contentTable').on('change', '#selectAll', function() {
         const checked = this.checked;
-        $('.row-select-cb').prop('checked', checked);
+        $('.row-select-cb:not(:disabled)').prop('checked', checked);
         updateBulkDeleteButtonState();
       });
 
       $('#contentTable').on('change', '.row-select-cb', function() {
-        const total = $('.row-select-cb').length;
+        const total = $('.row-select-cb:not(:disabled)').length;
         const checked = $('.row-select-cb:checked').length;
         $('#selectAll').prop('checked', total === checked && total > 0);
         updateBulkDeleteButtonState();
@@ -1174,6 +1174,12 @@
           {
             data: 'id',
             render: function(data, type, row) {
+              if (!row.canDelete) {
+                const title = row.isDeleteProtected
+                  ? (currentLang === 'ar' ? 'صفحة أساسية محمية' : 'Protected core page')
+                  : (currentLang === 'ar' ? 'لا تملك صلاحية الحذف' : 'No delete permission');
+                return `<input type="checkbox" class="form-check-input" disabled title="${title}">`;
+              }
               return `<input type="checkbox" class="form-check-input row-select-cb" value="${data}">`;
             }
           },
@@ -1276,13 +1282,16 @@
               const duplicateTitle = currentLang === 'ar' ? 'تكرار المقال كمسودة' : 'Duplicate Draft';
               const previewTitle = currentLang === 'ar' ? 'عرض المحتوى' : 'View Content';
               const deleteTitle = currentLang === 'ar' ? 'حذف المقال' : 'Delete Content';
+              const deleteButton = row.canDelete
+                ? `<button type="button" class="btn btn-sm btn-outline-danger btn-icon" onclick="triggerDelete(${data})" title="${deleteTitle}"><i class="bi bi-trash-fill"></i></button>`
+                : `<button type="button" class="btn btn-sm btn-outline-secondary btn-icon" disabled title="${row.isDeleteProtected ? (currentLang === 'ar' ? 'صفحة أساسية محمية من الحذف' : 'Protected core page') : deleteTitle}"><i class="bi bi-lock-fill"></i></button>`;
 
               return `
                 <div class="d-flex align-items-center justify-content-center gap-1">
                   <a href="${appUrl(`/ContentEdit?id=${data}`)}" class="btn btn-sm btn-outline-primary btn-icon" title="${editTitle}"><i class="bi bi-pencil-fill"></i></a>
                   <button type="button" class="btn btn-sm btn-outline-secondary btn-icon" onclick="triggerDuplicate(${data})" title="${duplicateTitle}"><i class="bi bi-files"></i></button>
                   <button type="button" class="btn btn-sm btn-outline-info btn-icon" onclick="showHeadlessPreview(${data})" title="${previewTitle}"><i class="bi bi-eye-fill"></i></button>
-                  <button type="button" class="btn btn-sm btn-outline-danger btn-icon" onclick="triggerDelete(${data})" title="${deleteTitle}"><i class="bi bi-trash-fill"></i></button>
+                  ${deleteButton}
                 </div>
               `;
             }

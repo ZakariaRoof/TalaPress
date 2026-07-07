@@ -78,11 +78,15 @@ namespace TalaPress.Pages
             int recordsTotal = 0;
             int recordsFiltered = 0;
             var dataList = new List<ContentRowDto>();
+            var protectedContentIds = GetDeleteProtectedContentIds();
+            bool hasDeletePermission = User.HasClaim("Permission", "Content.Delete");
+            long currentUserId = GetCurrentUserId();
 
             try
             {
                 using var connection = new SqlConnection(connectionString);
                 await connection.OpenAsync();
+                bool canDeleteProtectedContent = protectedContentIds.Count > 0 && await IsCurrentUserSuperAdministratorAsync(connection, currentUserId);
 
                 // 1. Get total records count (unfiltered, excluding deleted)
                 string countTotalQuery = "SELECT COUNT(*) FROM dbo.Content WHERE IsDeleted = 0";
@@ -228,9 +232,11 @@ namespace TalaPress.Pages
                     using var reader = await cmdSelect.ExecuteReaderAsync();
                     while (await reader.ReadAsync())
                     {
+                        long rowId = reader.GetInt64(0);
+                        bool isDeleteProtected = protectedContentIds.Contains(rowId);
                         dataList.Add(new ContentRowDto
                         {
-                            Id = reader.GetInt64(0),
+                            Id = rowId,
                             Title = reader.IsDBNull(1) ? null : reader.GetString(1),
                             Title_En = reader.IsDBNull(2) ? null : reader.GetString(2),
                             ContentTypeName = reader.GetString(3),
@@ -244,7 +250,9 @@ namespace TalaPress.Pages
                             AuthorName = reader.IsDBNull(11) ? "N/A" : reader.GetString(11),
                             CreatedAt = reader.GetDateTime(12),
                             FeaturedImage = reader.IsDBNull(13) ? null : reader.GetString(13),
-                            Hits = reader.IsDBNull(14) ? 0 : reader.GetInt32(14)
+                            Hits = reader.IsDBNull(14) ? 0 : reader.GetInt32(14),
+                            IsDeleteProtected = isDeleteProtected,
+                            CanDelete = hasDeletePermission && (!isDeleteProtected || canDeleteProtectedContent)
                         });
                     }
                 }
@@ -417,13 +425,17 @@ namespace TalaPress.Pages
                 return new JsonResult(new { success = false, message = "جملة الاتصال بقاعدة البيانات غير مهيأة." });
             }
 
-            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
-            long currentUserId = userIdClaim != null ? long.Parse(userIdClaim.Value) : 0;
+            long currentUserId = GetCurrentUserId();
 
             try
             {
                 using var connection = new SqlConnection(connectionString);
                 await connection.OpenAsync();
+
+                if (GetDeleteProtectedContentIds().Contains(id) && !await IsCurrentUserSuperAdministratorAsync(connection, currentUserId))
+                {
+                    return new JsonResult(new { success = false, message = "هذه صفحة أساسية محمية ولا يمكن حذفها إلا بواسطة السوبر أدمن." });
+                }
 
                 string deleteQuery = @"
                     UPDATE dbo.Content
@@ -478,12 +490,11 @@ namespace TalaPress.Pages
                 return new JsonResult(new { success = false, message = "جملة الاتصال بقاعدة البيانات غير مهيأة." });
             }
 
-            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
-            long currentUserId = userIdClaim != null ? long.Parse(userIdClaim.Value) : 0;
+            long currentUserId = GetCurrentUserId();
 
             try
             {
-                var idList = ids.Split(',').Select(long.Parse).ToList();
+                var idList = ids.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(long.Parse).ToList();
                 if (!idList.Any())
                 {
                     return new JsonResult(new { success = false, message = "لم يتم تحديد أي سجلات لحذفها." });
@@ -491,6 +502,13 @@ namespace TalaPress.Pages
 
                 using var connection = new SqlConnection(connectionString);
                 await connection.OpenAsync();
+
+                var protectedIds = GetDeleteProtectedContentIds();
+                var blockedIds = idList.Where(protectedIds.Contains).ToList();
+                if (blockedIds.Any() && !await IsCurrentUserSuperAdministratorAsync(connection, currentUserId))
+                {
+                    return new JsonResult(new { success = false, message = $"لا يمكن حذف الصفحات الأساسية المحمية: {string.Join(", ", blockedIds)}. الحذف مسموح للسوبر أدمن فقط." });
+                }
 
                 string idPlaceholder = string.Join(",", idList.Select((id, index) => $"@Id{index}"));
                 string deleteQuery = $@"
@@ -587,6 +605,52 @@ namespace TalaPress.Pages
                 }
             }
         }
+
+        private HashSet<long> GetDeleteProtectedContentIds()
+        {
+            var configuredIds = _configuration["ProtectedContent:DeleteBlockedIds"];
+            if (string.IsNullOrWhiteSpace(configuredIds))
+            {
+                return new HashSet<long>();
+            }
+
+            var protectedIds = new HashSet<long>();
+            foreach (var item in configuredIds.Split(new[] { ',', ';', ' ', '\r', '\n', '\t' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (long.TryParse(item.Trim(), out var id))
+                {
+                    protectedIds.Add(id);
+                }
+            }
+
+            return protectedIds;
+        }
+
+        private long GetCurrentUserId()
+        {
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+            return userIdClaim != null && long.TryParse(userIdClaim.Value, out var currentUserId) ? currentUserId : 0;
+        }
+
+        private static async Task<bool> IsCurrentUserSuperAdministratorAsync(SqlConnection connection, long currentUserId)
+        {
+            if (currentUserId <= 0)
+            {
+                return false;
+            }
+
+            const string query = @"
+                SELECT COUNT(1)
+                FROM dbo.UserRoles ur
+                INNER JOIN dbo.Roles r ON ur.RoleId = r.Id
+                WHERE ur.UserId = @UserId
+                  AND r.IsActive = 1
+                  AND r.Name_En = N'Super Administrator'";
+
+            using var command = new SqlCommand(query, connection);
+            command.Parameters.AddWithValue("@UserId", currentUserId);
+            return Convert.ToInt32(await command.ExecuteScalarAsync()) > 0;
+        }
     }
 
     // =========================================================================
@@ -635,5 +699,7 @@ namespace TalaPress.Pages
         public DateTime CreatedAt { get; set; }
         public string? FeaturedImage { get; set; }
         public int Hits { get; set; }
+        public bool IsDeleteProtected { get; set; }
+        public bool CanDelete { get; set; }
     }
 }
