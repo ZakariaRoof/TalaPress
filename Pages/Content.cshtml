@@ -1487,7 +1487,7 @@
           const useImage = item.mediaType === 'image' || (!!item.image && item.mediaType !== 'icon');
           const iconHtml = renderCardListIconMarkup(item.icon);
           const mediaHtml = useImage && item.image
-            ? `<img src="${escapeAttribute(item.image)}" alt="" class="rounded border mt-1" style="max-height:48px;object-fit:contain;">`
+            ? `<img src="${escapeAttribute(appAssetUrl(item.image))}" alt="" class="rounded border mt-1" style="max-height:48px;object-fit:contain;">`
             : `<span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-primary-subtle text-primary border mt-1" style="width:36px;height:36px;">${iconHtml}</span>`;
           cardsHtml += `
             <div class="border rounded-3 p-2 mb-2 bg-body-tertiary ${item.featured ? 'border-warning' : ''}">
@@ -1515,10 +1515,10 @@
         return value ? '<span class="badge bg-success">Yes</span>' : '<span class="badge bg-secondary">No</span>';
       }
       if (typeof value === 'string' && value.match(/\.(jpeg|jpg|gif|png|webp)$/i)) {
-        return `<img src="${escapeAttribute(value)}" alt="" class="img-fluid rounded border shadow-sm" style="max-height: 140px; object-fit: contain;">`;
+        return `<img src="${escapeAttribute(appAssetUrl(value))}" alt="" class="img-fluid rounded border shadow-sm" style="max-height: 140px; object-fit: contain;">`;
       }
       if (typeof value === 'string' && value.startsWith('/uploads/')) {
-        return `<a href="${escapeAttribute(value)}" target="_blank" class="text-decoration-none"><i class="bi bi-paperclip me-1"></i>${escapeHtml(value.split('/').pop())}</a>`;
+        return `<a href="${escapeAttribute(appAssetUrl(value))}" target="_blank" class="text-decoration-none"><i class="bi bi-paperclip me-1"></i>${escapeHtml(value.split('/').pop())}</a>`;
       }
       return escapeHtml(String(value));
     }

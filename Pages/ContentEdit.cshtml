@@ -1131,7 +1131,18 @@
   
   <script>
     let currentLang = localStorage.getItem('tp-lang') || 'ar';
+    const tpBasePath = (window.TP_BASE || @Html.Raw(JsonSerializer.Serialize(Url.Content("~/").TrimEnd('/'))));
     const customFieldsValues = @Html.Raw(Model.CustomFieldsValuesJson);
+
+    function tpUrl(path) {
+      if (!path) return path;
+      const value = String(path);
+      if (/^(https?:|data:|blob:|#)/i.test(value)) return value;
+      if (tpBasePath && value === tpBasePath) return value;
+      if (tpBasePath && value.startsWith(tpBasePath + '/')) return value;
+      if (value.startsWith('/')) return (tpBasePath || '') + value;
+      return value;
+    }
 
     const pageTranslations = {
       ar: {
@@ -1186,7 +1197,7 @@
         const currentId = document.getElementById('form-Id').value;
         
         // Retain the type during switch
-        window.location.href = `/ContentEdit?id=${currentId}&contentTypeId=${typeId}`;
+        window.location.href = `${tpUrl('/ContentEdit')}?id=${encodeURIComponent(currentId)}&contentTypeId=${encodeURIComponent(typeId)}`;
       });
 
       // Initialize Drag & Drop for all uploader zones
@@ -1404,7 +1415,7 @@
         if (loading) loading.classList.add('d-none');
         if (previewContainer) previewContainer.classList.remove('d-none');
         if (previewImg) {
-          previewImg.src = val;
+          previewImg.src = tpUrl(val);
         }
         if (fileNameSpan) {
           fileNameSpan.textContent = val.substring(val.lastIndexOf('/') + 1);
@@ -1437,7 +1448,7 @@
       formData.append('file', file);
 
       $.ajax({
-        url: '?handler=UploadFile',
+        url: `${tpUrl('/ContentEdit')}?handler=UploadFile`,
         type: 'POST',
         data: formData,
         contentType: false,
@@ -1451,7 +1462,7 @@
             targetInput.value = response.filePath;
             
             if (previewImg) {
-              previewImg.src = response.filePath;
+              previewImg.src = tpUrl(response.filePath);
             }
             if (fileNameSpan) {
               fileNameSpan.textContent = response.filePath.substring(response.filePath.lastIndexOf('/') + 1);
@@ -1897,7 +1908,7 @@
                 <span class="fs-8 text-secondary ms-1">رفع صورة</span>
               </div>
               <div class="dropzone-preview ${imageVal ? '' : 'd-none'} position-relative">
-                <img src="${escapeHtmlAttr(imageVal)}" class="img-fluid rounded border" style="max-height:80px;object-fit:contain;" />
+                <img src="${escapeHtmlAttr(tpUrl(imageVal))}" class="img-fluid rounded border" style="max-height:80px;object-fit:contain;" />
                 <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 rounded-circle border-0 cardlist-clear-image"><i class="bi bi-x-lg"></i></button>
               </div>
             </div>
@@ -2084,7 +2095,7 @@
       formData.append('file', file);
 
       $.ajax({
-        url: '?handler=UploadFile',
+        url: `${tpUrl('/ContentEdit')}?handler=UploadFile`,
         type: 'POST',
         data: formData,
         contentType: false,
@@ -2093,7 +2104,7 @@
         success: function(response) {
           if (response.success && imageHidden) {
             imageHidden.value = response.filePath;
-            if (img) img.src = response.filePath;
+            if (img) img.src = tpUrl(response.filePath);
             placeholder?.classList.add('d-none');
             preview?.classList.remove('d-none');
             syncCardListToHidden(fieldName);
@@ -2256,7 +2267,7 @@
       const trans = pageTranslations[currentLang];
 
       $.ajax({
-        url: '?handler=Save',
+        url: `${tpUrl('/ContentEdit')}?handler=Save`,
         type: 'POST',
         data: formData,
         contentType: false,
@@ -2286,7 +2297,7 @@
               showConfirmButton: false,
               timer: 1500
             }).then(() => {
-              window.location.href = '/Content';
+              window.location.href = tpUrl('/Content');
             });
           } else {
             Swal.fire('Error / خطأ', response.message, 'error');
@@ -2303,7 +2314,7 @@
         || document.getElementById('contentTypeSwitcher')?.value;
       const categoryId = document.getElementById('sys-category')?.value;
       const subCategoryId = document.getElementById('sys-subcategory')?.value;
-      let url = `/ContentEdit?contentTypeId=${encodeURIComponent(contentTypeId || '')}`;
+      let url = `${tpUrl('/ContentEdit')}?contentTypeId=${encodeURIComponent(contentTypeId || '')}`;
       if (categoryId) url += `&categoryId=${encodeURIComponent(categoryId)}`;
       if (subCategoryId) url += `&subCategoryId=${encodeURIComponent(subCategoryId)}`;
       window.location.href = url;
