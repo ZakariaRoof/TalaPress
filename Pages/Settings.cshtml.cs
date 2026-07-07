@@ -265,6 +265,7 @@ namespace TalaPress.Pages
             {
                 var (existingLogo, existingLogoLight, existingFavicon) = await GetExistingBrandingPathsAsync(connectionString);
                 var (maxUploadSizeMb, _) = await UploadValidation.LoadSettingsAsync(connectionString);
+                var pathBase = Request.PathBase.HasValue ? Request.PathBase.Value : string.Empty;
 
                 if (LogoFile != null && LogoFile.Length > 0)
                 {
@@ -334,6 +335,10 @@ namespace TalaPress.Pages
                 {
                     Favicon = existingFavicon;
                 }
+
+                Logo = RemovePathBase(Logo, pathBase);
+                LogoLight = RemovePathBase(LogoLight, pathBase);
+                Favicon = RemovePathBase(Favicon, pathBase);
 
                 string? smtpPasswordProtected = await GetExistingSmtpPasswordProtectedAsync(connectionString);
                 if (!string.IsNullOrWhiteSpace(SmtpPassword))
@@ -574,6 +579,18 @@ namespace TalaPress.Pages
             }
 
             return (null, null, null);
+        }
+
+        private static string? RemovePathBase(string? webPath, string pathBase)
+        {
+            if (string.IsNullOrWhiteSpace(webPath) || string.IsNullOrWhiteSpace(pathBase))
+            {
+                return webPath;
+            }
+
+            return webPath.StartsWith(pathBase + "/", StringComparison.OrdinalIgnoreCase)
+                ? webPath.Substring(pathBase.Length)
+                : webPath;
         }
 
         private async Task LoadSettingsAsync(string connectionString)

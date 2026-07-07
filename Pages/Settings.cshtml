@@ -3,18 +3,31 @@
 @inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment HostEnvironment
 @{
     ViewData["Title"] = "إعدادات النظام - System Settings";
-    var (resolvedLogo, resolvedLogoLight, resolvedFavicon) = TalaPress.Infrastructure.BrandingHelper.ResolveFromDisk(HostEnvironment.WebRootPath);
+    var appBasePath = HttpContext.Request.PathBase.HasValue ? HttpContext.Request.PathBase.Value : string.Empty;
+    var (resolvedLogo, resolvedLogoLight, resolvedFavicon) = TalaPress.Infrastructure.BrandingHelper.ResolveFromDisk(HostEnvironment.WebRootPath, appBasePath);
+    string? ToAppPath(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !path.StartsWith('/'))
+        {
+            return path;
+        }
+
+        return !string.IsNullOrEmpty(appBasePath) && !path.StartsWith(appBasePath + '/', StringComparison.OrdinalIgnoreCase)
+            ? appBasePath + path
+            : path;
+    }
+
     if (string.IsNullOrEmpty(resolvedLogo) && !string.IsNullOrEmpty(Model.Logo))
     {
-        resolvedLogo = Model.Logo;
+        resolvedLogo = ToAppPath(Model.Logo);
     }
     if (string.IsNullOrEmpty(resolvedLogoLight) && !string.IsNullOrEmpty(Model.LogoLight))
     {
-        resolvedLogoLight = Model.LogoLight;
+        resolvedLogoLight = ToAppPath(Model.LogoLight);
     }
     if (string.IsNullOrEmpty(resolvedFavicon) && !string.IsNullOrEmpty(Model.Favicon))
     {
-        resolvedFavicon = Model.Favicon;
+        resolvedFavicon = ToAppPath(Model.Favicon);
     }
     var brandingVersion = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 }
