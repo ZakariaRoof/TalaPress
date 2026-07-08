@@ -14,6 +14,7 @@ builder.Services.AddDataProtection();
 builder.Services.AddSingleton<ISecretProtector, DataProtectionSecretProtector>();
 builder.Services.AddScoped<ISmtpEmailService, SmtpEmailService>();
 builder.Services.AddScoped<IFormSubmissionService, FormSubmissionService>();
+builder.Services.AddHttpClient();
 
 // Configure Cookie Authentication
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)

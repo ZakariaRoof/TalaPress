@@ -22,6 +22,7 @@ public static class DatabaseInitializer
             await EnsureSettingsBrandingAndCompanyColumnsAsync(connection);
             await EnsureSettingsSmtpColumnsAsync(connection);
             await EnsureContentHitsColumnAsync(connection);
+            await EnsureAlakraboonCartItemsTableAsync(connection);
             await EnsureMenuTablesExistAsync(connection);
             await FormsSchemaHelper.EnsureAsync(connectionString);
         }
@@ -162,6 +163,61 @@ public static class DatabaseInitializer
                AND COL_LENGTH('dbo.Content', 'Hits') IS NULL
             BEGIN
                 ALTER TABLE dbo.Content ADD Hits INT NOT NULL DEFAULT 0;
+            END";
+
+        await using var command = new SqlCommand(query, connection);
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task EnsureAlakraboonCartItemsTableAsync(SqlConnection connection)
+    {
+        const string query = @"
+            IF OBJECT_ID('dbo.AlakraboonCartItems', 'U') IS NULL
+            BEGIN
+                CREATE TABLE dbo.AlakraboonCartItems (
+                    Id UNIQUEIDENTIFIER NOT NULL,
+                    VisitorId NVARCHAR(100) NOT NULL,
+                    UserId NVARCHAR(100) NULL,
+                    QcDonationId BIGINT NULL,
+                    QcDonationIds NVARCHAR(500) NULL,
+                    Label NVARCHAR(300) NULL,
+                    DonationType NVARCHAR(20) NOT NULL,
+                    AccountTypeId INT NOT NULL,
+                    CountryId INT NOT NULL,
+                    Amount DECIMAL(18, 2) NOT NULL,
+                    CurrencyId INT NOT NULL CONSTRAINT DF_AlakraboonCartItems_CurrencyId DEFAULT 1,
+                    PeriodTypeId INT NULL,
+                    Source NVARCHAR(100) NULL,
+                    IdempotencyKey NVARCHAR(100) NULL,
+                    QcPayloadJson NVARCHAR(MAX) NULL,
+                    QcResponseJson NVARCHAR(MAX) NULL,
+                    SyncStatus NVARCHAR(30) NOT NULL,
+                    ErrorMessage NVARCHAR(1000) NULL,
+                    CreatedAt DATETIME2 NOT NULL CONSTRAINT DF_AlakraboonCartItems_CreatedAt DEFAULT SYSUTCDATETIME(),
+                    UpdatedAt DATETIME2 NOT NULL CONSTRAINT DF_AlakraboonCartItems_UpdatedAt DEFAULT SYSUTCDATETIME(),
+                    PaidForId INT NULL,
+                    SponsorshipCategoryId INT NULL,
+                    IsYearly BIT NOT NULL CONSTRAINT DF_AlakraboonCartItems_IsYearly DEFAULT 0,
+                    CONSTRAINT PK_AlakraboonCartItems PRIMARY KEY CLUSTERED (Id)
+                );
+            END
+
+            IF OBJECT_ID('dbo.AlakraboonCartItems', 'U') IS NOT NULL
+            BEGIN
+                IF COL_LENGTH('dbo.AlakraboonCartItems', 'CurrencyId') IS NULL
+                    ALTER TABLE dbo.AlakraboonCartItems ADD CurrencyId INT NOT NULL CONSTRAINT DF_AlakraboonCartItems_CurrencyId_Added DEFAULT 1;
+                IF COL_LENGTH('dbo.AlakraboonCartItems', 'PeriodTypeId') IS NULL
+                    ALTER TABLE dbo.AlakraboonCartItems ADD PeriodTypeId INT NULL;
+                IF COL_LENGTH('dbo.AlakraboonCartItems', 'PaidForId') IS NULL
+                    ALTER TABLE dbo.AlakraboonCartItems ADD PaidForId INT NULL;
+                IF COL_LENGTH('dbo.AlakraboonCartItems', 'SponsorshipCategoryId') IS NULL
+                    ALTER TABLE dbo.AlakraboonCartItems ADD SponsorshipCategoryId INT NULL;
+                IF COL_LENGTH('dbo.AlakraboonCartItems', 'IsYearly') IS NULL
+                    ALTER TABLE dbo.AlakraboonCartItems ADD IsYearly BIT NOT NULL CONSTRAINT DF_AlakraboonCartItems_IsYearly_Added DEFAULT 0;
+                IF COL_LENGTH('dbo.AlakraboonCartItems', 'QcPayloadJson') IS NULL
+                    ALTER TABLE dbo.AlakraboonCartItems ADD QcPayloadJson NVARCHAR(MAX) NULL;
+                IF COL_LENGTH('dbo.AlakraboonCartItems', 'QcResponseJson') IS NULL
+                    ALTER TABLE dbo.AlakraboonCartItems ADD QcResponseJson NVARCHAR(MAX) NULL;
             END";
 
         await using var command = new SqlCommand(query, connection);
