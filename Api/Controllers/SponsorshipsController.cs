@@ -13,6 +13,8 @@ public sealed class SponsorshipsController : ControllerBase
 {
     private const int QatarCountryId = 542;
     private const int MaxFetchedSponsorships = 10000;
+    private const int OnlineEmployeeId = 1100683;
+    private const string QatarCharityExportPathBaseUrl = "https://portal.qcharity.net/ExportPath/";
 
     private readonly IConfiguration _configuration;
     private readonly ILogger<SponsorshipsController> _logger;
@@ -21,6 +23,62 @@ public sealed class SponsorshipsController : ControllerBase
     {
         _configuration = configuration;
         _logger = logger;
+    }
+
+    [HttpGet("projects")]
+    public async Task<IActionResult> GetProjects(
+        [FromQuery] int languageId = 1,
+        [FromQuery] int typeId = 2,
+        [FromQuery] int countryId = QatarCountryId,
+        [FromQuery] int projectTypeId = 0,
+        [FromQuery] int projectSubTypeId = 0,
+        [FromQuery] string? searchQuery = null,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 12,
+        [FromQuery] string? sortBy = "newest",
+        CancellationToken cancellationToken = default)
+    {
+        if (typeId != 2)
+        {
+            return BadRequest(new { message = "Only projects are available from this endpoint in TalaPress." });
+        }
+
+        if (countryId != QatarCountryId)
+        {
+            return BadRequest(new { message = "Alakraboon projects are limited to Qatar countryId 542." });
+        }
+
+        var result = await BuildProjectsResponseAsync(
+            NormalizeLanguageId(languageId),
+            NormalizePositive(projectTypeId),
+            NormalizePositive(projectSubTypeId),
+            searchQuery,
+            pageNumber,
+            pageSize,
+            sortBy,
+            cancellationToken);
+
+        if (result is null)
+        {
+            return Problem("Projects data source is not configured.");
+        }
+
+        return Ok(new
+        {
+            items = result.Items.Select(ToProjectDonationItem).ToList(),
+            data = result.Items.Select(ToProjectDonationItem).ToList(),
+            tabs = result.Tabs,
+            pagination = result.Pagination,
+            meta = result.Meta,
+            filters = result.Filters,
+            ui = new
+            {
+                mainTab = new { key = "projects", label = NormalizeLanguageId(languageId) == 1 ? "المشاريع" : "Projects", typeId = 2, donationsTypeId = 0 },
+                cardFilterParameter = "projectTypeId",
+                sourceFilterParameter = "typeId",
+                subFilters = Array.Empty<object>()
+            }
+        });
     }
 
     [HttpGet("sponsorships")]
@@ -59,24 +117,62 @@ public sealed class SponsorshipsController : ControllerBase
     public async Task<IActionResult> GetDonationItems(
         [FromQuery] int languageId = 1,
         [FromQuery] int typeId = 3,
+        [FromQuery] int donationsTypeId = 0,
         [FromQuery] int countryId = QatarCountryId,
+        [FromQuery] int categoryId = 0,
         [FromQuery] int sponsorshipCategoryId = 0,
+        [FromQuery] int needTypeId = 0,
         [FromQuery] string? searchQuery = null,
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 12,
         [FromQuery] string? sortBy = "newest",
         [FromQuery(Name = "mostwaiting")] bool mostWaiting = true,
         [FromQuery] bool birthday = false,
+        [FromQuery] bool? enableSadaka = null,
+        [FromQuery] bool? enableZakaa = null,
         CancellationToken cancellationToken = default)
     {
-        if (typeId != 3)
+        if (typeId != 1 && typeId != 3)
         {
-            return BadRequest(new { message = "Only sponsorship donation items are available from this endpoint in TalaPress." });
+            return BadRequest(new { message = "Only donation and sponsorship items are available from this endpoint in TalaPress." });
         }
 
         if (countryId != QatarCountryId)
         {
-            return BadRequest(new { message = "Alakraboon sponsorships are limited to Qatar countryId 542." });
+            return BadRequest(new { message = "Alakraboon donation items are limited to Qatar countryId 542." });
+        }
+
+        if (typeId == 1)
+        {
+            var donationResult = await BuildDonationItemsResponseAsync(
+                NormalizeLanguageId(languageId),
+                NormalizeDonationTypeId(donationsTypeId),
+                NormalizePositive(categoryId),
+                NormalizePositive(needTypeId),
+                searchQuery,
+                pageNumber,
+                pageSize,
+                sortBy,
+                mostWaiting,
+                enableSadaka,
+                enableZakaa,
+                cancellationToken);
+
+            if (donationResult is null)
+            {
+                return Problem("Donation items data source is not configured.");
+            }
+
+            return Ok(new
+            {
+                items = donationResult.Items.Select(ToGeneralDonationItem).ToList(),
+                data = donationResult.Items.Select(ToGeneralDonationItem).ToList(),
+                tabs = donationResult.Tabs,
+                pagination = donationResult.Pagination,
+                meta = donationResult.Meta,
+                filters = donationResult.Filters,
+                ui = donationResult.Ui
+            });
         }
 
         var result = await BuildSponsorshipsResponseAsync(
@@ -220,6 +316,214 @@ public sealed class SponsorshipsController : ControllerBase
         };
     }
 
+    private async Task<ProjectsResponse?> BuildProjectsResponseAsync(
+        int languageId,
+        int? selectedProjectTypeId,
+        int? selectedProjectSubTypeId,
+        string? searchQuery,
+        int pageNumber,
+        int pageSize,
+        string? sortBy,
+        CancellationToken cancellationToken)
+    {
+        var connectionString = _configuration.GetConnectionString("SponsorshipsConnection");
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return null;
+        }
+
+        pageNumber = Math.Max(pageNumber, 1);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+        languageId = NormalizeLanguageId(languageId);
+        var normalizedSearch = NormalizeSearch(searchQuery);
+        var normalizedSort = NormalizeSort(sortBy);
+
+        await using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        var allItems = await LoadProjectItemsAsync(
+            connection,
+            languageId,
+            selectedProjectTypeId,
+            selectedProjectSubTypeId,
+            normalizedSearch,
+            pageIndex: 0,
+            pageSize: MaxFetchedSponsorships,
+            cancellationToken);
+
+        var filteredItems = ApplyProjectSort(allItems, normalizedSort);
+        var totalItems = filteredItems.Count;
+        var totalPages = totalItems == 0 ? 0 : (int)Math.Ceiling(totalItems / (double)pageSize);
+        var pageItems = filteredItems
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+        var tabs = BuildProjectTabs(allItems, selectedProjectTypeId, languageId);
+
+        return new ProjectsResponse
+        {
+            Tabs = tabs,
+            Filters = new
+            {
+                languageId,
+                typeId = 2,
+                countryId = QatarCountryId,
+                projectTypeId = selectedProjectTypeId,
+                projectSubTypeId = selectedProjectSubTypeId,
+                searchQuery = normalizedSearch,
+                sortBy = normalizedSort
+            },
+            Items = pageItems,
+            Pagination = new SponsorshipPagination
+            {
+                PageNumber = pageNumber,
+                PageSize = pageSize,
+                TotalItems = totalItems,
+                TotalPages = totalPages,
+                HasPreviousPage = pageNumber > 1,
+                HasNextPage = totalPages > 0 && pageNumber < totalPages
+            },
+            Meta = new
+            {
+                language = languageId == 1 ? "ar" : "en",
+                languageId,
+                typeId = 2,
+                countryId = QatarCountryId,
+                projectTypeId = selectedProjectTypeId,
+                projectSubTypeId = selectedProjectSubTypeId,
+                searchQuery = normalizedSearch,
+                pageNumber,
+                pageSize,
+                sortBy = normalizedSort,
+                totalCount = totalItems,
+                totalPages,
+                totalAvailableCount = allItems.Count,
+                availableCategoryIds = tabs.Where(tab => !tab.IsAll && tab.Count > 0 && tab.Id.HasValue).Select(tab => tab.Id!.Value).ToList(),
+                resultsLabel = selectedProjectTypeId.HasValue
+                    ? $"نتائج الفئة: {totalItems} مشروع"
+                    : $"{totalItems} مشروع متاح"
+            }
+        };
+    }
+
+    private async Task<DonationItemsResponse?> BuildDonationItemsResponseAsync(
+        int languageId,
+        int donationsTypeId,
+        int? selectedCategoryId,
+        int? selectedNeedTypeId,
+        string? searchQuery,
+        int pageNumber,
+        int pageSize,
+        string? sortBy,
+        bool mostWaiting,
+        bool? enableSadaka,
+        bool? enableZakaa,
+        CancellationToken cancellationToken)
+    {
+        var connectionString = _configuration.GetConnectionString("SponsorshipsConnection");
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return null;
+        }
+
+        pageNumber = Math.Max(pageNumber, 1);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+        languageId = NormalizeLanguageId(languageId);
+        donationsTypeId = NormalizeDonationTypeId(donationsTypeId);
+        var normalizedSearch = NormalizeSearch(searchQuery);
+        var normalizedSort = NormalizeSort(sortBy);
+
+        await using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        var allItems = donationsTypeId == 3
+            ? await LoadAssistanceCaseItemsAsync(connection, languageId, normalizedSearch, pageSize: MaxFetchedSponsorships, cancellationToken)
+            : await LoadContributionProjectItemsAsync(connection, languageId, normalizedSearch, enableSadaka, enableZakaa, pageSize: MaxFetchedSponsorships, cancellationToken);
+
+        var filteredItems = donationsTypeId == 3 && selectedNeedTypeId.HasValue
+            ? allItems.Where(item => item.NeedTypeId == selectedNeedTypeId.Value).ToList()
+            : donationsTypeId == 4 && selectedCategoryId.HasValue
+                ? allItems.Where(item => item.MainAccountTypeId == selectedCategoryId.Value).ToList()
+                : allItems;
+
+        filteredItems = ApplyGeneralDonationSort(filteredItems, normalizedSort, mostWaiting);
+
+        var totalItems = filteredItems.Count;
+        var totalPages = totalItems == 0 ? 0 : (int)Math.Ceiling(totalItems / (double)pageSize);
+        var pageItems = filteredItems
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+        var tabs = donationsTypeId == 3
+            ? BuildAssistanceTabs(allItems, selectedNeedTypeId, languageId)
+            : BuildContributionTabs(allItems, selectedCategoryId, languageId);
+        var filterParameter = donationsTypeId == 3 ? "needTypeId" : "categoryId";
+        var tabKey = donationsTypeId == 3 ? "assistance" : (mostWaiting ? "complete-together" : "contribution-types");
+        var tabLabel = donationsTypeId == 3
+            ? (languageId == 1 ? "الحالات الإنسانية" : "Assistance Cases")
+            : mostWaiting
+                ? (languageId == 1 ? "لنُكملها معاً" : "Complete Together")
+                : (languageId == 1 ? "أنواع المساهمات" : "Contribution Types");
+        var selectedFilterId = donationsTypeId == 3 ? selectedNeedTypeId : selectedCategoryId;
+
+        return new DonationItemsResponse
+        {
+            Tabs = tabs,
+            Filters = new
+            {
+                languageId,
+                typeId = 1,
+                countryId = QatarCountryId,
+                donationsTypeId,
+                categoryId = selectedCategoryId,
+                needTypeId = selectedNeedTypeId,
+                searchQuery = normalizedSearch,
+                mostWaiting,
+                sortBy = normalizedSort,
+                enableSadaka,
+                enableZakaa
+            },
+            Ui = new
+            {
+                mainTab = new { key = tabKey, label = tabLabel, typeId = 1, donationsTypeId },
+                cardFilterParameter = filterParameter,
+                sourceFilterParameter = "donationsTypeId",
+                subFilters = Array.Empty<object>()
+            },
+            Items = pageItems,
+            Pagination = new SponsorshipPagination
+            {
+                PageNumber = pageNumber,
+                PageSize = pageSize,
+                TotalItems = totalItems,
+                TotalPages = totalPages,
+                HasPreviousPage = pageNumber > 1,
+                HasNextPage = totalPages > 0 && pageNumber < totalPages
+            },
+            Meta = new
+            {
+                language = languageId == 1 ? "ar" : "en",
+                languageId,
+                typeId = 1,
+                countryId = QatarCountryId,
+                donationsTypeId,
+                selectedFilterId,
+                searchQuery = normalizedSearch,
+                pageNumber,
+                pageSize,
+                sortBy = normalizedSort,
+                mostWaiting,
+                totalCount = totalItems,
+                totalPages,
+                totalAvailableCount = allItems.Count,
+                availableCategoryIds = tabs.Where(tab => !tab.IsAll && tab.Count > 0 && tab.Id.HasValue).Select(tab => tab.Id!.Value).ToList(),
+                resultsLabel = selectedFilterId.HasValue
+                    ? $"نتائج التبويب: {totalItems} حالة"
+                    : $"{totalItems} حالة متاحة"
+            }
+        };
+    }
+
     private static async Task<List<SponsorshipCategoryRow>> LoadCategoriesAsync(SqlConnection connection, int languageId, CancellationToken cancellationToken)
     {
         const string query = @"
@@ -304,6 +608,318 @@ ORDER BY SponoshipsCategoryId;";
         }
 
         return items;
+    }
+
+    private async Task<List<ProjectItemDto>> LoadProjectItemsAsync(
+        SqlConnection connection,
+        int languageId,
+        int? projectTypeId,
+        int? projectSubTypeId,
+        string? searchQuery,
+        int pageIndex,
+        int pageSize,
+        CancellationToken cancellationToken)
+    {
+        var items = new List<ProjectItemDto>();
+
+        await using var command = new SqlCommand("ProjectsAvailableGet", connection)
+        {
+            CommandType = CommandType.StoredProcedure,
+            CommandTimeout = 60
+        };
+
+        command.Parameters.AddWithValue("@MainAccountTypeId", DBNull.Value);
+        command.Parameters.AddWithValue("@CountryId", QatarCountryId);
+        command.Parameters.AddWithValue("@EmployeeId", OnlineEmployeeId);
+        command.Parameters.AddWithValue("@minAmount", 0);
+        command.Parameters.AddWithValue("@maxAmount", 0);
+        command.Parameters.AddWithValue("@searchText", string.IsNullOrWhiteSpace(searchQuery) ? string.Empty : searchQuery.Trim());
+        command.Parameters.AddWithValue("@ProjectTypeId", projectTypeId.HasValue ? projectTypeId.Value : DBNull.Value);
+        command.Parameters.AddWithValue("@ProjectSubTypeId", projectSubTypeId.HasValue ? projectSubTypeId.Value : DBNull.Value);
+        command.Parameters.AddWithValue("@PageIndex", Math.Max(pageIndex, 0));
+        command.Parameters.AddWithValue("@PageSize", Math.Clamp(pageSize, 1, MaxFetchedSponsorships));
+        command.Parameters.AddWithValue("@LanguageId", languageId);
+
+        try
+        {
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                var item = MapProjectItem(reader, languageId);
+                if (item.CountryId == QatarCountryId || !item.CountryId.HasValue)
+                {
+                    items.Add(item);
+                }
+            }
+        }
+        catch (SqlException ex)
+        {
+            _logger.LogError(ex, "Failed to fetch QC available projects.");
+            throw;
+        }
+
+        return items;
+    }
+
+    private async Task<List<DonationItemDto>> LoadContributionProjectItemsAsync(
+        SqlConnection connection,
+        int languageId,
+        string? searchQuery,
+        bool? enableSadaka,
+        bool? enableZakaa,
+        int pageSize,
+        CancellationToken cancellationToken)
+    {
+        var items = new List<DonationItemDto>();
+
+        await using var command = new SqlCommand("ContributionProjectsGetV2", connection)
+        {
+            CommandType = CommandType.StoredProcedure,
+            CommandTimeout = 60
+        };
+
+        command.Parameters.AddWithValue("@MainAccountTypeId", DBNull.Value);
+        command.Parameters.AddWithValue("@CountryId", QatarCountryId);
+        command.Parameters.AddWithValue("@EmployeeId", OnlineEmployeeId);
+        command.Parameters.AddWithValue("@minAmount", 0);
+        command.Parameters.AddWithValue("@maxAmount", 0);
+        command.Parameters.AddWithValue("@searchText", string.IsNullOrWhiteSpace(searchQuery) ? string.Empty : searchQuery.Trim());
+        command.Parameters.AddWithValue("@ProjectTypeId", DBNull.Value);
+        command.Parameters.AddWithValue("@ProjectSubTypeId", DBNull.Value);
+        command.Parameters.AddWithValue("@GetClosedCauses", 0);
+        command.Parameters.AddWithValue("@LanguageId", languageId);
+        command.Parameters.AddWithValue("@EnableSadaka", enableSadaka.HasValue ? enableSadaka.Value : DBNull.Value);
+        command.Parameters.AddWithValue("@EnableZakaa", enableZakaa.HasValue ? enableZakaa.Value : DBNull.Value);
+        command.Parameters.AddWithValue("@PageIndex", 0);
+        command.Parameters.AddWithValue("@PageSize", Math.Clamp(pageSize, 1, MaxFetchedSponsorships));
+
+        try
+        {
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                var item = MapContributionProjectItem(reader, languageId);
+                if (item.CountryId == QatarCountryId || !item.CountryId.HasValue)
+                {
+                    items.Add(item);
+                }
+            }
+        }
+        catch (SqlException ex)
+        {
+            _logger.LogError(ex, "Failed to fetch QC contribution projects.");
+            throw;
+        }
+
+        return items;
+    }
+
+    private async Task<List<DonationItemDto>> LoadAssistanceCaseItemsAsync(
+        SqlConnection connection,
+        int languageId,
+        string? searchQuery,
+        int pageSize,
+        CancellationToken cancellationToken)
+    {
+        var items = new List<DonationItemDto>();
+
+        await using var command = new SqlCommand("AssistanceCasesGet", connection)
+        {
+            CommandType = CommandType.StoredProcedure,
+            CommandTimeout = 60
+        };
+
+        command.Parameters.AddWithValue("@MainAccountTypeId", DBNull.Value);
+        command.Parameters.AddWithValue("@CountryId", QatarCountryId);
+        command.Parameters.AddWithValue("@EmployeeId", OnlineEmployeeId);
+        command.Parameters.AddWithValue("@minAmount", 0);
+        command.Parameters.AddWithValue("@maxAmount", 0);
+        command.Parameters.AddWithValue("@searchText", string.IsNullOrWhiteSpace(searchQuery) ? string.Empty : searchQuery.Trim());
+        command.Parameters.AddWithValue("@CategoryTypeID", DBNull.Value);
+        command.Parameters.AddWithValue("@GetClosedCauses", 0);
+        command.Parameters.AddWithValue("@PageIndex", 0);
+        command.Parameters.AddWithValue("@PageSize", Math.Clamp(pageSize, 1, MaxFetchedSponsorships));
+
+        try
+        {
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                var item = MapAssistanceCaseItem(reader, languageId);
+                if (item.CountryId == QatarCountryId || !item.CountryId.HasValue)
+                {
+                    items.Add(item);
+                }
+            }
+        }
+        catch (SqlException ex)
+        {
+            _logger.LogError(ex, "Failed to fetch QC assistance cases.");
+            throw;
+        }
+
+        return items;
+    }
+
+    private static ProjectItemDto MapProjectItem(SqlDataReader reader, int languageId)
+    {
+        var projectId = ReadFlexibleInt(reader, "ProjectId", "ProjectID") ?? 0;
+        var templateId = ReadFlexibleInt(reader, "TemplateId", "TemplateID") ?? 0;
+        var id = projectId == 0 ? templateId : projectId;
+        var titleAr = ReadFlexibleString(reader, "TitleAr", "ArName", "ProjectName", "TemplateName") ?? string.Empty;
+        var titleEn = ReadFlexibleString(reader, "TitleEn", "EnName", "ProjectNameEn", "TemplateNameEn") ?? string.Empty;
+        var descriptionAr = ReadFlexibleString(reader, "DescriptionAr", "Goals", "Description", "Notes", "DescriptionAR") ?? string.Empty;
+        var descriptionEn = ReadFlexibleString(reader, "DescriptionEn", "GoalsEn", "DescriptionEN", "DescriptionEn", "NotesEn") ?? string.Empty;
+        var projectTypeId = ReadFlexibleInt(reader, "ProjectTypeId", "TypeId");
+        var projectTypeNameAr = ReadFlexibleString(reader, "ProjectTypeName", "ProjectTypeArName", "ProjectTypeNameAr", "ArNameProjectType") ?? string.Empty;
+        var projectTypeNameEn = ReadFlexibleString(reader, "ProjectTypeEnName", "ProjectTypeNameEn") ?? string.Empty;
+        var countryAr = ReadFlexibleString(reader, "CountryArName", "CountryName", "Country") ?? string.Empty;
+        var countryEn = ReadFlexibleString(reader, "CountryEnName", "CountryNameEn") ?? string.Empty;
+        var amount = ReadFlexibleDecimal(reader, "Cost_Dec", "Cost", "Amount");
+        var remaining = ReadFlexibleDecimal(reader, "Remaining", "RemainingAmount");
+        var paid = ReadFlexibleDecimal(reader, "Paid", "PaidAmount");
+        var image = FirstNonEmpty(
+            BuildQatarCharityImageUrl(ReadFlexibleString(reader, "SmallImage")),
+            BuildQatarCharityImageUrl(ReadFlexibleString(reader, "Image", "LinkImageAR", "ProjectDefaultImageURL", "ProjectDefaultImageURLValue", "DefaultAccountImage")));
+
+        return new ProjectItemDto
+        {
+            Id = id,
+            ProjectId = projectId,
+            TemplateId = templateId,
+            TitleAr = titleAr.Trim(),
+            TitleEn = titleEn.Trim(),
+            Title = languageId == 1 ? titleAr.Trim() : FirstNonEmpty(titleEn, titleAr) ?? string.Empty,
+            DescriptionAr = descriptionAr.Trim(),
+            DescriptionEn = descriptionEn.Trim(),
+            Description = languageId == 1 ? descriptionAr.Trim() : FirstNonEmpty(descriptionEn, descriptionAr) ?? string.Empty,
+            ProjectTypeId = projectTypeId,
+            ProjectSubTypeId = ReadFlexibleInt(reader, "ProjectSubTypeId"),
+            ProjectTypeName = languageId == 1 ? projectTypeNameAr.Trim() : FirstNonEmpty(projectTypeNameEn, projectTypeNameAr) ?? string.Empty,
+            ProjectTypeNameAr = projectTypeNameAr.Trim(),
+            ProjectTypeNameEn = projectTypeNameEn.Trim(),
+            CountryId = ReadFlexibleInt(reader, "CountryId"),
+            CountryAr = countryAr.Trim(),
+            CountryEn = countryEn.Trim(),
+            Amount = amount,
+            AmountFormatted = FormatCurrency(amount) ?? string.Empty,
+            PaidAmount = paid,
+            PaidAmountFormatted = FormatCurrency(paid) ?? string.Empty,
+            RemainingAmount = remaining,
+            RemainingAmountFormatted = FormatCurrency(remaining) ?? string.Empty,
+            Image = image ?? string.Empty,
+            MainAccountTypeId = ReadFlexibleInt(reader, "MainAccountTypeId"),
+            AccountTypeId = ReadFlexibleInt(reader, "AccountTypeId3", "AccountTypeId"),
+            AcceptsSadaka = ReadFlexibleBool(reader, "EnableSadaka") ?? false,
+            AcceptsZakaa = ReadFlexibleBool(reader, "EnableZakaa") ?? false,
+            Source = "ProjectsAvailableGet"
+        };
+    }
+
+    private static DonationItemDto MapContributionProjectItem(SqlDataReader reader, int languageId)
+    {
+        var projectId = ReadFlexibleInt(reader, "ProjectId", "ProjectID") ?? 0;
+        var templateId = ReadFlexibleInt(reader, "TemplateId", "TemplateID") ?? 0;
+        var id = projectId == 0 ? templateId : projectId;
+        var titleAr = ReadFlexibleString(reader, "ArName", "TitleAr", "ProjectName", "TemplateName", "AccountNameLevel3") ?? string.Empty;
+        var titleEn = ReadFlexibleString(reader, "EnName", "TitleEn", "ProjectNameEn", "TemplateNameEn", "AccountEnNameLevel3") ?? string.Empty;
+        var descriptionAr = ReadFlexibleString(reader, "Goals", "DescriptionAr", "Description", "Notes") ?? string.Empty;
+        var descriptionEn = ReadFlexibleString(reader, "GoalsEn", "DescriptionEn", "DescriptionEN", "NotesEn") ?? string.Empty;
+        var amount = ReadFlexibleDecimal(reader, "Cost_Dec", "Cost", "Amount");
+        var remaining = ReadFlexibleDecimal(reader, "Remaining", "RemainingAmount");
+        var paid = ReadFlexibleDecimal(reader, "Paid", "PaidAmount", "PreviousSumAmount");
+        var mainAccountTypeId = ReadFlexibleInt(reader, "MainAccountTypeId", "AccountTypeID1");
+        var categoryAr = ReadFlexibleString(reader, "AccountNameLevel1", "AppearAsLevel1", "ProjectTypeArName", "ProjectTypeName") ?? string.Empty;
+        var categoryEn = ReadFlexibleString(reader, "AccountEnNameLevel1", "AppearAsLevel1En", "ProjectTypeEnName", "ProjectTypeNameEn") ?? string.Empty;
+        var image = FirstNonEmpty(
+            BuildQatarCharityImageUrl(ReadFlexibleString(reader, "Image", "LinkImageAR", "ProjectDefaultImageURL", "ProjectDefaultImageURLValue")),
+            BuildQatarCharityImageUrl(ReadFlexibleString(reader, "WebIcon", "Icon", "DefaultAccountImage")));
+
+        return new DonationItemDto
+        {
+            Id = id,
+            PaidThroughId = 4,
+            PaidForId = projectId,
+            TypeId = 1,
+            DonationsTypeId = 4,
+            TitleAr = titleAr.Trim(),
+            TitleEn = titleEn.Trim(),
+            Title = languageId == 1 ? titleAr.Trim() : FirstNonEmpty(titleEn, titleAr) ?? string.Empty,
+            DescriptionAr = descriptionAr.Trim(),
+            DescriptionEn = descriptionEn.Trim(),
+            Description = languageId == 1 ? descriptionAr.Trim() : FirstNonEmpty(descriptionEn, descriptionAr) ?? string.Empty,
+            CategoryAr = categoryAr.Trim(),
+            CategoryEn = categoryEn.Trim(),
+            Category = languageId == 1 ? categoryAr.Trim() : FirstNonEmpty(categoryEn, categoryAr) ?? string.Empty,
+            CountryId = ReadFlexibleInt(reader, "CountryId"),
+            CountryAr = ReadFlexibleString(reader, "CountryArName", "CountryName", "Country") ?? string.Empty,
+            CountryEn = ReadFlexibleString(reader, "CountryEnName", "CountryNameEn") ?? string.Empty,
+            Amount = amount,
+            AmountFormatted = FormatCurrency(amount) ?? string.Empty,
+            PaidAmount = paid,
+            PaidAmountFormatted = FormatCurrency(paid) ?? string.Empty,
+            RemainingAmount = remaining,
+            RemainingAmountFormatted = FormatCurrency(remaining) ?? string.Empty,
+            Image = image ?? string.Empty,
+            MainAccountTypeId = mainAccountTypeId,
+            AccountTypeId = ReadFlexibleInt(reader, "AccountTypeId3", "AccountTypeId"),
+            ProjectTypeId = ReadFlexibleInt(reader, "ProjectTypeId"),
+            ProjectSubTypeId = ReadFlexibleInt(reader, "ProjectSubTypeId"),
+            AcceptsSadaka = ReadFlexibleBool(reader, "EnableSadaka") ?? false,
+            AcceptsZakaa = ReadFlexibleBool(reader, "EnableZakaa") ?? false,
+            Source = "ContributionProjectsGetV2"
+        };
+    }
+
+    private static DonationItemDto MapAssistanceCaseItem(SqlDataReader reader, int languageId)
+    {
+        var id = ReadFlexibleInt(reader, "AssistanceCaseId", "AssistanceCaseID", "PaidForId") ?? 0;
+        var titleAr = ReadFlexibleString(reader, "PersonName", "shortName", "CategoryTypeName", "AccountName") ?? string.Empty;
+        var titleEn = ReadFlexibleString(reader, "PersonNameEn", "shortNameEn", "CategoryTypeNameEn", "AccountNameEn") ?? string.Empty;
+        var descriptionAr = ReadFlexibleString(reader, "Notes", "DescriptionAr", "Description") ?? string.Empty;
+        var descriptionEn = ReadFlexibleString(reader, "NotesEn", "DescriptionEn", "DescriptionEN") ?? string.Empty;
+        var categoryAr = ReadFlexibleString(reader, "CategoryTypeName", "AccountName", "AccountNameLevel1") ?? string.Empty;
+        var categoryEn = ReadFlexibleString(reader, "CategoryTypeNameEn", "AccountNameEn", "AccountEnNameLevel1") ?? string.Empty;
+        var amount = ReadFlexibleDecimal(reader, "Amount", "TotalCost", "Cost");
+        var remaining = ReadFlexibleDecimal(reader, "Remaining", "RemainingAmount");
+        var paid = amount.HasValue && remaining.HasValue ? Math.Max(amount.Value - remaining.Value, 0) : ReadFlexibleDecimal(reader, "Paid", "PaidAmount", "PreviousSumAmount");
+        var image = FirstNonEmpty(
+            BuildQatarCharityImageUrl(ReadFlexibleString(reader, "Image", "LinkImageAR", "LargeImage")),
+            BuildQatarCharityImageUrl(ReadFlexibleString(reader, "WebIcon", "Icon")));
+
+        return new DonationItemDto
+        {
+            Id = id,
+            PaidThroughId = 7,
+            PaidForId = id,
+            TypeId = 1,
+            DonationsTypeId = 3,
+            TitleAr = titleAr.Trim(),
+            TitleEn = titleEn.Trim(),
+            Title = languageId == 1 ? titleAr.Trim() : FirstNonEmpty(titleEn, titleAr) ?? string.Empty,
+            DescriptionAr = descriptionAr.Trim(),
+            DescriptionEn = descriptionEn.Trim(),
+            Description = languageId == 1 ? descriptionAr.Trim() : FirstNonEmpty(descriptionEn, descriptionAr) ?? string.Empty,
+            CategoryAr = categoryAr.Trim(),
+            CategoryEn = categoryEn.Trim(),
+            Category = languageId == 1 ? categoryAr.Trim() : FirstNonEmpty(categoryEn, categoryAr) ?? string.Empty,
+            CountryId = ReadFlexibleInt(reader, "CountryId"),
+            CountryAr = ReadFlexibleString(reader, "CountryArName", "CountryName", "Country") ?? string.Empty,
+            CountryEn = ReadFlexibleString(reader, "CountryEnName", "CountryNameEn") ?? string.Empty,
+            Amount = amount,
+            AmountFormatted = FormatCurrency(amount) ?? string.Empty,
+            PaidAmount = paid,
+            PaidAmountFormatted = FormatCurrency(paid) ?? string.Empty,
+            RemainingAmount = remaining,
+            RemainingAmountFormatted = FormatCurrency(remaining) ?? string.Empty,
+            Image = image ?? string.Empty,
+            MainAccountTypeId = ReadFlexibleInt(reader, "MainAccountTypeId", "AccountTypeID1"),
+            AccountTypeId = ReadFlexibleInt(reader, "AccountTypeId3", "AccountTypeId"),
+            NeedTypeId = ReadFlexibleInt(reader, "CategoryTypeID", "NeedTypeId"),
+            AcceptsSadaka = ReadFlexibleBool(reader, "EnableSadaka") ?? false,
+            AcceptsZakaa = ReadFlexibleBool(reader, "EnableZakaa") ?? false,
+            Source = "AssistanceCasesGet"
+        };
     }
 
     private static SponsorshipItemDto MapSponsorshipItem(SqlDataReader reader, int languageId)
@@ -457,6 +1073,150 @@ ORDER BY SponoshipsCategoryId;";
         return tabs;
     }
 
+    private static List<SponsorshipTabDto> BuildProjectTabs(
+        IReadOnlyList<ProjectItemDto> items,
+        int? selectedProjectTypeId,
+        int languageId)
+    {
+        var tabs = new List<SponsorshipTabDto>
+        {
+            new()
+            {
+                Id = null,
+                Key = "all",
+                Label = languageId == 1 ? "الكل" : "All",
+                LabelAr = "الكل",
+                LabelEn = "All",
+                Count = items.Count,
+                IsAll = true,
+                IsActive = !selectedProjectTypeId.HasValue,
+                IconKey = "all",
+                Icon = "grid"
+            }
+        };
+
+        tabs.AddRange(items
+            .Where(item => item.ProjectTypeId.HasValue && item.ProjectTypeId.Value > 0)
+            .GroupBy(item => new
+            {
+                Id = item.ProjectTypeId!.Value,
+                LabelAr = FirstNonEmpty(item.ProjectTypeNameAr, item.ProjectTypeName),
+                LabelEn = FirstNonEmpty(item.ProjectTypeNameEn, item.ProjectTypeNameAr, item.ProjectTypeName)
+            })
+            .OrderBy(group => group.Key.Id)
+            .Select(group => new SponsorshipTabDto
+            {
+                Id = group.Key.Id,
+                Key = group.Key.Id.ToString(),
+                Label = languageId == 1 ? group.Key.LabelAr : group.Key.LabelEn,
+                LabelAr = group.Key.LabelAr,
+                LabelEn = group.Key.LabelEn,
+                Count = group.Count(),
+                IsAll = false,
+                IsActive = selectedProjectTypeId == group.Key.Id,
+                IconKey = group.Key.Id.ToString(),
+                Icon = group.FirstOrDefault(item => !string.IsNullOrWhiteSpace(item.Image))?.Image
+            }));
+
+        return tabs;
+    }
+
+    private static List<SponsorshipTabDto> BuildContributionTabs(
+        IReadOnlyList<DonationItemDto> items,
+        int? selectedCategoryId,
+        int languageId)
+    {
+        var tabs = new List<SponsorshipTabDto>
+        {
+            new()
+            {
+                Id = null,
+                Key = "all",
+                Label = languageId == 1 ? "الكل" : "All",
+                LabelAr = "الكل",
+                LabelEn = "All",
+                Count = items.Count,
+                IsAll = true,
+                IsActive = !selectedCategoryId.HasValue,
+                IconKey = "all",
+                Icon = "grid"
+            }
+        };
+
+        tabs.AddRange(items
+            .Where(item => item.MainAccountTypeId.HasValue && item.MainAccountTypeId.Value > 0)
+            .GroupBy(item => new
+            {
+                Id = item.MainAccountTypeId!.Value,
+                LabelAr = FirstNonEmpty(item.CategoryAr, item.Category),
+                LabelEn = FirstNonEmpty(item.CategoryEn, item.CategoryAr, item.Category)
+            })
+            .OrderBy(group => group.Key.Id)
+            .Select(group => new SponsorshipTabDto
+            {
+                Id = group.Key.Id,
+                Key = group.Key.Id.ToString(),
+                Label = languageId == 1 ? group.Key.LabelAr : group.Key.LabelEn,
+                LabelAr = group.Key.LabelAr,
+                LabelEn = group.Key.LabelEn,
+                Count = group.Count(),
+                IsAll = false,
+                IsActive = selectedCategoryId == group.Key.Id,
+                IconKey = group.Key.Id.ToString(),
+                Icon = group.FirstOrDefault(item => !string.IsNullOrWhiteSpace(item.Image))?.Image
+            }));
+
+        return tabs;
+    }
+
+    private static List<SponsorshipTabDto> BuildAssistanceTabs(
+        IReadOnlyList<DonationItemDto> items,
+        int? selectedNeedTypeId,
+        int languageId)
+    {
+        var tabs = new List<SponsorshipTabDto>
+        {
+            new()
+            {
+                Id = null,
+                Key = "all",
+                Label = languageId == 1 ? "الكل" : "All",
+                LabelAr = "الكل",
+                LabelEn = "All",
+                Count = items.Count,
+                IsAll = true,
+                IsActive = !selectedNeedTypeId.HasValue,
+                IconKey = "all",
+                Icon = "grid"
+            }
+        };
+
+        tabs.AddRange(items
+            .Where(item => item.NeedTypeId.HasValue && item.NeedTypeId.Value > 0)
+            .GroupBy(item => new
+            {
+                Id = item.NeedTypeId!.Value,
+                LabelAr = FirstNonEmpty(item.CategoryAr, item.Category),
+                LabelEn = FirstNonEmpty(item.CategoryEn, item.CategoryAr, item.Category)
+            })
+            .OrderBy(group => group.Key.Id)
+            .Select(group => new SponsorshipTabDto
+            {
+                Id = group.Key.Id,
+                Key = group.Key.Id.ToString(),
+                Label = languageId == 1 ? group.Key.LabelAr : group.Key.LabelEn,
+                LabelAr = group.Key.LabelAr,
+                LabelEn = group.Key.LabelEn,
+                Count = group.Count(),
+                IsAll = false,
+                IsActive = selectedNeedTypeId == group.Key.Id,
+                IconKey = group.Key.Id.ToString(),
+                Icon = group.FirstOrDefault(item => !string.IsNullOrWhiteSpace(item.Image))?.Image
+            }));
+
+        return tabs;
+    }
+
     private static List<SponsorshipItemDto> ApplySort(List<SponsorshipItemDto> items, string sortBy) => sortBy switch
     {
         "oldest" => items.OrderBy(item => item.WaitingPeriod ?? 0).ThenBy(item => item.Id).ToList(),
@@ -466,6 +1226,119 @@ ORDER BY SponoshipsCategoryId;";
         "remaining_desc" => items.OrderByDescending(item => item.RemainingAmount ?? 0).ThenBy(item => item.Id).ToList(),
         "donors_desc" => items.OrderByDescending(item => item.DonorCount).ThenBy(item => item.Id).ToList(),
         _ => items.OrderByDescending(item => item.WaitingPeriod ?? 0).ThenBy(item => item.Id).ToList()
+    };
+
+    private static List<ProjectItemDto> ApplyProjectSort(List<ProjectItemDto> items, string sortBy) => sortBy switch
+    {
+        "oldest" => items.OrderBy(item => item.Id).ToList(),
+        "amount_asc" => items.OrderBy(item => item.Amount ?? 0).ThenBy(item => item.Id).ToList(),
+        "amount_desc" => items.OrderByDescending(item => item.Amount ?? 0).ThenBy(item => item.Id).ToList(),
+        "remaining_asc" => items.OrderBy(item => item.RemainingAmount ?? 0).ThenBy(item => item.Id).ToList(),
+        "remaining_desc" => items.OrderByDescending(item => item.RemainingAmount ?? 0).ThenBy(item => item.Id).ToList(),
+        _ => items.OrderByDescending(item => item.Id).ToList()
+    };
+
+    private static List<DonationItemDto> ApplyGeneralDonationSort(List<DonationItemDto> items, string sortBy, bool mostWaiting) => sortBy switch
+    {
+        "oldest" => items.OrderBy(item => item.Id).ToList(),
+        "amount_asc" => items.OrderBy(item => item.Amount ?? 0).ThenBy(item => item.Id).ToList(),
+        "amount_desc" => items.OrderByDescending(item => item.Amount ?? 0).ThenBy(item => item.Id).ToList(),
+        "remaining_asc" => items.OrderBy(item => item.RemainingAmount ?? 0).ThenByDescending(item => item.Id).ToList(),
+        "remaining_desc" => items.OrderByDescending(item => item.RemainingAmount ?? 0).ThenBy(item => item.Id).ToList(),
+        "donors_desc" => items.OrderByDescending(item => item.DonorCount ?? 0).ThenBy(item => item.Id).ToList(),
+        _ when mostWaiting => items.OrderBy(item => item.RemainingAmount ?? decimal.MaxValue).ThenByDescending(item => item.Id).ToList(),
+        _ => items.OrderByDescending(item => item.Id).ToList()
+    };
+
+    private static object ToGeneralDonationItem(DonationItemDto item) => new
+    {
+        id = item.Id,
+        paidThroughId = item.PaidThroughId,
+        paidForId = item.PaidForId,
+        typeId = item.TypeId,
+        donationsTypeId = item.DonationsTypeId,
+        title = item.Title,
+        titleAr = item.TitleAr,
+        titleEn = item.TitleEn,
+        description = item.Description,
+        descriptionAr = item.DescriptionAr,
+        descriptionEn = item.DescriptionEn,
+        category = item.Category,
+        categoryAr = item.CategoryAr,
+        categoryEn = item.CategoryEn,
+        countryId = item.CountryId,
+        country = item.CountryAr,
+        countryAr = item.CountryAr,
+        countryEn = item.CountryEn,
+        amount = item.Amount,
+        amountFormatted = item.AmountFormatted,
+        paidAmount = item.PaidAmount,
+        paidAmountFormatted = item.PaidAmountFormatted,
+        remainingAmount = item.RemainingAmount,
+        remainingAmountFormatted = item.RemainingAmountFormatted,
+        fundedAmount = item.PaidAmount,
+        fundedAmountFormatted = item.PaidAmountFormatted,
+        progressPercentage = ResolveGeneralDonationProgress(item),
+        progressPercentageRaw = ResolveGeneralDonationProgress(item),
+        image = NormalizeQatarCharityExportPath(item.Image),
+        waitingPeriod = (int?)null,
+        waitingPeriodLabel = string.Empty,
+        acceptsSadaka = item.AcceptsSadaka,
+        acceptsZakaa = item.AcceptsZakaa,
+        mainAccountTypeId = item.MainAccountTypeId,
+        accountTypeId = item.AccountTypeId,
+        projectTypeId = item.ProjectTypeId,
+        projectSubTypeId = item.ProjectSubTypeId,
+        sponsorshipCategoryId = (int?)null,
+        needTypeId = item.NeedTypeId,
+        source = item.Source
+    };
+
+    private static object ToProjectDonationItem(ProjectItemDto item) => new
+    {
+        id = item.Id,
+        paidThroughId = 4,
+        paidForId = item.ProjectId == 0 ? item.TemplateId : item.ProjectId,
+        typeId = 2,
+        donationsTypeId = 0,
+        title = item.Title,
+        titleAr = item.TitleAr,
+        titleEn = item.TitleEn,
+        description = item.Description,
+        descriptionAr = item.DescriptionAr,
+        descriptionEn = item.DescriptionEn,
+        category = item.ProjectTypeName,
+        categoryAr = item.ProjectTypeNameAr,
+        categoryEn = item.ProjectTypeNameEn,
+        projectTypeName = item.ProjectTypeName,
+        projectTypeNameAr = item.ProjectTypeNameAr,
+        projectTypeNameEn = item.ProjectTypeNameEn,
+        countryId = item.CountryId,
+        country = item.CountryAr,
+        countryAr = item.CountryAr,
+        countryEn = item.CountryEn,
+        amount = item.Amount,
+        amountFormatted = item.AmountFormatted,
+        paidAmount = item.PaidAmount,
+        paidAmountFormatted = item.PaidAmountFormatted,
+        remainingAmount = item.RemainingAmount,
+        remainingAmountFormatted = item.RemainingAmountFormatted,
+        fundedAmount = item.PaidAmount,
+        fundedAmountFormatted = item.PaidAmountFormatted,
+        progressPercentage = ResolveProjectProgress(item),
+        progressPercentageRaw = ResolveProjectProgress(item),
+        image = NormalizeQatarCharityExportPath(item.Image),
+        waitingPeriod = (int?)null,
+        waitingPeriodLabel = string.Empty,
+        acceptsSadaka = item.AcceptsSadaka,
+        acceptsZakaa = item.AcceptsZakaa,
+        mainAccountTypeId = item.MainAccountTypeId,
+        accountTypeId = item.AccountTypeId,
+        projectTypeId = item.ProjectTypeId,
+        projectSubTypeId = item.ProjectSubTypeId,
+        sponsorshipCategoryId = (int?)null,
+        needTypeId = (int?)null,
+        source = item.Source
     };
 
     private static object ToDonationItem(SponsorshipItemDto item) => new
@@ -512,7 +1385,31 @@ ORDER BY SponoshipsCategoryId;";
         source = item.Source
     };
 
+    private static int ResolveGeneralDonationProgress(DonationItemDto item)
+    {
+        if (!item.Amount.HasValue || item.Amount.Value <= 0 || !item.RemainingAmount.HasValue)
+        {
+            return 0;
+        }
+
+        var paid = item.PaidAmount ?? Math.Max(item.Amount.Value - item.RemainingAmount.Value, 0);
+        return (int)Math.Clamp(Math.Round(paid / item.Amount.Value * 100m), 0, 100);
+    }
+
+    private static int ResolveProjectProgress(ProjectItemDto item)
+    {
+        if (!item.Amount.HasValue || item.Amount.Value <= 0 || !item.RemainingAmount.HasValue)
+        {
+            return 0;
+        }
+
+        var paid = item.PaidAmount ?? Math.Max(item.Amount.Value - item.RemainingAmount.Value, 0);
+        return (int)Math.Clamp(Math.Round(paid / item.Amount.Value * 100m), 0, 100);
+    }
+
     private static int NormalizeLanguageId(int languageId) => languageId == 2 ? 2 : 1;
+
+    private static int NormalizeDonationTypeId(int donationsTypeId) => donationsTypeId == 3 ? 3 : 4;
 
     private static int ResolveLanguageId(string? language, int? languageId)
     {
@@ -534,6 +1431,125 @@ ORDER BY SponoshipsCategoryId;";
         return normalized is "oldest" or "amount_asc" or "amount_desc" or "remaining_asc" or "remaining_desc" or "donors_desc"
             ? normalized
             : "newest";
+    }
+
+    private static string BuildQatarCharityImageUrl(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return string.Empty;
+        }
+
+        var trimmed = path.Trim();
+        if (trimmed.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            return NormalizeQatarCharityExportPath(trimmed);
+        }
+
+        var relativePath = trimmed.TrimStart('/');
+        if (relativePath.StartsWith("ExportPath/", StringComparison.OrdinalIgnoreCase))
+        {
+            relativePath = relativePath["ExportPath/".Length..];
+        }
+
+        return NormalizeQatarCharityExportPath(QatarCharityExportPathBaseUrl + relativePath);
+    }
+
+    private static string NormalizeQatarCharityExportPath(string? url) =>
+        string.IsNullOrWhiteSpace(url)
+            ? string.Empty
+            : url.Trim()
+                .Replace("ExportPath/ExportPath/", "ExportPath/", StringComparison.OrdinalIgnoreCase)
+                .Replace("ExportPath//ExportPath/", "ExportPath/", StringComparison.OrdinalIgnoreCase);
+
+    private static bool HasColumn(SqlDataReader reader, string columnName)
+    {
+        for (var index = 0; index < reader.FieldCount; index++)
+        {
+            if (string.Equals(reader.GetName(index), columnName, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static string? ReadFlexibleString(SqlDataReader reader, params string[] columnNames)
+    {
+        foreach (var columnName in columnNames)
+        {
+            if (!HasColumn(reader, columnName))
+            {
+                continue;
+            }
+
+            var ordinal = reader.GetOrdinal(columnName);
+            if (!reader.IsDBNull(ordinal))
+            {
+                return Convert.ToString(reader.GetValue(ordinal))?.Trim();
+            }
+        }
+
+        return null;
+    }
+
+    private static int? ReadFlexibleInt(SqlDataReader reader, params string[] columnNames)
+    {
+        foreach (var columnName in columnNames)
+        {
+            if (!HasColumn(reader, columnName))
+            {
+                continue;
+            }
+
+            var ordinal = reader.GetOrdinal(columnName);
+            if (!reader.IsDBNull(ordinal))
+            {
+                return Convert.ToInt32(reader.GetValue(ordinal));
+            }
+        }
+
+        return null;
+    }
+
+    private static decimal? ReadFlexibleDecimal(SqlDataReader reader, params string[] columnNames)
+    {
+        foreach (var columnName in columnNames)
+        {
+            if (!HasColumn(reader, columnName))
+            {
+                continue;
+            }
+
+            var ordinal = reader.GetOrdinal(columnName);
+            if (!reader.IsDBNull(ordinal) && decimal.TryParse(Convert.ToString(reader.GetValue(ordinal)), out var value))
+            {
+                return value;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool? ReadFlexibleBool(SqlDataReader reader, params string[] columnNames)
+    {
+        foreach (var columnName in columnNames)
+        {
+            if (!HasColumn(reader, columnName))
+            {
+                continue;
+            }
+
+            var ordinal = reader.GetOrdinal(columnName);
+            if (!reader.IsDBNull(ordinal))
+            {
+                return Convert.ToBoolean(reader.GetValue(ordinal));
+            }
+        }
+
+        return null;
     }
 
     private static string BuildCategoryKey(int? id) => id switch
@@ -618,6 +1634,34 @@ ORDER BY SponoshipsCategoryId;";
         public required object Filters { get; init; }
 
         public required List<SponsorshipItemDto> Items { get; init; }
+
+        public required SponsorshipPagination Pagination { get; init; }
+
+        public required object Meta { get; init; }
+    }
+
+    private sealed class ProjectsResponse
+    {
+        public required List<SponsorshipTabDto> Tabs { get; init; }
+
+        public required object Filters { get; init; }
+
+        public required List<ProjectItemDto> Items { get; init; }
+
+        public required SponsorshipPagination Pagination { get; init; }
+
+        public required object Meta { get; init; }
+    }
+
+    private sealed class DonationItemsResponse
+    {
+        public required List<SponsorshipTabDto> Tabs { get; init; }
+
+        public required object Filters { get; init; }
+
+        public required object Ui { get; init; }
+
+        public required List<DonationItemDto> Items { get; init; }
 
         public required SponsorshipPagination Pagination { get; init; }
 
@@ -745,5 +1789,75 @@ ORDER BY SponoshipsCategoryId;";
         public bool? IsFullCoverage { get; set; }
         public bool? IsOrphanStudent { get; set; }
         public string? Source { get; set; }
+    }
+
+    private sealed class ProjectItemDto
+    {
+        public int Id { get; set; }
+        public int ProjectId { get; set; }
+        public int TemplateId { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string TitleAr { get; set; } = string.Empty;
+        public string TitleEn { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string DescriptionAr { get; set; } = string.Empty;
+        public string DescriptionEn { get; set; } = string.Empty;
+        public int? ProjectTypeId { get; set; }
+        public int? ProjectSubTypeId { get; set; }
+        public string ProjectTypeName { get; set; } = string.Empty;
+        public string ProjectTypeNameAr { get; set; } = string.Empty;
+        public string ProjectTypeNameEn { get; set; } = string.Empty;
+        public int? CountryId { get; set; }
+        public string CountryAr { get; set; } = string.Empty;
+        public string CountryEn { get; set; } = string.Empty;
+        public decimal? Amount { get; set; }
+        public string? AmountFormatted { get; set; }
+        public decimal? PaidAmount { get; set; }
+        public string? PaidAmountFormatted { get; set; }
+        public decimal? RemainingAmount { get; set; }
+        public string? RemainingAmountFormatted { get; set; }
+        public string Image { get; set; } = string.Empty;
+        public int? MainAccountTypeId { get; set; }
+        public int? AccountTypeId { get; set; }
+        public bool AcceptsSadaka { get; set; }
+        public bool AcceptsZakaa { get; set; }
+        public string Source { get; set; } = string.Empty;
+    }
+
+    private sealed class DonationItemDto
+    {
+        public int Id { get; set; }
+        public int? PaidThroughId { get; set; }
+        public int? PaidForId { get; set; }
+        public int TypeId { get; set; }
+        public int DonationsTypeId { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string TitleAr { get; set; } = string.Empty;
+        public string TitleEn { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string DescriptionAr { get; set; } = string.Empty;
+        public string DescriptionEn { get; set; } = string.Empty;
+        public string Category { get; set; } = string.Empty;
+        public string CategoryAr { get; set; } = string.Empty;
+        public string CategoryEn { get; set; } = string.Empty;
+        public int? CountryId { get; set; }
+        public string CountryAr { get; set; } = string.Empty;
+        public string CountryEn { get; set; } = string.Empty;
+        public decimal? Amount { get; set; }
+        public string? AmountFormatted { get; set; }
+        public decimal? PaidAmount { get; set; }
+        public string? PaidAmountFormatted { get; set; }
+        public decimal? RemainingAmount { get; set; }
+        public string? RemainingAmountFormatted { get; set; }
+        public string Image { get; set; } = string.Empty;
+        public int? MainAccountTypeId { get; set; }
+        public int? AccountTypeId { get; set; }
+        public int? ProjectTypeId { get; set; }
+        public int? ProjectSubTypeId { get; set; }
+        public int? NeedTypeId { get; set; }
+        public int? DonorCount { get; set; }
+        public bool AcceptsSadaka { get; set; }
+        public bool AcceptsZakaa { get; set; }
+        public string Source { get; set; } = string.Empty;
     }
 }
