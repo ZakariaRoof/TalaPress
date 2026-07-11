@@ -19,6 +19,7 @@ public sealed class CartController : ControllerBase
     private const string PendingStatus = "pending";
     private const string SyncedStatus = "synced";
     private const string RemovedStatus = "removed";
+    private const string SponsorshipAlreadyInCartCode = "SPONSORSHIP_ALREADY_IN_CART";
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -65,6 +66,18 @@ public sealed class CartController : ControllerBase
         }
 
         var visitorId = ResolveVisitorId();
+        if (NormalizeDonationType(request.DonationType) == "sponsorship" && request.PaidForId.HasValue)
+        {
+            var duplicateSponsorship = await FindSponsorshipCartItemAsync(visitorId, request.PaidForId.Value, cancellationToken);
+            if (duplicateSponsorship is not null)
+            {
+                var existingCart = await LoadCartItemsAsync(visitorId, cancellationToken);
+                var response = BuildMutationResponse(false, duplicateSponsorship, existingCart, "هذه الكفالة تمت إضافتها إلى السلة مسبقاً.");
+                response.Code = SponsorshipAlreadyInCartCode;
+                return Conflict(response);
+            }
+        }
+
         if (!string.IsNullOrWhiteSpace(request.IdempotencyKey))
         {
             var existing = await FindByIdempotencyKeyAsync(visitorId, request.IdempotencyKey.Trim(), cancellationToken);
@@ -249,6 +262,31 @@ public sealed class CartController : ControllerBase
         return await reader.ReadAsync(cancellationToken) ? ReadCartItem(reader) : null;
     }
 
+    private async Task<CartItemRecord?> FindSponsorshipCartItemAsync(string visitorId, int paidForId, CancellationToken cancellationToken)
+    {
+        var connectionString = GetConnectionString();
+        await using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        const string query = @"
+            SELECT TOP (1) Id, QcDonationId, QcDonationIds, Label, DonationType, AccountTypeId, CountryId, Amount, CurrencyId, PeriodTypeId, Source, SyncStatus, PaidForId, SponsorshipCategoryId, IsYearly
+            FROM dbo.AlakraboonCartItems
+            WHERE VisitorId = @VisitorId
+              AND DonationType = @DonationType
+              AND PaidForId = @PaidForId
+              AND SyncStatus <> @RemovedStatus
+            ORDER BY CreatedAt DESC;";
+
+        await using var command = new SqlCommand(query, connection);
+        command.Parameters.Add("@VisitorId", SqlDbType.NVarChar, 100).Value = visitorId;
+        command.Parameters.Add("@DonationType", SqlDbType.NVarChar, 20).Value = "sponsorship";
+        command.Parameters.Add("@PaidForId", SqlDbType.Int).Value = paidForId;
+        command.Parameters.Add("@RemovedStatus", SqlDbType.NVarChar, 30).Value = RemovedStatus;
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        return await reader.ReadAsync(cancellationToken) ? ReadCartItem(reader) : null;
+    }
+
     private async Task<CartItemRecord?> FindByIdempotencyKeyAsync(string visitorId, string idempotencyKey, CancellationToken cancellationToken)
     {
         var connectionString = GetConnectionString();
@@ -405,7 +443,7 @@ public sealed class CartController : ControllerBase
                 path = "/ar/qa/checkout/alakraboonsync";
             }
 
-            return GetCheckoutBaseUrl().TrimEnd('/') + path + "?payload=" + Uri.EscapeDataString(encodedPayload) + "&signature=" + Uri.EscapeDataString(signature) + "&source=alakraboon";
+            return GetCheckoutBaseUrl().TrimEnd('/') + path + "?payload=" + Uri.EscapeDataString(encodedPayload) + "&signature=" + Uri.EscapeDataString(signature);
         }
 
         if (string.IsNullOrWhiteSpace(donationIds))
@@ -419,7 +457,7 @@ public sealed class CartController : ControllerBase
             checkoutPath = "/ar/qa/checkout/index";
         }
 
-        return GetCheckoutBaseUrl().TrimEnd('/') + checkoutPath + "?donationId=" + Uri.EscapeDataString(donationIds) + "&source=alakraboon";
+        return GetCheckoutBaseUrl().TrimEnd('/') + checkoutPath + "?donationId=" + Uri.EscapeDataString(donationIds);
     }
 
     private string SignPayload(string encodedPayload)
