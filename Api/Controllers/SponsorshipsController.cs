@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using System.Data;
+using System.Globalization;
 using TalaPress.Api.Security;
 
 namespace TalaPress.Api.Controllers;
@@ -874,8 +875,11 @@ ORDER BY SponoshipsCategoryId;";
     private static DonationItemDto MapAssistanceCaseItem(SqlDataReader reader, int languageId)
     {
         var id = ReadFlexibleInt(reader, "AssistanceCaseId", "AssistanceCaseID", "PaidForId") ?? 0;
-        var titleAr = ReadFlexibleString(reader, "PersonName", "shortName", "CategoryTypeName", "AccountName") ?? string.Empty;
-        var titleEn = ReadFlexibleString(reader, "PersonNameEn", "shortNameEn", "CategoryTypeNameEn", "AccountNameEn") ?? string.Empty;
+        var caseNumber = FirstNonEmpty(
+            ReadFlexibleString(reader, "RequestId", "RequestID"),
+            id > 0 ? id.ToString(CultureInfo.InvariantCulture) : string.Empty);
+        var titleAr = string.IsNullOrWhiteSpace(caseNumber) ? "حالة إنسانية" : $"رقم الحالة: {caseNumber}";
+        var titleEn = string.IsNullOrWhiteSpace(caseNumber) ? "Assistance Case" : $"Case No: {caseNumber}";
         var descriptionAr = ReadFlexibleString(reader, "Notes", "DescriptionAr", "Description") ?? string.Empty;
         var descriptionEn = ReadFlexibleString(reader, "NotesEn", "DescriptionEn", "DescriptionEN") ?? string.Empty;
         var categoryAr = ReadFlexibleString(reader, "CategoryTypeName", "AccountName", "AccountNameLevel1") ?? string.Empty;

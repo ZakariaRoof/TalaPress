@@ -519,7 +519,7 @@ public sealed class CartController : ControllerBase
         }
 
         var donationType = NormalizeDonationType(request.DonationType);
-        if (donationType is not ("single" or "periodic" or "sponsorship"))
+        if (donationType is not ("single" or "periodic" or "sponsorship" or "project"))
         {
             return "نوع التبرع غير صحيح.";
         }
