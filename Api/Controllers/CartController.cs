@@ -519,7 +519,7 @@ public sealed class CartController : ControllerBase
         }
 
         var donationType = NormalizeDonationType(request.DonationType);
-        if (donationType is not ("single" or "periodic" or "sponsorship" or "project"))
+        if (donationType is not ("single" or "periodic" or "sponsorship" or "project" or "assistance"))
         {
             return "نوع التبرع غير صحيح.";
         }
@@ -534,9 +534,27 @@ public sealed class CartController : ControllerBase
             return "يرجى إدخال مبلغ صحيح.";
         }
 
+        if (donationType == "project" && string.Equals(request.Source, "projects-private", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!(request.RequiredAmount > 0))
+            {
+                return "تعذر تحديد قيمة المشروع المطلوبة.";
+            }
+
+            if (request.Amount < request.RequiredAmount.Value)
+            {
+                return "قيمة المشروع الخاص يجب أن تضاف كاملة.";
+            }
+        }
+
         if (donationType == "sponsorship" && !(request.PaidForId > 0))
         {
             return "تعذر تحديد الحالة المطلوب كفالتها.";
+        }
+
+        if (donationType == "assistance" && !(request.PaidForId > 0))
+        {
+            return "تعذر تحديد الحالة الإنسانية المطلوبة.";
         }
 
         if (donationType == "periodic" && !request.PeriodTypeId.HasValue)
@@ -655,6 +673,7 @@ public sealed class CartController : ControllerBase
         public int? PaidForId { get; set; }
         public int? SponsorshipCategoryId { get; set; }
         public bool IsYearly { get; set; }
+        public decimal? RequiredAmount { get; set; }
         public string? Label { get; set; }
         public string Source { get; set; } = "quick-donation";
         public string? IdempotencyKey { get; set; }
