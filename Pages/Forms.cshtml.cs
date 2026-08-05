@@ -44,7 +44,6 @@ namespace TalaPress.Pages
         public bool IsActive { get; set; } = true;
     }
 
-    [IgnoreAntiforgeryToken]
     public class FormsModel : PageModel
     {
         private readonly IConfiguration _configuration;

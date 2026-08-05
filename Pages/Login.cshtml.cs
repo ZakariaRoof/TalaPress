@@ -4,20 +4,22 @@ using Microsoft.Data.SqlClient;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.RateLimiting;
 using System.Security.Claims;
 
 namespace TalaPress.Pages
 {
+    [EnableRateLimiting("login")]
     public class LoginModel : PageModel
     {
         private readonly IConfiguration _configuration;
-        private readonly IWebHostEnvironment _environment;
+        private readonly ILogger<LoginModel> _logger;
         private readonly PasswordHasher<string> _passwordHasher = new PasswordHasher<string>();
 
-        public LoginModel(IConfiguration configuration, IWebHostEnvironment environment)
+        public LoginModel(IConfiguration configuration, ILogger<LoginModel> logger)
         {
             _configuration = configuration;
-            _environment = environment;
+            _logger = logger;
         }
 
         [BindProperty]
@@ -30,8 +32,7 @@ namespace TalaPress.Pages
 
         public async Task<IActionResult> OnGetAsync()
         {
-            // Auto-seed a default user if none exists in the database
-            await EnsureDefaultUserAsync();
+            await DisableLegacyDefaultUserAsync();
             return Page();
         }
 
@@ -43,6 +44,8 @@ namespace TalaPress.Pages
 
         public async Task<IActionResult> OnPostAsync()
         {
+            await DisableLegacyDefaultUserAsync();
+
             if (!ModelState.IsValid)
             {
                 return Page();
@@ -150,7 +153,8 @@ namespace TalaPress.Pages
             }
             catch (Exception ex)
             {
-                ErrorMessage = $"خطأ في الاتصال بقاعدة البيانات: {ex.Message}";
+                _logger.LogError(ex, "TalaPress login failed due to an internal authentication error.");
+                ErrorMessage = "تعذر إتمام تسجيل الدخول حالياً. يرجى المحاولة لاحقاً.";
                 return Page();
             }
 
@@ -158,13 +162,8 @@ namespace TalaPress.Pages
             return Page();
         }
 
-        private async Task EnsureDefaultUserAsync()
+        private async Task DisableLegacyDefaultUserAsync()
         {
-            if (!_environment.IsDevelopment())
-            {
-                return;
-            }
-
             string? connectionString = _configuration.GetConnectionString("DefaultConnection");
             if (string.IsNullOrEmpty(connectionString)) return;
 
@@ -173,57 +172,31 @@ namespace TalaPress.Pages
                 using var connection = new SqlConnection(connectionString);
                 await connection.OpenAsync();
 
-                // Check if any users exist
-                string checkQuery = "SELECT COUNT(*) FROM dbo.Users";
-                using var checkCmd = new SqlCommand(checkQuery, connection);
-                int userCount = Convert.ToInt32(await checkCmd.ExecuteScalarAsync());
-
-                if (userCount == 0)
+                const string query = "SELECT TOP (1) Id, PasswordHash FROM dbo.Users WHERE Username = 'admin' AND Email = 'admin@talapress.com' AND IsActive = 1";
+                long? userId = null;
+                string? passwordHash = null;
+                using (var command = new SqlCommand(query, connection))
                 {
-                    // Create default super admin user: admin / admin
-                    string username = "admin";
-                    string email = "admin@talapress.com";
-                    string hashedPassword = _passwordHasher.HashPassword(username, "admin");
-
-                    // 1. Insert default user
-                    string insertUserQuery = @"
-                        INSERT INTO dbo.Users (Username, Email, PasswordHash, FullName, IsActive, CreatedAt)
-                        VALUES (@Username, @Email, @PasswordHash, @FullName, 1, GETUTCDATE());
-                        SELECT SCOPE_IDENTITY();";
-
-                    using var insertCmd = new SqlCommand(insertUserQuery, connection);
-                    insertCmd.Parameters.AddWithValue("@Username", username);
-                    insertCmd.Parameters.AddWithValue("@Email", email);
-                    insertCmd.Parameters.AddWithValue("@PasswordHash", hashedPassword);
-                    insertCmd.Parameters.AddWithValue("@FullName", "Super Admin");
-
-                    object? result = await insertCmd.ExecuteScalarAsync();
-                    if (result != null && result != DBNull.Value)
+                    using var reader = await command.ExecuteReaderAsync();
+                    if (await reader.ReadAsync())
                     {
-                        long newUserId = Convert.ToInt64(result);
-
-                        // 2. Fetch Super Administrator role ID
-                        string getRoleQuery = "SELECT Id FROM dbo.Roles WHERE Name_En = 'Super Administrator'";
-                        using var getRoleCmd = new SqlCommand(getRoleQuery, connection);
-                        object? roleIdObj = await getRoleCmd.ExecuteScalarAsync();
-
-                        if (roleIdObj != null && roleIdObj != DBNull.Value)
-                        {
-                            long roleId = Convert.ToInt64(roleIdObj);
-
-                            // 3. Map user to the Super Administrator role
-                            string insertUserRoleQuery = "INSERT INTO dbo.UserRoles (UserId, RoleId) VALUES (@UserId, @RoleId)";
-                            using var insertUserRoleCmd = new SqlCommand(insertUserRoleQuery, connection);
-                            insertUserRoleCmd.Parameters.AddWithValue("@UserId", newUserId);
-                            insertUserRoleCmd.Parameters.AddWithValue("@RoleId", roleId);
-                            await insertUserRoleCmd.ExecuteNonQueryAsync();
-                        }
+                        userId = reader.GetInt64(0);
+                        passwordHash = reader.GetString(1);
                     }
                 }
+
+                if (userId.HasValue && passwordHash is not null
+                    && _passwordHasher.VerifyHashedPassword("admin", passwordHash, "admin") != PasswordVerificationResult.Failed)
+                {
+                    using var disableCommand = new SqlCommand("UPDATE dbo.Users SET IsActive = 0, UpdatedAt = GETUTCDATE() WHERE Id = @Id", connection);
+                    disableCommand.Parameters.AddWithValue("@Id", userId.Value);
+                    await disableCommand.ExecuteNonQueryAsync();
+                    _logger.LogWarning("Disabled the legacy TalaPress admin account because it still used the known default credential.");
+                }
             }
-            catch
+            catch (Exception ex)
             {
-                // Silently handle if tables or DB do not exist yet during app load
+                _logger.LogWarning(ex, "Unable to check for the legacy TalaPress default account.");
             }
         }
     }

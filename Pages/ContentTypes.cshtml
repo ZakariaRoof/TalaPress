@@ -1119,11 +1119,11 @@
       editableLayoutFields.forEach((field) => {
         const index = customFields.indexOf(field);
         const isSystem = field.IsSystemField || reservedNames.includes(field.FieldName.toLowerCase());
-        const fieldNameText = field.FieldName;
-        const labelText = currentLang === 'ar' ? field.Label : (field.Label_En || field.Label);
+        const fieldNameText = escapeHtml(field.FieldName);
+        const labelText = escapeHtml(currentLang === 'ar' ? field.Label : (field.Label_En || field.Label));
         
         let metaIndicators = '';
-        metaIndicators += `<span class="badge bg-secondary-subtle text-secondary-emphasis fs-8 me-1">${field.FieldType}</span>`;
+        metaIndicators += `<span class="badge bg-secondary-subtle text-secondary-emphasis fs-8 me-1">${escapeHtml(field.FieldType)}</span>`;
 
         if (field.IsRequired) {
           metaIndicators += `<span class="badge bg-danger-subtle text-danger fs-8 me-1"><i class="bi bi-asterisk"></i> ${pageTranslations[currentLang].requiredLabel}</span>`;
@@ -1182,17 +1182,17 @@
 <div class='p-1 fs-8 text-start' dir='rtl' style='line-height: 1.6; text-align: right;'>
   <div class='mb-1 pb-1 border-bottom border-light-subtle'>
     <strong>التسمية التوضيحية:</strong> 
-    <span class='text-primary-emphasis'>${field.Label}</span>
+    <span class='text-primary-emphasis'>${escapeHtml(field.Label)}</span>
   </div>
   ${field.HelpText ? `
   <div class='mb-1 pb-1 border-bottom border-light-subtle'>
     <strong>نص المساعدة:</strong> 
-    <span class='text-secondary'>${field.HelpText}</span>
+    <span class='text-secondary'>${escapeHtml(field.HelpText)}</span>
   </div>` : ''}
   ${field.DefaultValue ? `
   <div class='mb-0'>
     <strong>القيمة الافتراضية:</strong> 
-    <code class='text-success'>${field.DefaultValue}</code>
+    <code class='text-success'>${escapeHtml(field.DefaultValue)}</code>
   </div>` : ''}
 </div>`.trim().replace(/"/g, '&quot;');
         } else {
@@ -1200,17 +1200,17 @@
 <div class='p-1 fs-8 text-start' dir='ltr' style='line-height: 1.6; text-align: left;'>
   <div class='mb-1 pb-1 border-bottom border-light-subtle'>
     <strong>Label:</strong> 
-    <span class='text-primary-emphasis'>${field.Label_En || field.Label}</span>
+    <span class='text-primary-emphasis'>${escapeHtml(field.Label_En || field.Label)}</span>
   </div>
   ${field.HelpText_En ? `
   <div class='mb-1 pb-1 border-bottom border-light-subtle'>
     <strong>Help Text:</strong> 
-    <span class='text-secondary'>${field.HelpText_En}</span>
+    <span class='text-secondary'>${escapeHtml(field.HelpText_En)}</span>
   </div>` : ''}
   ${field.DefaultValue ? `
   <div class='mb-0'>
     <strong>Default Value:</strong> 
-    <code class='text-success'>${field.DefaultValue}</code>
+    <code class='text-success'>${escapeHtml(field.DefaultValue)}</code>
   </div>` : ''}
 </div>`.trim().replace(/"/g, '&quot;');
         }
@@ -1925,9 +1925,9 @@
       modalOptions.forEach((opt, idx) => {
         const row = document.createElement('tr');
         row.innerHTML = `
-          <td><code>${opt.value}</code></td>
-          <td>${opt.label}</td>
-          <td>${opt.labelEn || ''}</td>
+          <td><code>${escapeHtml(opt.value)}</code></td>
+          <td>${escapeHtml(opt.label)}</td>
+          <td>${escapeHtml(opt.labelEn || '')}</td>
           <td>
             <button type="button" class="btn btn-sm btn-link text-danger p-0" onclick="removeOptionFromBuilder(${idx})">
               <i class="bi bi-trash-fill"></i>

@@ -173,12 +173,8 @@
 @section Scripts {
   <script>
     document.addEventListener("DOMContentLoaded", function() {
-        // Prepare FormFields dictionary for lookup
-        var formFields = {};
-        @foreach (var f in Model.FormFields)
-        {
-            @:formFields['@f.FieldName'] = '@Html.Raw(f.Label.Replace("'", "\\'"))';
-        }
+        var formFields = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+          Model.FormFields.ToDictionary(field => field.FieldName, field => field.Label)));
         
         var detailsBtns = document.querySelectorAll('.view-details-btn');
         detailsBtns.forEach(btn => {
@@ -194,17 +190,23 @@
                 var data = {};
                 try { data = JSON.parse(json); } catch(e) {}
                 
-                var html = '<table class="table table-bordered mb-0"><tbody>';
+                var table = document.createElement('table');
+                table.className = 'table table-bordered mb-0';
+                var tbody = table.createTBody();
                 for (var key in data) {
                     var label = formFields[key] || key;
-                    var val = data[key] || '';
-                    // Convert newlines to br for textarea
-                    val = val.replace(/\n/g, '<br/>');
-                    html += `<tr><th style="width:30%; background-color:var(--bs-tertiary-bg);">${label}</th><td>${val}</td></tr>`;
+                  var value = data[key] == null ? '' : String(data[key]);
+                  var row = tbody.insertRow();
+                  var heading = document.createElement('th');
+                  heading.style.width = '30%';
+                  heading.style.backgroundColor = 'var(--bs-tertiary-bg)';
+                  heading.textContent = label;
+                  var valueCell = row.insertCell();
+                  valueCell.textContent = value;
+                  row.prepend(heading);
                 }
-                html += '</tbody></table>';
-                
-                document.getElementById('modal-data-container').innerHTML = html;
+
+                document.getElementById('modal-data-container').replaceChildren(table);
                 
                 var modal = new bootstrap.Modal(document.getElementById('detailsModal'));
                 modal.show();

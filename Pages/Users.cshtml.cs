@@ -119,6 +119,12 @@ namespace TalaPress.Pages
             Email = Email.Trim();
             FullName = FullName?.Trim();
 
+            if (!string.IsNullOrWhiteSpace(Password) && !IsStrongPassword(Password))
+            {
+                ErrorMessage = "يجب أن تتكون كلمة المرور من 12 حرفاً على الأقل، وأن تشمل حرفاً ورقماً ورمزاً خاصاً.";
+                return await OnGetReloadAsync();
+            }
+
             string? connectionString = _configuration.GetConnectionString("DefaultConnection");
             if (string.IsNullOrEmpty(connectionString))
             {
@@ -402,6 +408,14 @@ namespace TalaPress.Pages
                     UserList.Add(user);
                 }
             }
+        }
+
+        private static bool IsStrongPassword(string password)
+        {
+            return password.Length >= 12
+                && password.Any(char.IsLetter)
+                && password.Any(char.IsDigit)
+                && password.Any(character => !char.IsLetterOrDigit(character));
         }
     }
 

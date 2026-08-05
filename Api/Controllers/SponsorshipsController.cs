@@ -874,10 +874,11 @@ ORDER BY SponoshipsCategoryId;";
 
     private static DonationItemDto MapAssistanceCaseItem(SqlDataReader reader, int languageId)
     {
-        var id = ReadFlexibleInt(reader, "AssistanceCaseId", "AssistanceCaseID", "PaidForId") ?? 0;
+        var assistanceCaseId = ReadFlexibleInt(reader, "AssistanceCaseId", "AssistanceCaseID", "PaidForId") ?? 0;
+        var requestId = ReadFlexibleInt(reader, "ZokhrId", "RequestId", "RequestID");
         var caseNumber = FirstNonEmpty(
-            ReadFlexibleString(reader, "RequestId", "RequestID"),
-            id > 0 ? id.ToString(CultureInfo.InvariantCulture) : string.Empty);
+            requestId?.ToString(CultureInfo.InvariantCulture),
+            assistanceCaseId > 0 ? assistanceCaseId.ToString(CultureInfo.InvariantCulture) : string.Empty);
         var titleAr = string.IsNullOrWhiteSpace(caseNumber) ? "حالة إنسانية" : $"رقم الحالة: {caseNumber}";
         var titleEn = string.IsNullOrWhiteSpace(caseNumber) ? "Assistance Case" : $"Case No: {caseNumber}";
         var descriptionAr = ReadFlexibleString(reader, "Notes", "DescriptionAr", "Description") ?? string.Empty;
@@ -888,14 +889,16 @@ ORDER BY SponoshipsCategoryId;";
         var remaining = ReadFlexibleDecimal(reader, "Remaining", "RemainingAmount");
         var paid = amount.HasValue && remaining.HasValue ? Math.Max(amount.Value - remaining.Value, 0) : ReadFlexibleDecimal(reader, "Paid", "PaidAmount", "PreviousSumAmount");
         var image = FirstNonEmpty(
-            BuildQatarCharityImageUrl(ReadFlexibleString(reader, "Image", "LinkImageAR", "LargeImage")),
+            BuildQatarCharityCouponImageUrl(ReadFlexibleString(reader, "LargeImage3", "LargeImage")),
+            BuildQatarCharityCouponImageUrl(ReadFlexibleString(reader, "Image", "LinkImageAR")),
             BuildQatarCharityImageUrl(ReadFlexibleString(reader, "WebIcon", "Icon")));
 
         return new DonationItemDto
         {
-            Id = id,
+            Id = assistanceCaseId,
             PaidThroughId = 7,
-            PaidForId = id,
+            PaidForId = assistanceCaseId,
+            RequestId = requestId,
             TypeId = 1,
             DonationsTypeId = 3,
             TitleAr = titleAr.Trim(),
@@ -944,7 +947,7 @@ ORDER BY SponoshipsCategoryId;";
         var amount = ReadDecimal(reader, "SponsorshipAmount");
         var countryAr = ReadString(reader, "CountryName");
         var countryEn = ReadString(reader, "CountryNameEng");
-        var image = FirstNonEmpty(ReadString(reader, "Image3"), ReadString(reader, "Photo"));
+        var image = BuildQatarCharityCouponImageUrl(FirstNonEmpty(ReadString(reader, "Image3"), ReadString(reader, "Photo")));
         var description = string.Join(" | ", new[] { accountLabel, categoryLabel }.Where(value => !string.IsNullOrWhiteSpace(value)));
         var waitingPeriod = ReadInt(reader, "WaitingPeriod");
         var birthDate = ReadDateTime(reader, "BirthDate");
@@ -1259,6 +1262,7 @@ ORDER BY SponoshipsCategoryId;";
         id = item.Id,
         paidThroughId = item.PaidThroughId,
         paidForId = item.PaidForId,
+        requestId = item.RequestId,
         typeId = item.TypeId,
         donationsTypeId = item.DonationsTypeId,
         title = item.Title,
@@ -1458,6 +1462,24 @@ ORDER BY SponoshipsCategoryId;";
         }
 
         return NormalizeQatarCharityExportPath(QatarCharityExportPathBaseUrl + relativePath);
+    }
+
+    private static string BuildQatarCharityCouponImageUrl(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return string.Empty;
+        }
+
+        var trimmed = path.Trim();
+        if (trimmed.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.Contains("CouponImages/", StringComparison.OrdinalIgnoreCase))
+        {
+            return BuildQatarCharityImageUrl(trimmed);
+        }
+
+        return BuildQatarCharityImageUrl("CouponImages/" + trimmed.TrimStart('/'));
     }
 
     private static string NormalizeQatarCharityExportPath(string? url) =>
@@ -1833,6 +1855,7 @@ ORDER BY SponoshipsCategoryId;";
         public int Id { get; set; }
         public int? PaidThroughId { get; set; }
         public int? PaidForId { get; set; }
+        public int? RequestId { get; set; }
         public int TypeId { get; set; }
         public int DonationsTypeId { get; set; }
         public string Title { get; set; } = string.Empty;

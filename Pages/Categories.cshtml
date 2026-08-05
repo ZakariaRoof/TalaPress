@@ -503,6 +503,21 @@
             }
         }
 
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, char => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[char]));
+        }
+
+        function escapeInlineJsString(value) {
+            return String(value ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/[\r\n]/g, ' ');
+        }
+
+        function safeCssClasses(value, fallback) {
+            const classes = String(value || '');
+            return /^[a-zA-Z0-9 _-]+$/.test(classes) ? classes : fallback;
+        }
+
         // Recursive rendering template
         function renderNode(node, depth, query) {
             const hasChildren = node.children && node.children.length > 0;
@@ -511,6 +526,10 @@
             const isActive = node.IsActive;
             const isEditing = Number(node.Id) === Number(formState.id);
             const scopeText = getCategoryScopeLabel(node);
+            const safeNameText = escapeHtml(nameText);
+            const safeScopeText = escapeHtml(scopeText);
+            const safeIconClass = safeCssClasses(node.IconValue, 'bi bi-folder-fill');
+            const deleteName = escapeHtml(escapeInlineJsString(nameText));
             
             // Filter match logic
             if (query && !isNodeMatch(node, query)) {
@@ -541,12 +560,12 @@
                         
                         <!-- Custom/Preset Icon -->
                         <span class="tp-tree-node-icon">
-                            <i class="${node.IconValue || 'bi bi-folder-fill'}"></i>
+                            <i class="${safeIconClass}"></i>
                         </span>
                         
                         <!-- Category Title -->
-                        <span class="tp-tree-node-text">${nameText}</span>
-                        <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle fs-9 tp-font-xxs">${scopeText}</span>
+                        <span class="tp-tree-node-text">${safeNameText}</span>
+                        <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle fs-9 tp-font-xxs">${safeScopeText}</span>
                         
                         <!-- Status Muted Indicator -->
                         ${!isActive ? `
@@ -567,7 +586,7 @@
                         <button class="tp-tree-btn btn-delete" 
                                 type="button" 
                                 title="${currentLang === 'ar' ? 'حذف الفئة' : 'Delete Category'}" 
-                                onclick="event.stopPropagation(); deleteCategory(${node.Id}, '${nameText.replace(/'/g, "\\'")}')">
+                                onclick="event.stopPropagation(); deleteCategory(${node.Id}, '${deleteName}')">
                             <i class="bi bi-trash text-danger"></i>
                         </button>
                     </div>

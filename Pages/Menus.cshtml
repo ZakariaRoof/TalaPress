@@ -630,6 +630,21 @@
             }
         }
 
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, char => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[char]));
+        }
+
+        function escapeInlineJsString(value) {
+            return String(value ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/[\r\n]/g, ' ');
+        }
+
+        function safeCssClasses(value, fallback) {
+            const classes = String(value || '');
+            return /^[a-zA-Z0-9 _-]+$/.test(classes) ? classes : fallback;
+        }
+
         function renderNode(node, depth, query) {
             const hasChildren = node.children && node.children.length > 0;
             const isCollapsed = collapsedNodes.has(node.Id) && !query;
@@ -651,6 +666,10 @@
             } else if (node.ContentTypeId) {
                 typeLabel = currentLang === 'ar' ? `نوع: ${node.ContentTypeName}` : `Type: ${node.ContentTypeNameEn || node.ContentTypeName}`;
             }
+            const safeTitleText = escapeHtml(titleText);
+            const safeTypeLabel = escapeHtml(typeLabel);
+            const safeIconClass = safeCssClasses(node.IconValue, 'bi bi-link-45deg');
+            const deleteTitle = escapeHtml(escapeInlineJsString(titleText));
             
             let html = `<li class="tp-tree-item" id="node-${node.Id}">`;
             html += `
@@ -671,11 +690,11 @@
                         ` : `<span class="tp-tree-indent-spacer"></span>`}
                         
                         <span class="tp-tree-node-icon">
-                            <i class="${node.IconValue || 'bi bi-link-45deg'}"></i>
+                            <i class="${safeIconClass}"></i>
                         </span>
                         
-                        <span class="tp-tree-node-text">${titleText}</span>
-                        <span class="badge bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle fs-9 tp-font-xxs mx-1">${typeLabel}</span>
+                        <span class="tp-tree-node-text">${safeTitleText}</span>
+                        <span class="badge bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle fs-9 tp-font-xxs mx-1">${safeTypeLabel}</span>
                         
                         ${!isActive ? `
                             <span class="badge bg-danger rounded-pill fs-9 tp-font-xxs">
@@ -694,7 +713,7 @@
                         <button class="tp-tree-btn btn-delete" 
                                 type="button" 
                                 title="${pageTranslations[currentLang].deleteItem}" 
-                                onclick="event.stopPropagation(); deleteMenuItem(${node.Id}, '${titleText.replace(/'/g, "\\'")}')">
+                                onclick="event.stopPropagation(); deleteMenuItem(${node.Id}, '${deleteTitle}')">
                             <i class="bi bi-trash text-danger"></i>
                         </button>
                     </div>

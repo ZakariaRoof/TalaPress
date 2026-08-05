@@ -178,7 +178,11 @@ public sealed class CartController : ControllerBase
             SyncStatus = PendingStatus,
             PaidForId = request.PaidForId,
             SponsorshipCategoryId = request.SponsorshipCategoryId,
-            IsYearly = request.IsYearly
+            IsYearly = request.IsYearly,
+            ProjectName = request.ProjectName?.Trim(),
+            InNameOfType = request.InNameOfType?.Trim(),
+            InNameOf = request.InNameOf?.Trim(),
+            ImageUrl = NormalizeImageUrl(request.ImageUrl)
         };
 
         var connectionString = GetConnectionString();
@@ -220,7 +224,7 @@ public sealed class CartController : ControllerBase
         await connection.OpenAsync(cancellationToken);
 
         const string query = @"
-            SELECT Id, QcDonationId, QcDonationIds, Label, DonationType, AccountTypeId, CountryId, Amount, CurrencyId, PeriodTypeId, Source, SyncStatus, PaidForId, SponsorshipCategoryId, IsYearly
+            SELECT Id, QcDonationId, QcDonationIds, Label, DonationType, AccountTypeId, CountryId, Amount, CurrencyId, PeriodTypeId, Source, SyncStatus, PaidForId, SponsorshipCategoryId, IsYearly, QcPayloadJson
             FROM dbo.AlakraboonCartItems
             WHERE VisitorId = @VisitorId
               AND SyncStatus <> @RemovedStatus
@@ -247,7 +251,7 @@ public sealed class CartController : ControllerBase
         await connection.OpenAsync(cancellationToken);
 
         const string query = @"
-            SELECT TOP (1) Id, QcDonationId, QcDonationIds, Label, DonationType, AccountTypeId, CountryId, Amount, CurrencyId, PeriodTypeId, Source, SyncStatus, PaidForId, SponsorshipCategoryId, IsYearly
+            SELECT TOP (1) Id, QcDonationId, QcDonationIds, Label, DonationType, AccountTypeId, CountryId, Amount, CurrencyId, PeriodTypeId, Source, SyncStatus, PaidForId, SponsorshipCategoryId, IsYearly, QcPayloadJson
             FROM dbo.AlakraboonCartItems
             WHERE VisitorId = @VisitorId
               AND Id = @Id
@@ -269,7 +273,7 @@ public sealed class CartController : ControllerBase
         await connection.OpenAsync(cancellationToken);
 
         const string query = @"
-            SELECT TOP (1) Id, QcDonationId, QcDonationIds, Label, DonationType, AccountTypeId, CountryId, Amount, CurrencyId, PeriodTypeId, Source, SyncStatus, PaidForId, SponsorshipCategoryId, IsYearly
+            SELECT TOP (1) Id, QcDonationId, QcDonationIds, Label, DonationType, AccountTypeId, CountryId, Amount, CurrencyId, PeriodTypeId, Source, SyncStatus, PaidForId, SponsorshipCategoryId, IsYearly, QcPayloadJson
             FROM dbo.AlakraboonCartItems
             WHERE VisitorId = @VisitorId
               AND DonationType = @DonationType
@@ -294,7 +298,7 @@ public sealed class CartController : ControllerBase
         await connection.OpenAsync(cancellationToken);
 
         const string query = @"
-            SELECT TOP (1) Id, QcDonationId, QcDonationIds, Label, DonationType, AccountTypeId, CountryId, Amount, CurrencyId, PeriodTypeId, Source, SyncStatus, PaidForId, SponsorshipCategoryId, IsYearly
+            SELECT TOP (1) Id, QcDonationId, QcDonationIds, Label, DonationType, AccountTypeId, CountryId, Amount, CurrencyId, PeriodTypeId, Source, SyncStatus, PaidForId, SponsorshipCategoryId, IsYearly, QcPayloadJson
             FROM dbo.AlakraboonCartItems
             WHERE VisitorId = @VisitorId
               AND IdempotencyKey = @IdempotencyKey
@@ -430,7 +434,10 @@ public sealed class CartController : ControllerBase
                     PaidForId = item.PaidForId,
                     SponsorshipCategoryId = item.SponsorshipCategoryId,
                     IsYearly = item.IsYearly,
-                    Label = item.Label
+                    Label = item.Label,
+                    ProjectName = item.ProjectName,
+                    InNameOfType = item.InNameOfType,
+                    InNameOf = item.InNameOf
                 }).ToArray()
             };
 
@@ -443,7 +450,7 @@ public sealed class CartController : ControllerBase
                 path = "/ar/qa/checkout/alakraboonsync";
             }
 
-            return GetCheckoutBaseUrl().TrimEnd('/') + path + "?payload=" + Uri.EscapeDataString(encodedPayload) + "&signature=" + Uri.EscapeDataString(signature);
+            return GetCheckoutBaseUrl().TrimEnd('/') + path + "#payload=" + Uri.EscapeDataString(encodedPayload) + "&signature=" + Uri.EscapeDataString(signature);
         }
 
         if (string.IsNullOrWhiteSpace(donationIds))
@@ -463,9 +470,9 @@ public sealed class CartController : ControllerBase
     private string SignPayload(string encodedPayload)
     {
         var signingKey = _configuration["QatarCharityCart:AlakraboonSyncSigningKey"];
-        if (string.IsNullOrWhiteSpace(signingKey))
+        if (string.IsNullOrWhiteSpace(signingKey) || Encoding.UTF8.GetByteCount(signingKey) < 32)
         {
-            signingKey = "alakraboon-dev-sync-key-change-me";
+            throw new InvalidOperationException("QatarCharityCart:AlakraboonSyncSigningKey must contain at least 32 bytes.");
         }
 
         using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(signingKey));
@@ -545,6 +552,16 @@ public sealed class CartController : ControllerBase
             {
                 return "قيمة المشروع الخاص يجب أن تضاف كاملة.";
             }
+
+            if (string.IsNullOrWhiteSpace(request.ProjectName))
+            {
+                return "يرجى إدخال اسم المشروع.";
+            }
+
+            if (string.IsNullOrWhiteSpace(request.InNameOf))
+            {
+                return "يرجى إدخال اسم المخصص له التبرع.";
+            }
         }
 
         if (donationType == "sponsorship" && !(request.PaidForId > 0))
@@ -612,6 +629,10 @@ public sealed class CartController : ControllerBase
             PaidForId = item.PaidForId,
             SponsorshipCategoryId = item.SponsorshipCategoryId,
             IsYearly = item.IsYearly,
+            ProjectName = item.ProjectName,
+            InNameOfType = item.InNameOfType,
+            InNameOf = item.InNameOf,
+            ImageUrl = item.ImageUrl,
             Source = item.Source,
             SyncStatus = item.SyncStatus
         };
@@ -619,7 +640,7 @@ public sealed class CartController : ControllerBase
 
     private static CartItemRecord ReadCartItem(SqlDataReader reader)
     {
-        return new CartItemRecord
+        var item = new CartItemRecord
         {
             Id = reader.GetGuid(reader.GetOrdinal("Id")),
             QcDonationId = ReadNullableInt64(reader, "QcDonationId"),
@@ -637,12 +658,57 @@ public sealed class CartController : ControllerBase
             SponsorshipCategoryId = ReadNullableInt32(reader, "SponsorshipCategoryId"),
             IsYearly = reader.GetBoolean(reader.GetOrdinal("IsYearly"))
         };
+
+        var payloadJson = ReadNullableString(reader, "QcPayloadJson");
+        if (!string.IsNullOrWhiteSpace(payloadJson))
+        {
+            try
+            {
+                var request = JsonSerializer.Deserialize<CreateCartItemRequest>(payloadJson, JsonOptions);
+                item.ProjectName = request?.ProjectName?.Trim();
+                item.InNameOfType = request?.InNameOfType?.Trim();
+                item.InNameOf = request?.InNameOf?.Trim();
+                item.ImageUrl = NormalizeImageUrl(request?.ImageUrl);
+            }
+            catch (JsonException)
+            {
+            }
+        }
+
+        return item;
     }
 
     private static string? ReadNullableString(SqlDataReader reader, string columnName)
     {
         var ordinal = reader.GetOrdinal(columnName);
         return reader.IsDBNull(ordinal) ? null : reader.GetString(ordinal);
+    }
+
+    private static string? NormalizeImageUrl(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var normalized = value.Trim();
+        if (normalized.Length > 2048)
+        {
+            return null;
+        }
+
+        if (Uri.TryCreate(normalized, UriKind.Absolute, out var absoluteUri))
+        {
+            return string.Equals(absoluteUri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(absoluteUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)
+                ? normalized
+                : null;
+        }
+
+        return normalized.StartsWith("/", StringComparison.Ordinal)
+            && !normalized.StartsWith("//", StringComparison.Ordinal)
+            ? normalized
+            : null;
     }
 
     private static int? ReadNullableInt32(SqlDataReader reader, string columnName)
@@ -675,6 +741,10 @@ public sealed class CartController : ControllerBase
         public bool IsYearly { get; set; }
         public decimal? RequiredAmount { get; set; }
         public string? Label { get; set; }
+        public string? ProjectName { get; set; }
+        public string? InNameOfType { get; set; }
+        public string? InNameOf { get; set; }
+        public string? ImageUrl { get; set; }
         public string Source { get; set; } = "quick-donation";
         public string? IdempotencyKey { get; set; }
     }
@@ -696,6 +766,10 @@ public sealed class CartController : ControllerBase
         public int? PaidForId { get; set; }
         public int? SponsorshipCategoryId { get; set; }
         public bool IsYearly { get; set; }
+        public string? ProjectName { get; set; }
+        public string? InNameOfType { get; set; }
+        public string? InNameOf { get; set; }
+        public string? ImageUrl { get; set; }
         public string Source { get; set; } = string.Empty;
         public string SyncStatus { get; set; } = string.Empty;
     }
@@ -749,6 +823,10 @@ public sealed class CartController : ControllerBase
         public int? PaidForId { get; set; }
         public int? SponsorshipCategoryId { get; set; }
         public bool IsYearly { get; set; }
+        public string? ProjectName { get; set; }
+        public string? InNameOfType { get; set; }
+        public string? InNameOf { get; set; }
+        public string? ImageUrl { get; set; }
     }
 
     private sealed class CheckoutSyncPayload
@@ -770,5 +848,8 @@ public sealed class CartController : ControllerBase
         public int? SponsorshipCategoryId { get; set; }
         public bool IsYearly { get; set; }
         public string Label { get; set; } = "تبرع";
+        public string? ProjectName { get; set; }
+        public string? InNameOfType { get; set; }
+        public string? InNameOf { get; set; }
     }
 }
