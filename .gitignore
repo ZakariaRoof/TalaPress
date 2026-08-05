@@ -33,4 +33,14 @@ publish/app_offline.htm
 node_modules/
 
 ## Uploads (user media — keep out of git)
-wwwroot/uploads/
+wwwroot/uploads/*
+!wwwroot/uploads/2026/
+wwwroot/uploads/2026/*
+!wwwroot/uploads/2026/346f44da75314770ac4a50a24b9c8462.jpg
+!wwwroot/uploads/2026/a8a0d8b4593f46dda994a5b1288db50c.png
+!wwwroot/uploads/2026/2b04e97a68ba455d993acb3926dbdf38.png
+!wwwroot/uploads/2026/edbb9e8296854eca8641273726cc8e0e.jpg
+!wwwroot/uploads/img/
+wwwroot/uploads/img/*
+!wwwroot/uploads/img/CMSLogo.svg
+!wwwroot/uploads/img/CMSLogoLight.png
